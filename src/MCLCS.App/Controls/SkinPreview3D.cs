@@ -15,7 +15,7 @@ namespace MCLCS.App.Controls;
 public class SkinPreview3D : UserControl
 {
     public static readonly DependencyProperty SkinImageProperty =
-        DependencyProperty.Register(nameof(SkinImage), typeof(BitmapImage), typeof(SkinPreview3D),
+        DependencyProperty.Register(nameof(SkinImage), typeof(BitmapSource), typeof(SkinPreview3D),
             new PropertyMetadata(null, OnSkinChanged));
 
     public static readonly DependencyProperty SlimProperty =
@@ -26,9 +26,9 @@ public class SkinPreview3D : UserControl
         DependencyProperty.Register(nameof(AutoRotate), typeof(bool), typeof(SkinPreview3D),
             new PropertyMetadata(true, OnAutoRotateChanged));
 
-    public BitmapImage? SkinImage
+    public BitmapSource? SkinImage
     {
-        get => (BitmapImage?)GetValue(SkinImageProperty);
+        get => (BitmapSource?)GetValue(SkinImageProperty);
         set => SetValue(SkinImageProperty, value);
     }
 
@@ -67,15 +67,16 @@ public class SkinPreview3D : UserControl
         _root.Children.Add(_pitchVisual);
         _viewport.Children.Add(_root);
 
-        // 静态灯光（不随模型旋转）
+        // 静态灯光（不随模型旋转）。
+        // 用全强度环境光 + 去掉方向光：像素皮肤是平面色块，方向光会把背光的面压暗成「黑影」，
+        // 与用户看到的黑边/阴影一致。全环境光保证每个面的像素颜色如实显示、无明暗渐变。
         var lights = new ModelVisual3D
         {
             Content = new Model3DGroup
             {
                 Children =
                 {
-                    new AmbientLight(Color.FromRgb(190, 190, 190)),
-                    new DirectionalLight(Colors.White, new Vector3D(-0.4, -0.7, -1))
+                    new AmbientLight(Colors.White)
                 }
             }
         };
@@ -86,6 +87,15 @@ public class SkinPreview3D : UserControl
         _camera.UpDirection = new Vector3D(0, 1, 0);
         _camera.FieldOfView = 35;
         _viewport.Camera = _camera;
+
+        // 像素艺术皮肤：强制整个 3D 视图走最近邻采样，避免 GPU 把 8×8 面纹理线性插值成糊。
+        // 必须设在 Viewport3D（承载 3D 的视觉元素）上；设在笔刷/位图上对 3D 管线无效。
+        RenderOptions.SetBitmapScalingMode(_viewport, BitmapScalingMode.NearestNeighbor);
+
+        // 禁用子像素对齐/抗锯齿，让 3D 视图输出按整像素对齐，减少因放大/缩放导致的模糊。
+        UseLayoutRounding = true;
+        SnapsToDevicePixels = true;
+        RenderOptions.SetEdgeMode(_viewport, EdgeMode.Aliased);
 
         // Viewport3D 自身无 Background 属性（它不是 Control）；背景由承载的 UserControl 提供。
         // 同时必须给出非 null 背景，否则控件区域命中测试失效，鼠标拖拽旋转收不到事件。
@@ -119,10 +129,19 @@ public class SkinPreview3D : UserControl
         else ctrl._timer.Stop();
     }
 
-    private void RebuildModel()
+    public void RebuildModel()
     {
         _body.Children.Clear();
         var img = SkinImage;
+        // WPF 3D/ImageBrush 会冻结/缓存源位图做 GPU 纹理；若把活的 WriteableBitmap
+        // 传进去，它会被冻住，导致皮肤编辑器后续 WritePixels 抛“IsFrozen”异常。
+        // 解决：克隆一份并冻结克隆体，让原始 WriteableBitmap 保持可写。
+        if (img is WriteableBitmap wb)
+        {
+            var clone = new WriteableBitmap(wb);
+            if (clone.CanFreeze) clone.Freeze();
+            img = clone;
+        }
         if (img is not null)
             _body.Children.Add(SkinModel3D.Build(img, Slim));
     }

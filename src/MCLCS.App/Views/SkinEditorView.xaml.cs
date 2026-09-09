@@ -24,6 +24,9 @@ public partial class SkinEditorView : UserControl
         {
             if (args.PropertyName is nameof(VM.PrimaryColor) or nameof(VM.SecondaryColor))
                 UpdateColorPreviews();
+            // FullBitmap 为原地改写的同一 WriteableBitmap 实例，DP 不会触发重建，故手动刷新 3D
+            if (args.PropertyName is nameof(VM.FullBitmap) or nameof(VM.IsSlim))
+                Skin3D.RebuildModel();
         };
     }
 

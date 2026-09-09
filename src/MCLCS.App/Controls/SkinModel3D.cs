@@ -39,7 +39,7 @@ public static class SkinModel3D
     };
 
     /// <summary>构建角色模型。</summary>
-    public static Model3DGroup Build(BitmapImage skin, bool slim)
+    public static Model3DGroup Build(BitmapSource skin, bool slim)
     {
         var group = new Model3DGroup();
 
@@ -57,7 +57,7 @@ public static class SkinModel3D
         return group;
     }
 
-    private static void BuildPart(Model3DGroup group, BitmapImage skin, int tw, int th, PartDef def, bool slim, bool legacy, bool useOverlay)
+    private static void BuildPart(Model3DGroup group, BitmapSource skin, int tw, int th, PartDef def, bool slim, bool legacy, bool useOverlay)
     {
         double w = def.IsArm && slim ? 3 : def.W;
         double h = def.H;
@@ -73,18 +73,24 @@ public static class SkinModel3D
         Uv uv = useOverlay ? def.Overlay : def.First;
 
         // 64×32 旧皮肤无独立左侧区域：左臂/左腿镜像复用右侧纹理。
+        // 必须左右镜像（交换 Left/Right），否则左肢外侧会显示右肢内侧纹理，
+        // 而旧皮肤右肢内侧多数为空 → 左肢外侧缺贴图。
         if (legacy && !useOverlay)
         {
             int idx = Array.IndexOf(FirstLayer, def);
-            if (idx is 3) uv = LimbUv(44, 20); // 左臂用右臂区域
-            else if (idx is 5) uv = LimbUv(4, 20); // 左腿用右腿区域
+            if (idx is 3 or 5)
+            {
+                var baseUv = idx is 3 ? LimbUv(44, 20) : LimbUv(4, 20);
+                uv = baseUv with { Left = baseUv.Right, Right = baseUv.Left };
+            }
         }
 
         if (def.IsArm && slim) uv = SlimUv(uv);
 
-        // 注意：每个肢体的 uv.Left / uv.Right 已在 UV 表中相对它实际所在侧正确定义
-        // （右臂 -X、左臂 +X，各自的内外纹理都已取对），AddBox 永远把 uv.Left 贴 -X 面、
-        // uv.Right 贴 +X 面。这套映射本身正确，无需按 cx 交换——交换反而会左右内外贴反。
+        // 左右面 UV 分配约定（修正 bug）：模型 -X 面 = 角色右手外侧，应贴皮肤 Right 区；
+        // 模型 +X 面 = 角色左手外侧，应贴皮肤 Left 区。LimbUv 中 uv.Right 字段才是外侧纹理，
+        // uv.Left 字段是内侧（贴身体）纹理。AddBox 必须按此把 uv.Right 贴 -X、uv.Left 贴 +X，
+        // 早期版本把两者贴反，导致手臂/腿内外纹理镜像。
 
         double expand = 0.0;
         if (useOverlay)
@@ -109,7 +115,7 @@ public static class SkinModel3D
         new Rect(20, 16, 8, 4), new Rect(28, 16, 8, 4));
 
     private static Uv LimbUv(int fx, int fy) => new(
-        new Rect(fx, fy, 4, 12), new Rect(fx + 8, fy, 4, 12), new Rect(fx - 4, fy, 4, 12), new Rect(fx + 4, fy, 4, 12),
+        new Rect(fx, fy, 4, 12), new Rect(fx + 8, fy, 4, 12), new Rect(fx + 4, fy, 4, 12), new Rect(fx - 4, fy, 4, 12),
         new Rect(fx, fy - 4, 4, 4), new Rect(fx + 4, fy - 4, 4, 4));
 
     private static Uv HatUv() => new(
@@ -129,7 +135,7 @@ public static class SkinModel3D
         Bottom = uv.Bottom with { W = 3 },
     };
 
-    private static void AddBox(Model3DGroup group, BitmapImage skin, int tw, int th,
+    private static void AddBox(Model3DGroup group, BitmapSource skin, int tw, int th,
         double cx, double cy, double cz, double w, double h, double d, Uv uv)
     {
         double hx = w / 2, hy = h / 2, hz = d / 2;
@@ -141,16 +147,16 @@ public static class SkinModel3D
         AddFace(group, skin, tw, th,
             P(+hx, +hy, -hz), P(-hx, +hy, -hz), P(-hx, -hy, -hz), P(+hx, -hy, -hz), uv.Back);    // 背面 -Z
         AddFace(group, skin, tw, th,
-            P(-hx, +hy, -hz), P(-hx, +hy, +hz), P(-hx, -hy, +hz), P(-hx, -hy, -hz), uv.Left);    // 左面 -X
+            P(-hx, +hy, -hz), P(-hx, +hy, +hz), P(-hx, -hy, +hz), P(-hx, -hy, -hz), uv.Right);   // 左面 -X：角色右手外侧 → 皮肤 Right 区
         AddFace(group, skin, tw, th,
-            P(+hx, +hy, +hz), P(+hx, +hy, -hz), P(+hx, -hy, -hz), P(+hx, -hy, +hz), uv.Right);   // 右面 +X
+            P(+hx, +hy, +hz), P(+hx, +hy, -hz), P(+hx, -hy, -hz), P(+hx, -hy, +hz), uv.Left);    // 右面 +X：角色左手外侧 → 皮肤 Left 区
         AddFace(group, skin, tw, th,
             P(-hx, +hy, -hz), P(+hx, +hy, -hz), P(+hx, +hy, +hz), P(-hx, +hy, +hz), uv.Top);      // 顶面 +Y
         AddFace(group, skin, tw, th,
             P(-hx, -hy, +hz), P(+hx, -hy, +hz), P(+hx, -hy, -hz), P(-hx, -hy, -hz), uv.Bottom);   // 底面 -Y
     }
 
-    private static void AddFace(Model3DGroup group, BitmapImage skin, int tw, int th,
+    private static void AddFace(Model3DGroup group, BitmapSource skin, int tw, int th,
         Point3D tl, Point3D tr, Point3D br, Point3D bl, Rect r)
     {
         // 把矩形裁到贴图边界内，防止 slim/legacy 算出的区域越界。
@@ -161,14 +167,60 @@ public static class SkinModel3D
         if (w <= 0 || h <= 0) return;
 
         var cropped = new CroppedBitmap(skin, new Int32Rect(x, y, w, h));
-        RenderOptions.SetBitmapScalingMode(cropped, BitmapScalingMode.NearestNeighbor);
+        if (cropped.CanFreeze) cropped.Freeze();
 
-        var brush = new ImageBrush(cropped)
+        // 像素艺术 3D 的坑：
+        //  1) 非 2 的幂(NPOT)纹理在 WPF 3D(Direct3D9)下会渲染异常甚至整面缺失。
+        //  2) WPF 3D 对 Material 纹理采样默认走双线性过滤，若把 4×12 小图直接贴到
+        //     屏幕上百像素的面，放大时会被糊成一片。
+        //  3) 全图预放大 32× 又会导致缩小绘制时触发 mipmap 三线性插值，同样发糊。
+        // 修法：把每面按整数倍（8×）最近邻放大，再补到 2 的幂画布。这样纹理分辨率
+        // 与屏幕像素接近，即便 WPF 3D 内部用线性采样也不会出现明显模糊；同时 POT
+        // 保证不会缺面。UV 按内容区 (sw/pw)×(sh/ph) 收窄，避免透明留边被拉伸到面上。
+        const int Scale = 8;
+        int sw = w * Scale;
+        int sh = h * Scale;
+        int pw = NextPow2(sw);
+        int ph = NextPow2(sh);
+
+        int bpp = (cropped.Format.BitsPerPixel + 7) / 8;
+        int srcStride = w * bpp;
+        byte[] srcPixels = new byte[h * srcStride];
+        cropped.CopyPixels(srcPixels, srcStride, 0);
+
+        int dstStride = pw * bpp;
+        byte[] dstPixels = new byte[ph * dstStride];
+        for (int dy = 0; dy < sh; dy++)
+        {
+            int sy = dy / Scale;
+            int srcRow = sy * srcStride;
+            int dstRow = dy * dstStride;
+            for (int dx = 0; dx < sw; dx++)
+            {
+                int sx = dx / Scale;
+                int srcIdx = srcRow + sx * bpp;
+                int dstIdx = dstRow + dx * bpp;
+                for (int b = 0; b < bpp; b++)
+                    dstPixels[dstIdx + b] = srcPixels[srcIdx + b];
+            }
+        }
+
+        var tex = new WriteableBitmap(pw, ph, 96, 96, cropped.Format, null);
+        tex.WritePixels(new Int32Rect(0, 0, pw, ph), dstPixels, dstStride, 0);
+        RenderOptions.SetBitmapScalingMode(tex, BitmapScalingMode.NearestNeighbor);
+        if (tex.CanFreeze) tex.Freeze();
+
+        var brush = new ImageBrush(tex)
         {
             Stretch = Stretch.Fill,
             TileMode = TileMode.None,
         };
+        RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
         var material = new DiffuseMaterial(brush);
+
+        // 贴图只占用 POT 画布的 (sw/pw)×(sh/ph) 区域，UV 据此收窄。
+        double uMax = (double)sw / pw;
+        double vMax = (double)sh / ph;
 
         var mesh = new MeshGeometry3D();
         mesh.Positions.Add(tl);
@@ -176,9 +228,9 @@ public static class SkinModel3D
         mesh.Positions.Add(br);
         mesh.Positions.Add(bl);
         mesh.TextureCoordinates.Add(new Point(0, 0));
-        mesh.TextureCoordinates.Add(new Point(1, 0));
-        mesh.TextureCoordinates.Add(new Point(1, 1));
-        mesh.TextureCoordinates.Add(new Point(0, 1));
+        mesh.TextureCoordinates.Add(new Point(uMax, 0));
+        mesh.TextureCoordinates.Add(new Point(uMax, vMax));
+        mesh.TextureCoordinates.Add(new Point(0, vMax));
         mesh.TriangleIndices.Add(0);
         mesh.TriangleIndices.Add(1);
         mesh.TriangleIndices.Add(2);
@@ -190,5 +242,12 @@ public static class SkinModel3D
         {
             BackMaterial = material // 双面渲染，旋转时背面不缺失
         });
+    }
+
+    private static int NextPow2(int n)
+    {
+        int p = 1;
+        while (p < n) p <<= 1;
+        return p;
     }
 }

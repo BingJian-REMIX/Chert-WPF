@@ -37,6 +37,7 @@ public class SkinEditorViewModel : ObservableObject
     private int _faceZoom = 10;
     private string _statusMessage = "";
     private bool _isLegacySkin;
+    private bool _isSlim;
 
     // 调色板
     private Color? _colorPickerColor;
@@ -97,6 +98,9 @@ public class SkinEditorViewModel : ObservableObject
     public int FaceZoom { get => _faceZoom; set => SetField(ref _faceZoom, value); }
     /// <summary>是否旧版 64x32 皮肤（下半部分为空，3D 预览需将左肢回退到右肢纹理）。</summary>
     public bool IsLegacySkin { get => _isLegacySkin; set => SetField(ref _isLegacySkin, value); }
+
+    /// <summary>3D 预览是否按纤细（Alex）手臂渲染（slim 模型）。</summary>
+    public bool IsSlim { get => _isSlim; set => SetField(ref _isSlim, value); }
     public int FaceZoomedW => (SelectedFace?.W ?? 8) * FaceZoom;
     public int FaceZoomedH => (SelectedFace?.H ?? 8) * FaceZoom;
     public string StatusMessage { get => _statusMessage; set => SetField(ref _statusMessage, value); }
@@ -227,7 +231,8 @@ public class SkinEditorViewModel : ObservableObject
         try
         {
             var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(_bitmap));
+            // 克隆后再编码，避免 BitmapFrame.Create 冻结活的 WriteableBitmap，导致后续编辑失败。
+            encoder.Frames.Add(BitmapFrame.Create(_bitmap.Clone()));
             using var fs = File.Create(path);
             encoder.Save(fs);
             StatusMessage = $"已导出 {Path.GetFileName(path)}";
@@ -280,7 +285,7 @@ public class SkinEditorViewModel : ObservableObject
             Directory.CreateDirectory(skinDir);
             var skinPath = Path.Combine(skinDir, $"{account.Username}_skin.png");
             var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(_bitmap));
+            encoder.Frames.Add(BitmapFrame.Create(_bitmap.Clone()));
             using var fs = File.Create(skinPath);
             encoder.Save(fs);
             StatusMessage = $"皮肤已应用到 {account.DisplayName}";
@@ -337,6 +342,10 @@ public class SkinEditorViewModel : ObservableObject
 
     public void FlushFull()
     {
+        // 3D 管线 / ImageBrush / 编码器都可能冻结/缓存位图，导致 WritePixels 失败。
+        // 若已冻结则换新实例，保证皮肤编辑器仍可原地更新。
+        if (_bitmap.IsFrozen)
+            _bitmap = new WriteableBitmap(64, 64, 96, 96, PixelFormats.Bgra32, null);
         _bitmap.WritePixels(new Int32Rect(0, 0, 64, 64), _pixels, 64 * 4, 0);
         OnPropertyChanged(nameof(FullBitmap));
     }

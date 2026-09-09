@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:MCLCS.App.ViewModels"
              xmlns:views="clr-namespace:MCLCS.App.Views"
+             xmlns:ctrl="clr-namespace:MCLCS.App.Controls"
              xmlns:conv="clr-namespace:MCLCS.App.Converters">
     <UserControl.DataContext>
         <vm:SkinEditorViewModel/>
@@ -105,9 +106,13 @@
                               FontSize="11" IsChecked="True" Click="Mode_Changed"/>
                 <ToggleButton x:Name="Mode3D" Content="3D 预览" Width="64" Height="24"
                               FontSize="11" IsChecked="False" Click="Mode_Changed" Margin="4,0,0,0"/>
-            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
-                       Foreground="{DynamicResource AccentBrush}"
-                       Text="{Binding SelectedFace.Display}"/>
+                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
+                           Foreground="{DynamicResource AccentBrush}"
+                           Text="{Binding SelectedFace.Display}"/>
+                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"
+                              Margin="14,0,0,0" IsChecked="{Binding IsSlim, Mode=TwoWay}"/>
+                <TextBlock Text="纤细手臂" VerticalAlignment="Center" Margin="4,0,0,0"
+                           Foreground="{DynamicResource SecondaryForeground}"/>
             </WrapPanel>
 
             <!-- 2D 面编辑 -->
@@ -123,10 +128,10 @@
                 </Grid>
             </ScrollViewer>
 
-            <!-- 3D 预览 -->
+            <!-- 3D 预览（改用分面裁切 + 双层叠加的正确引擎 SkinPreview3D） -->
             <Grid Grid.Row="1" x:Name="Preview3D" Visibility="Collapsed">
-                <views:Skin3DPreview x:Name="Skin3D" SkinBitmap="{Binding FullBitmap, Mode=OneWay}"
-                                     LegacySkin="{Binding IsLegacySkin}"/>
+                <ctrl:SkinPreview3D x:Name="Skin3D" SkinImage="{Binding FullBitmap, Mode=OneWay}"
+                                    Slim="{Binding IsSlim}" AutoRotate="True"/>
             </Grid>
 
             <WrapPanel Grid.Row="2" Margin="0,4,0,0">
