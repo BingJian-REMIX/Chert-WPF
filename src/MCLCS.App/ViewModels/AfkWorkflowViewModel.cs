@@ -29,8 +29,20 @@ public class AfkActionItem : ObservableObject
         "L" => $"长按 → {Param} 秒（须紧跟按键）",
         "K" => $"按键 → {VkName(Param)}",
         "C" => Param.Contains('-')
-            ? $"鼠标连点 → 左键 每{Param.Split('-').Last()}ms 连点{Param.Split('-')[0]}次"
-            : $"鼠标连点 → {Param}",
+            ? $"鼠标连点(左键) → 每{Param.Split('-').Last()}ms 连点{Param.Split('-')[0]}次"
+            : $"鼠标连点(左键) → {Param}",
+        "R" => Param.Contains('-')
+            ? $"鼠标连点(右键) → 每{Param.Split('-').Last()}ms 连点{Param.Split('-')[0]}次"
+            : $"鼠标右键 → {Param}",
+        "M" => Param.Contains(',')
+            ? $"鼠标移动 → 右{Param.Split(',')[0]}/下{Param.Split(',')[1]} px"
+            : $"鼠标移动 → {Param}",
+        "S" => $"滚轮 → {Param}",
+        "T" => $"输入文本 → {(AfkWorkflowToken.DecodeText(Param) is var t ? (string.IsNullOrEmpty(t) ? "(空)" : t) : "(空)")}",
+        "G" => Param.All(char.IsDigit) ? $"按住(保持) → 键码 {Param}" : $"按住(保持) → {Param}",
+        "U" => Param.All(char.IsDigit) ? $"松开 → 键码 {Param}" : $"松开 → {Param}",
+        "J" => $"随机等待 ≤ {Param} 秒",
+        "E" => $"按键 → {Param}",
         "*" => Param == "0" ? "循环 (无限)" : $"循环 ({Param} 轮)",
         _ => $"{ActionType}:{Param}"
     };
@@ -43,9 +55,28 @@ public class AfkActionItem : ObservableObject
         "L" => "按住秒数（需放在某按键后）",
         "K" => "虚拟键码 1-254（如 87=W）",
         "C" => "次数-间隔毫秒，如 1-500",
+        "R" => "次数-间隔毫秒，如 1-500",
+        "M" => "dx,dy 像素（可负），如 100,0",
+        "S" => "滚轮增量，正下负上，如 120",
+        "T" => "在下方「明文」框输入，自动转 base64",
+        "G" => "键名或键码，如 W 或 87",
+        "U" => "键名或键码，如 W 或 87",
+        "J" => "最大秒数，如 5",
+        "E" => "按键名称，如 A / ENTER / UP",
         "*" => "轮数，0=无限",
         _ => "参数"
     };
+
+    /// <summary>文本动作(T)的明文 ↔ base64 双向绑定；非 T 类型退化为 Param 本身。</summary>
+    public string PlainText
+    {
+        get => ActionType == "T" ? (AfkWorkflowToken.DecodeText(Param) ?? Param) : Param;
+        set
+        {
+            if (ActionType == "T") Param = AfkWorkflowToken.EncodeText(value ?? "");
+            else Param = value;
+        }
+    }
 
     public string Token => $"{ActionType}{Param}";
 
@@ -80,7 +111,7 @@ public class AfkActionItem : ObservableObject
     }
 
     public event Action? Changed;
-    private void UpdatePreview() { OnPropertyChanged(nameof(Display)); OnPropertyChanged(nameof(Token)); OnPropertyChanged(nameof(ParamHint)); Changed?.Invoke(); }
+    private void UpdatePreview() { OnPropertyChanged(nameof(Display)); OnPropertyChanged(nameof(Token)); OnPropertyChanged(nameof(ParamHint)); OnPropertyChanged(nameof(PlainText)); Changed?.Invoke(); }
 }
 
 /// <summary>
@@ -185,10 +216,13 @@ public class AfkWorkflowViewModel : ObservableObject
     // bug #73：从弹窗选择动作类型后添加，默认参数按类型给合理初值
     private void PickAction(string? type)
     {
-        if (type is not ("F" or "D" or "L" or "K" or "C" or "*")) return;
+        if (type is not ("F" or "D" or "L" or "K" or "C" or "*" or "R" or "M" or "S" or "T" or "G" or "U" or "J" or "E")) return;
         var defaults = new System.Collections.Generic.Dictionary<string, string>
         {
-            ["F"] = "10", ["D"] = "1", ["L"] = "1", ["K"] = "87", ["C"] = "1-500", ["*"] = "0"
+            ["F"] = "10", ["D"] = "1", ["L"] = "1", ["K"] = "87", ["C"] = "1-500", ["*"] = "0",
+            ["R"] = "1-500", ["M"] = "100,0", ["S"] = "120",
+            ["T"] = AfkWorkflowToken.EncodeText("/home"),
+            ["G"] = "W", ["U"] = "W", ["J"] = "5", ["E"] = "A"
         };
         var item = new AfkActionItem { ActionType = type, Param = defaults[type] };
         item.Changed += () => OnPropertyChanged(nameof(TokenText));
@@ -274,7 +308,7 @@ public class AfkWorkflowViewModel : ObservableObject
             if (part.Length < 1) continue;
             var type = char.ToUpperInvariant(part[0]).ToString();
             var param = part.Length > 1 ? part[1..] : "";
-            if (type is not ("F" or "D" or "L" or "K" or "C" or "*")) continue;
+            if (type is not ("F" or "D" or "L" or "K" or "C" or "*" or "R" or "M" or "S" or "T" or "G" or "U" or "J" or "E")) continue;
             var item = new AfkActionItem { ActionType = type, Param = param };
             item.Changed += () => OnPropertyChanged(nameof(TokenText));
             Actions.Add(item);

@@ -29,6 +29,11 @@
             <conv:NonEmptyToVisibilityConverter x:Key="NonEmptyToVis"/>
             <!-- 进度 0–100 → 环形进度条虚线串（bug.txt #7 细环形，对齐 Linux） -->
             <conv:ProgressToRingDashConverter x:Key="ProgressToRingDash"/>
+            <!-- 下载队列状态 → 暂停/取消按钮是否可用 -->
+            <conv:QueueActionEnabledConverter x:Key="QueueActionEnabledConverter"/>
+            <!-- 动作类型等于/不等于某值 → 显隐（AFK 编辑器按类型切换编辑项） -->
+            <conv:StringEqualsToVisibilityConverter x:Key="StrEqualsVis"/>
+            <conv:StringNotEqualsToVisibilityConverter x:Key="StrNotEqualsVis"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
