@@ -21,6 +21,10 @@
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="StatusForeground" Color="#C8CDD6"/>
 
+    <!-- 标题栏前景（窗口控制图标 / 标题文字）：暗色主题下标题栏偏暗，用白；亮色主题见 LightTheme -->
+    <SolidColorBrush x:Key="TitleBarForeground" Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="TitleBarOverlayForeground" Color="#40FFFFFF"/>
+
     <!-- Accent -->
     <SolidColorBrush x:Key="AccentBrush" Color="#3B82F6"/>
     <SolidColorBrush x:Key="AccentHoverBrush" Color="#2B6FE0"/>

@@ -40,6 +40,7 @@
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="{theme:Loc settings.general}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3">
@@ -314,6 +315,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <TextBlock Grid.Row="0" Text="{theme:Loc settings.appearance}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3">
@@ -345,6 +347,12 @@
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
                                       IsChecked="{Binding HighDpiEnabled, Mode=TwoWay}"/>
                         <TextBlock Text="{theme:Loc settings.high_dpi}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                    </WrapPanel>
+                    <WrapPanel Grid.Row="6" Margin="0,3">
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                      IsChecked="{Binding ShowControlBorders, Mode=TwoWay}"/>
+                        <TextBlock Text="显示控件边框" VerticalAlignment="Center" Margin="8,0,0,0"
                                    Foreground="{DynamicResource PrimaryForeground}"/>
                     </WrapPanel>
                 </Grid>

@@ -36,7 +36,8 @@
                 <ControlTemplate TargetType="ToggleButton">
                     <Grid>
                         <Border x:Name="Track" Width="44" Height="24" CornerRadius="12"
-                                Background="{DynamicResource ToggleOffBrush}"/>
+                                Background="{DynamicResource ToggleOffBrush}"
+                                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"/>
                         <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White"
                                  HorizontalAlignment="Left" Margin="3,0,0,0">
                             <Ellipse.RenderTransform>
@@ -457,7 +458,7 @@
         <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
-    <Style TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
+    <Style TargetType="RadioButton">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
@@ -469,24 +470,27 @@
         ===== 暗色主题：强制文本型控件继承主题前景，避免黑底黑字 =====
         默认 WPF 模板在暗色下会回退到 SystemColors.WindowTextBrush（黑），
         下面统一覆盖常用文本容器与输入控件的前景色/背景。
+        注意：隐式样式（TargetType 无 x:Key）不要写 BasedOn="{x:Type X}"，该写法在合并字典里
+        按静态资源查找默认主题样式，常因解析失败抛 XamlParseException（性能页崩溃即源于此）。
+        省略 BasedOn 时 WPF 会自动把默认主题样式作为基样式（保留控件模板），效果等价且更安全。
     -->
-    <Style TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
+    <Style TargetType="ListBox">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
     </Style>
-    <Style TargetType="ListView" BasedOn="{StaticResource {x:Type ListView}}">
+    <Style TargetType="ListView">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
     </Style>
-    <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Style TargetType="TextBox">
         <Setter Property="Foreground" Value="{DynamicResource InputForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource PrimaryForeground}"/>
     </Style>
-    <Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+    <Style TargetType="DataGrid">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
@@ -495,16 +499,16 @@
         <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource ControlBorder}"/>
         <Setter Property="VerticalGridLinesBrush" Value="{DynamicResource ControlBorder}"/>
     </Style>
-    <Style TargetType="DataGridCell" BasedOn="{StaticResource {x:Type DataGridCell}}">
+    <Style TargetType="DataGridCell">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
     </Style>
-    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+    <Style TargetType="DataGridColumnHeader">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
     </Style>
-    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+    <Style TargetType="ListBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
     </Style>
 

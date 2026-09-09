@@ -52,5 +52,8 @@
     <SolidColorBrush x:Key="TitleBarBrush"         Color="#4CAF50"/>
     <SolidColorBrush x:Key="SidebarIndicatorBrush" Color="#4CAF50"/>
     <SolidColorBrush x:Key="TabForegroundBrush"    Color="#FFFFFF"/>
+    <!-- 标题栏前景（窗口控制图标 / 标题文字）默认白，运行期随 Light/Dark 主题覆盖 -->
+    <SolidColorBrush x:Key="TitleBarForeground"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="TitleBarOverlayForeground" Color="#40FFFFFF"/>
 
 </ResourceDictionary>

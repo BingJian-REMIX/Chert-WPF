@@ -189,6 +189,30 @@ public partial class App : Application
                 md.RemoveAt(i);
         }
         md.Add(newDict);
+
+        // 捕获主题真实边框色，供「显示控件边框」开关在开/关之间切换（控件边框开关）。
+        // 控件均通过 DynamicResource 引用 ControlBorder/InputBorder，改顶层键即实时显隐。
+        if (newDict.Contains("ControlBorder") && newDict["ControlBorder"] is SolidColorBrush cb)
+            _realControlBorderColor = cb.Color;
+        if (newDict.Contains("InputBorder") && newDict["InputBorder"] is SolidColorBrush ib)
+            _realInputBorderColor = ib.Color;
+        ApplyControlBorders(_controlBordersEnabled);
+    }
+
+    // ===== 控件边框开关 =====
+    // 在 Application.Resources 顶层覆盖 ControlBorder/InputBorder（与 ApplyAccentColor 同一机制，
+    // bug #11 已验证 DynamicResource 会实时跟随）。开启=主题真实边框色；关闭=透明（视觉隐藏边框，
+    // 仍保留 1px 布局空间，不影响排版）。
+    private static Color _realControlBorderColor = Color.FromRgb(0x2A, 0x2F, 0x3A);
+    private static Color _realInputBorderColor = Color.FromRgb(0x2A, 0x2F, 0x3A);
+    private static bool _controlBordersEnabled = true;
+
+    public static void ApplyControlBorders(bool enabled)
+    {
+        _controlBordersEnabled = enabled;
+        var res = Application.Current.Resources;
+        res["ControlBorder"] = new SolidColorBrush(enabled ? _realControlBorderColor : Colors.Transparent);
+        res["InputBorder"] = new SolidColorBrush(enabled ? _realInputBorderColor : Colors.Transparent);
     }
 
     // ===== 外观即时应用（主题色 / 字体缩放） =====

@@ -78,6 +78,7 @@ public class SettingsViewModel : ObservableObject
     private string _backgroundImagePath = "";
     private double _fontScale = 1.0;
     private bool _highDpiEnabled;
+    private bool _showControlBorders = true;
 
     // ---- 关于 / 更新 ----
     private bool _autoUpdateCheck = true;
@@ -255,6 +256,17 @@ public class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>显示控件边框：开/关实时驱动 App.ApplyControlBorders（透明=隐藏描边）。</summary>
+    public bool ShowControlBorders
+    {
+        get => _showControlBorders;
+        set
+        {
+            if (SetField(ref _showControlBorders, value))
+                App.ApplyControlBorders(value);
+        }
+    }
+
     // ===== 关于 / 更新 =====
     public bool AutoUpdateCheck { get => _autoUpdateCheck; set => SetField(ref _autoUpdateCheck, value); }
     public string UpdateMessage { get => _updateMessage; set => SetField(ref _updateMessage, value); }
@@ -358,6 +370,7 @@ public class SettingsViewModel : ObservableObject
         BackgroundImagePath = profile.BackgroundImagePath ?? "";
         FontScale = profile.FontScale;
         HighDpiEnabled = profile.HighDpiIcons;
+        ShowControlBorders = profile.ShowControlBorders;
 
         // 关于
         AutoUpdateCheck = profile.AutoUpdateCheck;
@@ -444,6 +457,7 @@ public class SettingsViewModel : ObservableObject
             BackgroundImagePath = string.IsNullOrWhiteSpace(BackgroundImagePath) ? null : BackgroundImagePath,
             FontScale = FontScale,
             HighDpiIcons = HighDpiEnabled,
+            ShowControlBorders = ShowControlBorders,
 
             // 关于 / 更新
             AutoUpdateCheck = AutoUpdateCheck,
