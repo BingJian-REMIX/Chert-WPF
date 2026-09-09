@@ -89,6 +89,19 @@ public class MusicPlayerViewModel : ObservableObject
         _volume = profile.MusicVolume;
         _resumeOnLaunch = profile.MusicResumeOnLaunch;
 
+        // bug：导入的本地音乐文件夹应在重启后保持——构造时把上次选择的文件夹重新载入播放列表，
+        // 否则关闭再打开启动器后导入的歌曲全部丢失（仅断点续播的单曲会被恢复）。
+        try
+        {
+            var lastFolder = profile.MusicLastFolder;
+            if (!string.IsNullOrWhiteSpace(lastFolder) && Directory.Exists(lastFolder))
+            {
+                _playlist.AddFolder(lastFolder, recursive: true);
+                SyncTracks();
+            }
+        }
+        catch { /* 重载失败不影响其他功能 */ }
+
         // bug #10：进度条。播放期间每 500ms 同步一次播放位置，暂停/停止时停表。
         _progressTimer = new System.Windows.Threading.DispatcherTimer(
             System.Windows.Threading.DispatcherPriority.Normal)
@@ -523,8 +536,27 @@ public class MusicPlayerViewModel : ObservableObject
 
     private void LoadLocalFolder()
     {
-        var folder = UIService.PickFolder("选择音乐文件夹");
+        // 上次打开的本地音乐文件夹作为起始目录（无则默认）
+        string? initial = null;
+        try
+        {
+            var p = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            initial = string.IsNullOrWhiteSpace(p.MusicLastFolder) ? null : p.MusicLastFolder;
+        }
+        catch { /* 忽略读取失败，按默认处理 */ }
+
+        var folder = UIService.PickFolder("选择音乐文件夹", initial);
         if (string.IsNullOrEmpty(folder)) return;
+
+        // 记住本次选择的文件夹，供下次打开定位
+        try
+        {
+            var p = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            p.MusicLastFolder = folder;
+            ProfileStore.Save(p);
+        }
+        catch { /* 忽略持久化失败 */ }
+
         var added = _playlist.AddFolder(folder, recursive: true);
         SyncTracks();
         StatusText = added > 0 ? $"已添加 {added} 首本地曲目" : "未找到支持的音频文件";

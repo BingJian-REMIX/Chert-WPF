@@ -115,24 +115,25 @@
                           MaxHeight="360">
                 <ListBox ItemsSource="{Binding Tracks}"
                           Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
-                          BorderBrush="{DynamicResource InputBorder}">
+                          BorderBrush="{DynamicResource InputBorder}"
+                          HorizontalContentAlignment="Stretch"
+                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Grid.Column="0" Content="{Binding Display}"
-                                        Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                        CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="6,4"
-                                        Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}"/>
-                                <Button Grid.Column="1" Content="✕" Width="32" Margin="6,0,0,0"
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Content="✕" Width="32" Padding="0"
                                         Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                         CommandParameter="{Binding}" ToolTip="删除曲目"
                                         Background="Transparent" BorderThickness="0"
-                                        Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center"/>
-                            </Grid>
+                                        Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center"
+                                        HorizontalAlignment="Right"/>
+                                <Button Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="6,4"
+                                        Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}">
+                                    <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis"/>
+                                </Button>
+                            </DockPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>

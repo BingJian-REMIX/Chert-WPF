@@ -731,19 +731,10 @@ public class DownloadPageViewModel : ObservableObject
                 if (!installed.Contains(v))
                     GameVersions.Add(new GameVersionItem { Id = v, IsInstalled = false });
 
-            // 首次加载且未手动选择时，默认选中最新原版版本（跳过已装项以保留旧行为）
-            if (string.IsNullOrWhiteSpace(_selectedGameVersion))
-            {
-                var first = GameVersions.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v.Id) && !v.IsInstalled)
-                            ?? GameVersions.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v.Id));
-                if (first is not null)
-                {
-                    _selectedGameVersion = first.Id;
-                    OnPropertyChanged(nameof(SelectedGameVersion));
-                    if (!IsMap && !IsMinecraft)
-                        _ = SearchAsync();
-                }
-            }
+            // 下载页版本筛选下拉默认保持「全部版本」(SelectedGameVersion 留空)，
+            // 不再预选最新原版版本——否则用户每次进入下载页都被锁在某个具体版本，须手动改回。
+            if (!IsMap && !IsMinecraft)
+                _ = SearchAsync();
         }
         catch
         {
@@ -766,16 +757,7 @@ public class DownloadPageViewModel : ObservableObject
             MapVersions.Add("");
             foreach (var v in vers) MapVersions.Add(v);
 
-            // 地图版本首次加载后，默认选中第一个非空版本
-            if (string.IsNullOrWhiteSpace(_selectedMapVersion))
-            {
-                var first = MapVersions.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
-                if (first is not null)
-                {
-                    _selectedMapVersion = first;
-                    OnPropertyChanged(nameof(SelectedMapVersion));
-                }
-            }
+            // 地图版本筛选下拉默认保持「全部版本」(SelectedMapVersion 留空)，不预选具体版本。
 
             _mapFacetsLoaded = true;
         }
@@ -1226,11 +1208,21 @@ public class DownloadPageViewModel : ObservableObject
 
             StatusBarViewModel.Current.DownloadText = "下载队列完成";
             StatusBarViewModel.Current.DownloadProgress = 0;
+
+            // 完成后自动清空已完成/已取消/失败项，避免队列里残留历史任务，同时清掉标题栏红点角标。
+            CleanupFinishedItems();
         }
         finally
         {
             IsBusy = false;
         }
+    }
+
+    /// <summary>清理已结束（已完成 / 已取消 / 失败）的队列项。</summary>
+    private void CleanupFinishedItems()
+    {
+        foreach (var it in Queue.Where(q => q.Status is "已完成" or "已取消" or "失败").ToList())
+            Queue.Remove(it);
     }
 
     private static IProgress<double> Progress(DownloadQueueItem item) =>
@@ -1244,15 +1236,21 @@ public class DownloadPageViewModel : ObservableObject
     private void PauseItem(DownloadQueueItem? item)
     {
         if (item is null) return;
-        item.Cts?.Cancel();
-        if (item.Status == "下载中") item.Status = "已暂停";
+        if (item.Status is "排队中" or "下载中")
+        {
+            item.Cts?.Cancel();
+            item.Status = "已暂停";
+        }
     }
 
     private void CancelItem(DownloadQueueItem? item)
     {
         if (item is null) return;
-        item.Cts?.Cancel();
-        item.Status = "已取消";
+        if (item.Status is "排队中" or "下载中" or "已暂停")
+        {
+            item.Cts?.Cancel();
+            item.Status = "已取消";
+        }
     }
 
     private void OpenDetail(DownloadCardItem? card)

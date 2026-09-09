@@ -50,7 +50,21 @@
                 <!-- ① 基础信息 -->
                 <Border Background="{DynamicResource ControlBackground}" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                     <StackPanel>
-                        <TextBlock Text="① 基础信息" Style="{StaticResource GroupHeaderStyle}"/>
+                        <Grid Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="① 基础信息" Style="{StaticResource GroupHeaderStyle}" Margin="0"/>
+                            <Button Grid.Column="1" Content="删除该版本" Command="{Binding DeleteVersionCommand}"
+                                    Padding="10,3" Background="#E53935" Foreground="White" BorderThickness="0">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
+                        </Grid>
                         <Grid Margin="0,0,0,4">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="88"/>

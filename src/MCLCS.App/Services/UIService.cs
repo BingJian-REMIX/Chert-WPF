@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using MCLCS.App.Views;
@@ -30,13 +31,16 @@ public static class UIService
     /// 选择文件夹。使用 .NET 8 WPF 原生 <see cref="OpenFolderDialog"/>，
     /// 避免引入 WindowsForms（其全局 using 会与 WPF 类型大面积撞名）。
     /// </summary>
-    public static string? PickFolder(string description = "选择文件夹")
+    public static string? PickFolder(string description = "选择文件夹", string? initialFolder = null)
     {
         var dialog = new OpenFolderDialog
         {
             Title = description,
             Multiselect = false
         };
+
+        if (!string.IsNullOrEmpty(initialFolder) && Directory.Exists(initialFolder))
+            dialog.InitialDirectory = initialFolder;
 
         return dialog.ShowDialog() == true ? dialog.FolderName : null;
     }

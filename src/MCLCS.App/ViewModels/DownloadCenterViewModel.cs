@@ -283,6 +283,7 @@ public class DownloadCenterViewModel : ObservableObject
             }
             StatusBarViewModel.Current.DownloadText = "下载队列完成";
             StatusBarViewModel.Current.DownloadProgress = 0;
+            ClearCompleted();
         }
         finally
         {

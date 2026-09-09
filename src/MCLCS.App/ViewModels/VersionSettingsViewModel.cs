@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Windows;
 using System.Windows.Input;
 using MCLCS.Core.Download;
 using MCLCS.Core.Models;
@@ -35,6 +36,9 @@ public class VersionSettingsViewModel : ObservableObject
 
     /// <summary>安装加载器后版本列表需要刷新时触发。</summary>
     public event Action? VersionsChanged;
+
+    /// <summary>删除版本后请求关闭设置窗口。</summary>
+    public event Action? RequestClose;
 
     // ---- ① 基础信息 ----
     private string _displayName = "";
@@ -159,6 +163,7 @@ public class VersionSettingsViewModel : ObservableObject
     public ICommand SearchModsCommand { get; }
     public ICommand AddModCommand { get; }
     public ICommand CheckUpdatesCommand { get; }
+    public ICommand DeleteVersionCommand { get; }
 
     public VersionSettingsViewModel(string gameRoot, string versionId, string versionType)
     {
@@ -203,6 +208,7 @@ public class VersionSettingsViewModel : ObservableObject
         SearchModsCommand = new AsyncRelayCommand(_ => SearchModsAsync());
         AddModCommand = new AsyncRelayCommand(AddModAsync);
         CheckUpdatesCommand = new AsyncRelayCommand(_ => CheckUpdatesAsync());
+        DeleteVersionCommand = new RelayCommand(_ => DeleteVersion());
 
         RefreshInstalled();
     }
@@ -231,6 +237,53 @@ public class VersionSettingsViewModel : ObservableObject
         VersionProfileStore.Save(_gameRoot, _versionId, p);
         VersionProfileStore.ApplyIsolation(_gameRoot, _versionId, p);
         Status = "已保存版本设置";
+    }
+
+    // ---- 删除版本 ----
+    private void DeleteVersion()
+    {
+        var dir = Path.Combine(_gameRoot, "versions", _versionId);
+        if (!Directory.Exists(dir))
+        {
+            Status = $"版本目录不存在：{dir}";
+            return;
+        }
+
+        var result = MessageBox.Show(
+            $"确定要永久删除版本「{_versionId}」吗？\n\n{dir}\n\n该操作不可恢复。",
+            "删除版本", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            Directory.Delete(dir, recursive: true);
+            // 版本目录已删除，profile.json 随目录一起移除
+            Status = $"版本 {_versionId} 已删除";
+
+            // 清理指向已删除版本的「最后选择」，否则快速启动下拉会尝试回显一个不存在的版本
+            try
+            {
+                var p = ProfileStore.Load(_gameRoot);
+                if (string.Equals(p.LastVersionId, _versionId, StringComparison.OrdinalIgnoreCase))
+                {
+                    p.LastVersionId = "";
+                    ProfileStore.Save(p);
+                }
+            }
+            catch { /* 清理失败不影响删除结果 */ }
+
+            // 通知全局刷新（游戏页快速启动下拉等），删除后不再残留该版本
+            LauncherService.RaiseVersionListChanged();
+
+            // 事件回调放在删除成功后、各自独立 try/catch：某订阅者抛异常不得掩盖
+            // 「版本已删除」的结果，也不该让未捕获异常冒泡到 UI 线程。
+            try { VersionsChanged?.Invoke(); } catch { }
+            try { RequestClose?.Invoke(); } catch { }
+        }
+        catch (Exception ex)
+        {
+            Status = $"删除失败：{ex.Message}";
+        }
     }
 
     /// <summary>

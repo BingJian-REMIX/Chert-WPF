@@ -4,7 +4,8 @@
              xmlns:vm="clr-namespace:MCLCS.App.ViewModels"
              xmlns:theme="clr-namespace:MCLCS.App.Themes"
              xmlns:conv="clr-namespace:MCLCS.App.Converters"
-             xmlns:ctrl="clr-namespace:System.Windows.Controls;assembly=PresentationFramework">
+             xmlns:ctrl="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
+             Foreground="{DynamicResource PrimaryForeground}">
     <UserControl.Resources>
         <ctrl:BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
         <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVisibility"/>
@@ -417,8 +418,8 @@
                                    Margin="8,0,0,0" Foreground="{DynamicResource PrimaryForeground}"/>
                     </StackPanel>
 
-                    <!-- 描述 -->
-                    <ScrollViewer Grid.Row="6" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" MinHeight="40">
+                    <!-- 描述（占用弹性行 5，避免与下方提示行 Row=6 重叠） -->
+                    <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto" Margin="0,10,0,0" MinHeight="40">
                         <TextBlock Text="{Binding CurrentModpackDetail.Description}" TextWrapping="Wrap"
                                    Opacity="0.85" LineHeight="20"/>
                     </ScrollViewer>
