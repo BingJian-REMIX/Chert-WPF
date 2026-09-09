@@ -82,6 +82,17 @@ public class VersionListViewModel : ObservableObject
         {
             if (!SetField(ref _selectedVersion, value)) return;
             OnPropertyChanged(nameof(CanLaunch));
+            if (value is not null)
+            {
+                // 持久化「最后选择的版本」，使快速启动下拉在重启/刷新后保持选中（bug：下拉不保持）
+                try
+                {
+                    var p = ProfileStore.Load(LauncherService.Instance.GameRoot);
+                    p.LastVersionId = value.Id;
+                    ProfileStore.Save(p);
+                }
+                catch { /* 持久化失败不影响本次选择 */ }
+            }
         }
     }
 
@@ -142,8 +153,10 @@ public class VersionListViewModel : ObservableObject
             ? $"共发现 {Versions.Count} 个版本"
             : "暂无已安装版本，请前往「安装新版本」";
 
-        if (SelectedVersion is null || !Versions.Any(v => v.Id == SelectedVersion.Id))
-            SelectedVersion = Versions.FirstOrDefault();
+        // 恢复上次选中的版本（持久化在 profile.LastVersionId），使快速启动下拉在刷新后实时回显选中态
+        var lastId = "";
+        try { lastId = ProfileStore.Load(LauncherService.Instance.GameRoot).LastVersionId ?? ""; } catch { }
+        SelectedVersion = Versions.FirstOrDefault(v => v.Id == lastId) ?? Versions.FirstOrDefault();
     }
 
     private async Task LaunchAsync()

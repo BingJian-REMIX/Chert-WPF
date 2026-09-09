@@ -23,6 +23,22 @@ public class LauncherService : ILogger
     /// <summary>游戏目录切换后触发，供各页面刷新版本列表 / 存档列表等（bug #26）。</summary>
     public static event Action? GameRootChanged;
 
+    /// <summary>成功安装/下载一个新版本后触发（参数为版本 Id），供游戏页快速启动下拉实时刷新（bug：下载后不显示新版本）。</summary>
+    public static event Action<string>? VersionInstalled;
+
+    /// <summary>
+    /// 已安装版本集合发生变化（新增 <b>或删除</b>）后触发，供各页面刷新版本列表。
+    /// 与 <see cref="VersionInstalled"/> 的区别：后者只在安装成功时带版本 Id 触发，
+    /// 删除版本没有「新 Id」可带，因此统一由本事件通知。
+    /// </summary>
+    public static event Action? VersionListChanged;
+
+    /// <summary>主动通知「已安装版本集合已变化」（删除版本等场景调用）。订阅者异常不影响调用方。</summary>
+    public static void RaiseVersionListChanged()
+    {
+        try { VersionListChanged?.Invoke(); } catch { /* 订阅者异常不得冒泡 */ }
+    }
+
     /// <summary>
     /// 以新的游戏目录重建单例（bug #26：设置 → 启动 中切换 Minecraft 游戏路径）。
     /// 目录未变化时不做任何事，避免无谓地丢弃已建立的 HttpClient 连接池。
@@ -241,20 +257,34 @@ public class LauncherService : ILogger
     public async Task<string?> InstallVersionAsync(string mcVersion, string loader,
         IProgress<double>? progress = null, CancellationToken ct = default)
     {
+        string? id;
         switch (loader.ToLowerInvariant())
         {
             case "fabric":
-                return await new FabricInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new FabricInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                break;
             case "forge":
-                return await new ForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new ForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                break;
             case "neoforge":
-                return await new NeoForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new NeoForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                break;
             case "quilt":
-                return await new QuiltInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new QuiltInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                break;
             default:
                 await new VanillaInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
-                return mcVersion;
+                id = mcVersion;
+                break;
         }
+
+        // 安装成功：通知各页面（游戏页快速启动下拉）刷新版本列表，使新下载的版本立即可见。
+        if (!string.IsNullOrEmpty(id))
+        {
+            try { VersionInstalled?.Invoke(id); } catch { }
+            RaiseVersionListChanged();
+        }
+        return id;
     }
 
     // ---- 启动 ----

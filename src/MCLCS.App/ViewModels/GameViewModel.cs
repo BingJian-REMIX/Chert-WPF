@@ -157,6 +157,12 @@ public class GameViewModel : ObservableObject
         // 在设置页增删账号后同步下拉（事件可能来自登录回调线程，统一切回 UI 线程）
         AccountStore.Changed += OnAccountsChanged;
 
+        // 下载/安装新版本后，快速启动下拉实时刷新（LauncherService 在后台线程触发，统一切回 UI 线程）
+        LauncherService.VersionInstalled += OnVersionInstalled;
+
+        // 删除版本后同样要刷新，否则下拉里仍残留已删除的版本
+        LauncherService.VersionListChanged += RefreshVersionsOnUi;
+
         LanServers.CollectionChanged += (_, _) => LanEmpty = LanServers.Count == 0;
         Servers.CollectionChanged += (_, _) => ServersEmpty = Servers.Count == 0;
         Recommendations.CollectionChanged += (_, _) => RecommendEmpty = Recommendations.Count == 0;
@@ -180,6 +186,18 @@ public class GameViewModel : ObservableObject
         if (app is null) return;
         if (app.Dispatcher.CheckAccess()) LoadAccounts();
         else app.Dispatcher.BeginInvoke(LoadAccounts);
+    }
+
+    /// <summary>有新版本安装完成时刷新快速启动列表（来自后台线程，切回 UI 线程）。</summary>
+    private void OnVersionInstalled(string id) => RefreshVersionsOnUi();
+
+    /// <summary>在 UI 线程刷新已安装版本列表（安装 / 删除版本后统一走这里）。</summary>
+    private void RefreshVersionsOnUi()
+    {
+        var app = Application.Current;
+        if (app is null) return;
+        if (app.Dispatcher.CheckAccess()) Versions.Refresh();
+        else app.Dispatcher.BeginInvoke(Versions.Refresh);
     }
 
     /// <summary>
