@@ -158,6 +158,8 @@ public partial class MainWindow : Window
         // bug #86：最大化按钮 + 限制到工作区（不覆盖任务栏）
         SourceInitialized += (_, _) => AttachMaximizeHook();
         Loaded += (_, _) => RefreshMaximizeIcon();
+        // 窗口尺寸变化时（侧边栏可视高度改变）→ 重新把当前选中项居中
+        SizeChanged += (_, _) => RequestSidebarCenter();
         StateChanged += (_, _) => RefreshMaximizeIcon();
         // bug #10：窗口就绪后尝试断点续播（MediaElement 此时已可播放）
         Loaded += (_, _) => MusicPlayerViewModel.Instance.RestoreLastState();
@@ -604,6 +606,11 @@ public partial class MainWindow : Window
             row.Children.Add(indicator);
             row.Children.Add(inner);
 
+            // 让侧边栏项可获取键盘焦点（默认 Grid 不可聚焦），以支持上下方向键切换副页；
+            // 取消焦点视觉样式，避免聚焦时出现虚线框。
+            row.Focusable = true;
+            row.FocusVisualStyle = null;
+            row.KeyDown += SidebarRow_KeyDown;
             row.MouseLeftButtonUp += (_, _) => SelectSidebarItem(it.Id);
             // 侧边栏项悬浮：仅背景高亮（对齐 HTML 的 .sitem:hover{background}，无缩放弹跳）
             row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("ControlHoverBackground");
@@ -614,6 +621,8 @@ public partial class MainWindow : Window
         }
 
         UpdateSidebarSelection();
+        // 初次构建（含切换主标签）：让默认选中项在可滚动时居中
+        RequestSidebarCenter();
     }
 
     private void UpdateSidebarSelection()
@@ -646,6 +655,37 @@ public partial class MainWindow : Window
         _sidebarState.Select(id);
         UpdateSidebarSelection();
         RouteSidebar(id);
+        // 选中项变更（点击 / 键盘 / 程序切换）→ 自动居中到侧边栏垂直中央
+        RequestSidebarCenter();
+        // 让选中项获取键盘焦点，便于后续用方向键继续切换
+        if (_sidebarItems.TryGetValue(id, out var p)) p.Row.Focus();
+    }
+
+    /// <summary>侧边栏项方向键导航：上下键在副页列表中移动选中项（移动后由 SelectSidebarItem 自动居中）。</summary>
+    private void SidebarRow_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (sender is not Grid row) return;
+        var dir = e.Key switch
+        {
+            Key.Up => -1,
+            Key.Down => 1,
+            _ => 0
+        };
+        if (dir == 0) return;
+
+        var id = row.Tag as string;
+        var items = Sidebar.For(_sidebarState.Owner);
+        var idx = -1;
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (items[i].Id == id) { idx = i; break; }
+        }
+        if (idx < 0) return;
+
+        var ni = idx + dir;
+        if (ni < 0 || ni >= items.Count) { e.Handled = true; return; }
+        SelectSidebarItem(items[ni].Id);   // 内部已处理居中 + 聚焦新项
+        e.Handled = true;
     }
 
     /// <summary>把全局侧边栏副标签的点击路由到对应主视图（规格 1.4：侧边栏点击切换内容区）。</summary>
@@ -662,6 +702,66 @@ public partial class MainWindow : Window
             case MainTabKind.Settings:
                 (_pages[MainTabKind.Settings] as SettingsView)?.ShowSidebarItem(id);
                 break;
+        }
+    }
+
+    // ===== 侧边栏自动居中滚动（工具箱等副页较多时可滚动）=====
+
+    /// <summary>
+    /// 把「侧边栏垂直偏移」暴露为可动画的附加属性：动画每一帧回调里驱动
+    /// <see cref="ScrollViewer.ScrollToVerticalOffset"/>，实现平滑滚动。
+    /// </summary>
+    private static readonly DependencyProperty SidebarVerticalOffsetProperty =
+        DependencyProperty.RegisterAttached(
+            "SidebarVerticalOffset", typeof(double), typeof(MainWindow),
+            new PropertyMetadata(0d, (d, e) =>
+            {
+                if (d is ScrollViewer sv) sv.ScrollToVerticalOffset((double)e.NewValue);
+            }));
+
+    /// <summary>请求把当前选中项居中（延迟到布局完成后再计算，确保视口/范围尺寸有效）。</summary>
+    private void RequestSidebarCenter()
+    {
+        if (SidebarScroll is null) return;
+        SidebarScroll.Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+            new Action(ScrollSelectedSidebarItemToCenter));
+    }
+
+    /// <summary>
+    /// 将当前选中项滚动到侧边栏垂直中央。
+    /// 规则：列表未超出一屏不滚动；超出时计算居中偏移并钳制到 [0, max]，使靠近顶部/底部的项自然停靠边界。
+    /// </summary>
+    private void ScrollSelectedSidebarItemToCenter()
+    {
+        var scroll = SidebarScroll;
+        if (scroll is null) return;
+        var selId = _sidebarState.SelectedId;
+        if (selId is null || !_sidebarItems.TryGetValue(selId, out var parts))
+            return;
+
+        double viewport = scroll.ViewportHeight;
+        double extent = scroll.ExtentHeight;
+        if (extent <= viewport) return;   // 全部可见 → 不触发滚动
+
+        var item = parts.Row;
+        // 选中项相对内容顶部（面板坐标系）的偏移，与当前滚动位置无关
+        var itemTop = item.TransformToVisual(SidebarItemsPanel).Transform(new Point(0, 0)).Y;
+        var itemHeight = item.ActualHeight;
+        var itemCenter = itemTop + itemHeight / 2;
+
+        double target = itemCenter - viewport / 2;
+        double maxOffset = extent - viewport;
+        target = Math.Max(0, Math.Min(target, maxOffset));   // 钳制：顶部/底部自然停靠
+
+        if (AnimationsEnabled)
+        {
+            var anim = new DoubleAnimation(scroll.VerticalOffset, target, TimeSpan.FromMilliseconds(220));
+            anim.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
+            scroll.BeginAnimation(SidebarVerticalOffsetProperty, anim);
+        }
+        else
+        {
+            scroll.ScrollToVerticalOffset(target);
         }
     }
 

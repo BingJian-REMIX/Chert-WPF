@@ -40,7 +40,7 @@
             </Grid.ColumnDefinitions>
 
             <TextBlock Grid.Column="0" Text="MCLCS" FontSize="17" FontWeight="Bold"
-                       Foreground="White" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                       Foreground="{DynamicResource TitleBarForeground}" VerticalAlignment="Center" Margin="16,0,0,0"/>
 
             <!-- 全局搜索栏 + 下载进度入口（bug #14：下载队列合并至搜索栏右侧弹窗） -->
             <Grid Grid.Column="1" Margin="12,0">
@@ -64,10 +64,10 @@
                     <!-- 环形进度：仅在有下载任务时显示（无任务不显环，bug3.txt #2） -->
                     <Grid Visibility="{Binding IsDownloading, Source={x:Static vm:StatusBarViewModel.Current},
                                 Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                        <!-- 背景轨：半透明白，避免暗色下出现黑环 -->
-                        <Ellipse Width="34" Height="34" Stroke="#40FFFFFF" StrokeThickness="3" Fill="Transparent"/>
-                        <!-- 进度环：白色，实时，以图标中心为圆心 -->
-                        <Ellipse Width="34" Height="34" Stroke="White" StrokeThickness="3"
+                        <!-- 背景轨：半透明主题色，避免暗色下出现黑环 -->
+                        <Ellipse Width="34" Height="34" Stroke="{DynamicResource TitleBarOverlayForeground}" StrokeThickness="3" Fill="Transparent"/>
+                        <!-- 进度环：主题前景色，实时，以图标中心为圆心 -->
+                        <Ellipse Width="34" Height="34" Stroke="{DynamicResource TitleBarForeground}" StrokeThickness="3"
                                  StrokeDashArray="{Binding DownloadProgress, Source={x:Static vm:StatusBarViewModel.Current},
                                     Converter={StaticResource ProgressToRingDash}, ConverterParameter=94.25}"
                                  StrokeDashCap="Round" Fill="Transparent" RenderTransformOrigin="0.5,0.5">
@@ -83,7 +83,7 @@
                             Margin="0,-6,-8,0" Padding="3,0"
                             Visibility="{Binding HasQueue, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                         <TextBlock Text="{Binding QueueCount}"
-                                   Foreground="White" FontSize="9" FontWeight="Bold"
+                                   Foreground="{DynamicResource TitleBarForeground}" FontSize="9" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </Grid>
@@ -152,11 +152,13 @@
                                                    VerticalAlignment="Center" Width="52"
                                                    Foreground="{DynamicResource SecondaryForeground}"/>
                                         <Button Grid.Column="2" Content="{theme:Loc dl.pause}" Padding="6,2" Margin="0,0,4,0"
-                                                Command="{Binding PauseItemCommand}"
-                                                CommandParameter="{Binding}"/>
+                                                Command="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='pause'}"/>
                                         <Button Grid.Column="3" Content="{theme:Loc btn.cancel}" Padding="6,2"
-                                                Command="{Binding CancelItemCommand}"
-                                                CommandParameter="{Binding}"/>
+                                                Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='cancel'}"/>
                                     </Grid>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -197,8 +199,8 @@
                 </Button>
                 <Button x:Name="BtnMax" Width="36" Height="30" Click="BtnMax_Click">
                     <Grid>
-                        <TextBlock x:Name="MaxIcon" Text="&#x25A1;" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Visible"/>
-                        <TextBlock x:Name="RestoreIcon" Text="&#x1F5D6;" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        <TextBlock x:Name="MaxIcon" Text="&#x25A1;" FontSize="12" Foreground="{DynamicResource TitleBarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Visible"/>
+                        <TextBlock x:Name="RestoreIcon" Text="&#x1F5D6;" FontSize="12" Foreground="{DynamicResource TitleBarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
                     </Grid>
                     <Button.Style>
                         <Style TargetType="Button">
@@ -261,7 +263,7 @@
                     Background="{DynamicResource ControlBackground}"
                     BorderThickness="0,0,1,0" BorderBrush="{DynamicResource SidebarIndicatorBrush}"
                     MouseEnter="Sidebar_MouseEnter" MouseLeave="Sidebar_MouseLeave">
-                <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="SidebarScroll" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel x:Name="SidebarItemsPanel" Orientation="Vertical" Margin="6,8"/>
                 </ScrollViewer>
             </Border>
