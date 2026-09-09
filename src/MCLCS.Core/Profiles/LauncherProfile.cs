@@ -119,6 +119,10 @@ public class LauncherProfile
     [JsonPropertyName("highDpiIcons")]
     public bool HighDpiIcons { get; set; }
 
+    /// <summary>显示控件边框：开启后按钮/输入框/卡片/面板等描边可见；关闭则透明隐藏（设置 → 外观，默认开启）。</summary>
+    [JsonPropertyName("showControlBorders")]
+    public bool ShowControlBorders { get; set; } = true;
+
     // ---- 关于 / 更新 ----
 
     [JsonPropertyName("autoUpdateCheck")]
@@ -200,6 +204,10 @@ public class LauncherProfile
     /// <summary>断点续播：上次停下的位置（秒）。</summary>
     [JsonPropertyName("musicLastPosition")]
     public double MusicLastPosition { get; set; }
+
+    /// <summary>音乐播放器：上次打开的本地音乐文件夹（空表示无，下次从默认位置打开）。</summary>
+    [JsonPropertyName("musicLastFolder")]
+    public string MusicLastFolder { get; set; } = "";
 
     /// <summary>新建版本的默认隔离模式（通用设置「版本隔离」默认项，bug2.txt #9）。</summary>
     [JsonPropertyName("defaultVersionIsolation")]
