@@ -85,6 +85,12 @@ public static class SkinModel3D
             }
         }
 
+        // 左肢（def.Cx<0，位于身体 +X / 右侧）的内外侧与右肢相反：右肢 -X 面=外侧、+X 面=内侧，
+        // 左肢 -X 面=内侧、+X 面=外侧。AddBox 固定把 uv.Right 贴 -X、uv.Left 贴 +X，
+        // 故左肢需交换 Left/Right 字段，否则左臂/左腿的里外两面贴反（64×32 旧皮肤由上方 legacy 分支单独处理，这里仅限非 legacy）。
+        if (!legacy && def.Cx < 0)
+            uv = uv with { Left = uv.Right, Right = uv.Left };
+
         if (def.IsArm && slim) uv = SlimUv(uv);
 
         // 左右面 UV 分配约定（修正 bug）：模型 -X 面 = 角色右手外侧，应贴皮肤 Right 区；
@@ -152,8 +158,11 @@ public static class SkinModel3D
             P(+hx, +hy, +hz), P(+hx, +hy, -hz), P(+hx, -hy, -hz), P(+hx, -hy, +hz), uv.Left);    // 右面 +X：角色左手外侧 → 皮肤 Left 区
         AddFace(group, skin, tw, th,
             P(-hx, +hy, -hz), P(+hx, +hy, -hz), P(+hx, +hy, +hz), P(-hx, +hy, +hz), uv.Top);      // 顶面 +Y
+        // 底面 -Y：底面法线指向盒内(+Y)，外部(-Y)观察看到的是背面材质，纹理实测呈 180° 旋转
+        // （头底/手掌尤为明显）。此处把四角顺序整体反转，使纹理整体旋转 180° 修正；
+        // 仅重排「顶点 ↔ UV」映射，不改变四边形几何，配合双面材质不会丢失面。
         AddFace(group, skin, tw, th,
-            P(-hx, -hy, +hz), P(+hx, -hy, +hz), P(+hx, -hy, -hz), P(-hx, -hy, -hz), uv.Bottom);   // 底面 -Y
+            P(-hx, -hy, -hz), P(+hx, -hy, -hz), P(+hx, -hy, +hz), P(-hx, -hy, +hz), uv.Bottom);   // 底面 -Y（纹理 180° 修正）
     }
 
     private static void AddFace(Model3DGroup group, BitmapSource skin, int tw, int th,
@@ -204,6 +213,18 @@ public static class SkinModel3D
                     dstPixels[dstIdx + b] = srcPixels[srcIdx + b];
             }
         }
+
+        // 边缘钳制填充：把 POT 透明留边（内容区之外，尤其是 v=vMax 落到的留边首行）用
+        // 相邻内容像素填充。否则 WPF 3D 在纹理寻址时采样到透明留边，会让四肢侧面 / 躯干
+        // 底边等出现「透明 / 缺面」回归（NPOT 缺面问题在 POT 化后仍会以留边被采样的形式复现）。
+        // 钳制后即便越界采样也取到内容色而非透明。
+        int lastRow = sh - 1;
+        for (int dy = sh; dy < ph; dy++)
+            Buffer.BlockCopy(dstPixels, lastRow * dstStride, dstPixels, dy * dstStride, sw * bpp);
+        int lastCol = sw - 1;
+        for (int dx = sw; dx < pw; dx++)
+            for (int dy = 0; dy < ph; dy++)
+                Buffer.BlockCopy(dstPixels, dy * dstStride + lastCol * bpp, dstPixels, dy * dstStride + dx * bpp, bpp);
 
         var tex = new WriteableBitmap(pw, ph, 96, 96, cropped.Format, null);
         tex.WritePixels(new Int32Rect(0, 0, pw, ph), dstPixels, dstStride, 0);
