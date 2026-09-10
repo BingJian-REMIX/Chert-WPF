@@ -39,7 +39,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="MCLCS" FontSize="17" FontWeight="Bold"
+            <TextBlock Grid.Column="0" Text="朗希夏" FontSize="17" FontWeight="Bold"
                        Foreground="{DynamicResource TitleBarForeground}" VerticalAlignment="Center" Margin="16,0,0,0"/>
 
             <!-- 全局搜索栏 + 下载进度入口（bug #14：下载队列合并至搜索栏右侧弹窗） -->

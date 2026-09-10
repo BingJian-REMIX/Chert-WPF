@@ -80,8 +80,11 @@ public static class GameConstants
         }
     }
 
-    /// <summary>启动器名称（写入 ${launcher_name}）。</summary>
+    /// <summary>启动器名称（写入 ${launcher_name}，内部标识，决定 AppData 配置目录，勿改）。</summary>
     public const string LauncherName = "MCLCS";
+
+    /// <summary>启动器显示名称（中文品牌名，仅用于界面展示，不影响内部存储路径）。</summary>
+    public const string LauncherDisplayName = "朗希夏";
 
     /// <summary>启动器版本（写入 ${launcher_version}）。</summary>
     public const string LauncherVersion = "2.5.6";

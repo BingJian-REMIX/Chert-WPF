@@ -93,7 +93,7 @@ public partial class App : Application
         try
         {
             var detail = ex is null ? "" : $"\n\n{ex.GetType().Name}: {ex.Message}";
-            MessageBox.Show(prefix + detail, "MCLCS 崩溃", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(prefix + detail, $"{GameConstants.LauncherDisplayName} 崩溃", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         catch
         {

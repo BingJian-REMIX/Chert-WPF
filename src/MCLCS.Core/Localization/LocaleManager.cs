@@ -61,8 +61,8 @@ public static class LocaleManager
     }
 
     private static string BuiltInZhCN() => @"{
-  ""app.title"": ""MCLCS 启动器"",
-  ""app.launcher"": ""MCLCS"",
+  ""app.title"": ""朗希夏 启动器"",
+  ""app.launcher"": ""朗希夏"",
   ""tab.launch"": ""启动游戏"",
   ""tab.install"": ""安装版本"",
   ""tab.download"": ""下载中心"",
@@ -419,8 +419,8 @@ public static class LocaleManager
 }";
 
     private static string BuiltInEnUS() => @"{
-  ""app.title"": ""MCLCS Launcher"",
-  ""app.launcher"": ""MCLCS"",
+  ""app.title"": ""Langxixia Launcher"",
+  ""app.launcher"": ""Langxixia"",
   ""tab.launch"": ""Launch"",
   ""tab.install"": ""Install"",
   ""tab.download"": ""Download"",

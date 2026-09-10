@@ -3,7 +3,7 @@
 > **当前版本：v2.5.6（公测前最终功能版，开发中）** · C# / WPF / .NET 10 · Windows
 > **路线图**：`v2.5.6` 为进入**公测（公开测试）**前的最终功能版本；公测后转入稳定迭代。
 
-MCLCS（Minecraft Launcher CSharp）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`MCLCS.Core`），两端功能持续对齐。
+朗希夏（MCLCS，Minecraft Launcher CSharp）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`MCLCS.Core`），两端功能持续对齐。
 
 - 主仓库（GitHub）：<https://github.com/BingJian-REMIX/MCLCS-WPF>
 - 更新信息源（GitHub Pages）：<https://remix-laser-raising-studio.github.io/MCLCS-upgrade/latest.json>
