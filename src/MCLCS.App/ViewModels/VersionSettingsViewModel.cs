@@ -54,6 +54,8 @@ public class VersionSettingsViewModel : ObservableObject
             if (!SetField(ref _isolation, value)) return;
             OnPropertyChanged(nameof(EffectiveGameDirDisplay));
             OnPropertyChanged(nameof(IsCustomDir));
+            // 切换隔离模式时实时刷新 mods/资源包/光影列表，使其指向新目录
+            RefreshInstalled();
         }
     }
 
@@ -61,12 +63,30 @@ public class VersionSettingsViewModel : ObservableObject
     public string? CustomGameDir
     {
         get => _customGameDir;
-        set { if (SetField(ref _customGameDir, value)) OnPropertyChanged(nameof(EffectiveGameDirDisplay)); }
+        set
+        {
+            if (!SetField(ref _customGameDir, value)) return;
+            OnPropertyChanged(nameof(EffectiveGameDirDisplay));
+            RefreshInstalled();
+        }
     }
 
-    public string EffectiveGameDirDisplay =>
-        VersionProfileStore.EffectiveGameDir(_gameRoot, _versionId,
-            new VersionProfile { Isolation = Isolation, CustomGameDir = CustomGameDir });
+    /// <summary>
+    /// 有效工作目录：与启动器保持一致——自定义目录优先；选定自动隔离或版本实际已通过
+    /// .mclcs-isolated marker 隔离时指向 versions/&lt;id&gt;，否则回落共享根目录。
+    /// 关键修正：之前仅按 profile.Isolation 字段解析，当版本已隔离但 profile 标 Shared（孤儿 marker）
+    /// 时误把展示/操作目录落到根游戏目录。
+    /// </summary>
+    public string EffectiveGameDirDisplay => ComputeEffectiveGameDir();
+
+    private string ComputeEffectiveGameDir()
+    {
+        if (Isolation == IsolationMode.Custom && !string.IsNullOrWhiteSpace(CustomGameDir))
+            return CustomGameDir!;
+        if (Isolation == IsolationMode.Auto || VersionIsolation.IsIsolated(_gameRoot, _versionId))
+            return Path.Combine(_gameRoot, "versions", _versionId);
+        return _gameRoot;
+    }
 
     /// <summary>是否处于「自定义目录」隔离模式（控制自定义目录输入框可见性）。</summary>
     public bool IsCustomDir => Isolation == IsolationMode.Custom;
@@ -176,9 +196,12 @@ public class VersionSettingsViewModel : ObservableObject
         var p = VersionProfileStore.Load(gameRoot, versionId);
 
         _displayName = p.DisplayName;
-        // 未保存过设置时按当前隔离标记回推，避免「打开即隔离」改变既有工作目录
-        _isolation = saved ? p.Isolation
-            : VersionIsolation.IsIsolated(gameRoot, versionId) ? IsolationMode.Auto : IsolationMode.Shared;
+        // 实际隔离状态以 .mclcs-isolated marker 为准（与启动器 GameDirFor 一致）：
+        // marker 存在 = 版本实际隔离，下拉以 Auto 回显，确保「展示/操作目录」与游戏实际运行目录一致；
+        // marker 不存在时，未保存过设置则回落共享根，已保存则用已存的 Isolation 字段。
+        var actuallyIsolated = VersionIsolation.IsIsolated(gameRoot, versionId);
+        _isolation = actuallyIsolated ? IsolationMode.Auto
+            : (saved ? p.Isolation : IsolationMode.Shared);
         _customGameDir = p.CustomGameDir;
         _javaPath = p.JavaPath;
         _maxMemoryMb = p.MaxMemoryMb;
