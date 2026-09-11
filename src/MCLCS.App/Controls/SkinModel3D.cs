@@ -248,6 +248,12 @@ public static class SkinModel3D
         {
             Stretch = Stretch.Fill,
             TileMode = TileMode.None,
+            // 关键：Viewport/ViewportUnits 必须为绝对(0,0,1,1)。默认 RelativeToBoundingBox 时
+            // TileBrush 会按“网格 UV 包围盒”填充贴图，导致下方 uMax/vMax 的 UV 收窄完全失效——
+            // 整张 POT 画布（内容 + 边缘钳制留边）被拉满到整个面，内容被压到上方 sh/ph 比例、
+            // 末行留边被拉伸占满剩余部分（表现为“腿部/四肢纹理上移 + 多出一块末行颜色”）。
+            Viewport = new System.Windows.Rect(0, 0, 1, 1),
+            ViewportUnits = BrushMappingMode.Absolute,
         };
         RenderOptions.SetBitmapScalingMode(brush, BitmapScalingMode.NearestNeighbor);
         var material = new DiffuseMaterial(brush);
