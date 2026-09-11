@@ -151,7 +151,7 @@ public class AiAssistViewModel : ObservableObject
         if (candidates.Count == 0) return;
 
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
-        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) MCLCS");
+        client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chert");
 
         foreach (var url in candidates)
         {
@@ -183,7 +183,7 @@ public class AiAssistViewModel : ObservableObject
 
     private static async Task<byte[]?> DownloadWithCacheAsync(HttpClient client, string url)
     {
-        var cacheDir = Path.Combine(Path.GetTempPath(), "MCLCS");
+        var cacheDir = Path.Combine(Path.GetTempPath(), "Chert");
         Directory.CreateDirectory(cacheDir);
         var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(url)))[..16];
         var cacheFile = Path.Combine(cacheDir, "logo_" + key + ".png");

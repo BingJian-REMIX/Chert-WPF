@@ -12,7 +12,7 @@ namespace MCLCS.App.Services;
 public static class UIService
 {
     // bug2.txt #83：实时提示统一走右下角 Toast（非阻塞），不再弹模态 MessageBox
-    public static void ShowMessage(string message, string title = "朗希夏")
+    public static void ShowMessage(string message, string title = "燧石启动器")
     {
         ToastService.Show(title, message, ToastKind.Info);
     }

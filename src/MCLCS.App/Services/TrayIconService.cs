@@ -95,7 +95,7 @@ public sealed class TrayIconService : IDisposable
             uFlags = Native.NIF_MESSAGE | Native.NIF_TIP | (_hIcon != IntPtr.Zero ? Native.NIF_ICON : 0u),
             uCallbackMessage = (int)Native.WM_TRAYICON,
             hIcon = _hIcon,
-            szTip = "朗希夏 启动器"
+            szTip = "燧石启动器"
         };
         Native.Shell_NotifyIcon(Native.NIM_ADD, ref data);
 

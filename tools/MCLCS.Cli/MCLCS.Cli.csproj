@@ -5,9 +5,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <!-- CLI 输出 exe 直接命名为 mclcs（AssemblyName=mclcs）。启动器内部 AssemblyName 为 MCLCS.App（非 MCLCS），
-         与 mclcs 大小写不敏感不撞名，且 CLI 输出目录里 mclcs.exe 与拷入的 MCLCS.App.exe 也不冲突，故无需改名目标。 -->
-    <AssemblyName>mclcs</AssemblyName>
+    <!-- CLI 输出 exe 命名为 chert（AssemblyName=chert，对应命令行工具 chert.exe）。GUI 启动器内部 AssemblyName 为 MCLCS.App，
+         与 chert 不撞名；下方 CopyCliToLauncherOutput 目标把 chert.exe 复制到 GUI 输出目录，与“Chert Launcher.exe”同目录。 -->
+    <AssemblyName>chert</AssemblyName>
+    <Product>Chert</Product>
+    <AssemblyTitle>Chert</AssemblyTitle>
+    <Company>RLRS-Studio</Company>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,8 +18,8 @@
     <ProjectReference Include="..\..\src\MCLCS.App\MCLCS.App.csproj" />
   </ItemGroup>
 
-  <!-- 构建后把 mclcs.exe（及 pdb/dll）复制到 GUI 启动器输出目录，
-       让“MCLCS Launcher.exe”与“mclcs.exe”同目录，方便用户直接找到/调用 CLI。
+    <!-- 构建后把 chert.exe（及 pdb/dll）复制到 GUI 启动器输出目录，
+         让“Chert Launcher.exe”与“chert.exe”同目录，方便用户直接找到/调用 CLI。
        路径相对本工程文件：tools/MCLCS.Cli -> src/MCLCS.App/bin/<config>/<tf>/ -->
   <Target Name="CopyCliToLauncherOutput" AfterTargets="Build">
     <PropertyGroup>

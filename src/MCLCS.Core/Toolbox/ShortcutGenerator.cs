@@ -22,7 +22,7 @@ public static class ShortcutGenerator
 {
     /// <summary>启动器主程序路径（运行时为当前进程映像）。</summary>
     public static string LauncherExe()
-        => Process.GetCurrentProcess().MainModule?.FileName ?? "MCLCS Launcher.exe";
+        => Process.GetCurrentProcess().MainModule?.FileName ?? "Chert Launcher.exe";
 
     /// <summary>为指定版本生成启动参数。</summary>
     public static string TargetArguments(string versionId) => $"--launch {versionId}";

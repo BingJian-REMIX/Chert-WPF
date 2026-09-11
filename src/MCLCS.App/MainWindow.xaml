@@ -6,7 +6,7 @@
         xmlns:theme="clr-namespace:MCLCS.App.Themes"
         xmlns:conv="clr-namespace:MCLCS.App.Converters"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
-        Title="MCLCS"
+        Title="Chert Launcher"
         Width="1100" Height="720"
         MinWidth="900" MinHeight="600"
         WindowStyle="None"
@@ -39,7 +39,7 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock Grid.Column="0" Text="MCLCS" FontSize="17" FontWeight="Bold"
+            <TextBlock Grid.Column="0" Text="Chert Launcher" FontSize="17" FontWeight="Bold"
                        Foreground="{DynamicResource TitleBarForeground}" VerticalAlignment="Center" Margin="16,0,0,0"/>
 
             <!-- 全局搜索栏 + 下载进度入口（bug #14：下载队列合并至搜索栏右侧弹窗） -->

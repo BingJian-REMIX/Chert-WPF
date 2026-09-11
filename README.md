@@ -1,9 +1,9 @@
-# MCLCS — Minecraft 启动器 (WPF)
+# Chert Launcher / 燧石启动器 — Minecraft 启动器 (WPF)
 
 > **当前版本：v2.5.6（公测前最终功能版，开发中）** · C# / WPF / .NET 10 · Windows
 > **路线图**：`v2.5.6` 为进入**公测（公开测试）**前的最终功能版本；公测后转入稳定迭代。
 
-朗希夏（MCLCS，Minecraft Launcher CSharp）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`MCLCS.Core`），两端功能持续对齐。
+燧石启动器（MCLCS，Minecraft Launcher CSharp）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`MCLCS.Core`），两端功能持续对齐。
 
 - 主仓库（GitHub）：<https://github.com/BingJian-REMIX/MCLCS-WPF>
 - 更新信息源（GitHub Pages）：<https://remix-laser-raising-studio.github.io/MCLCS-upgrade/latest.json>
@@ -13,8 +13,8 @@
 
 | 组件 | 文件名 | 说明 |
 | --- | --- | --- |
-| GUI 启动器 | **`MCLCS Launcher.exe`** | 主程序（带空格的程序名） |
-| CLI 命令行 | **`mclcs.exe`** | 同目录发布，命令行工具（`launch` / `list` / `install` / `modpack` / `mods` / `skin` / `version`） |
+| GUI 启动器 | **`Chert Launcher.exe`** | 主程序（带空格的程序名） |
+| CLI 命令行 | **`chert.exe`** | 同目录发布，命令行工具（`launch` / `list` / `install` / `modpack` / `mods` / `skin` / `version`） |
 
 > 发布包为自包含 single-file 版：GUI 与 CLI 合并于一个 ZIP，内嵌完整 .NET 10 运行时，**无需任何前置依赖**。
 
@@ -41,9 +41,9 @@
   - **工具箱侧边栏「自动居中」滚动**：副页过多可滚动时，点击 / 键盘上下键 / 首次加载 / 窗口尺寸变化都会把当前选中项平滑滚到侧边栏垂直中央，列表不足一屏或触顶/触底时自然停靠边界。
   - **3D 皮肤预览锐化**：修复长期「糊」问题——每面按 8× 最近邻放大后补至 2 的幂画布，避开 WPF 3D 双线性放大与被 mipmap 缩小两条糊化路径；同时修正 NPOT 四肢缺面与冻结位图回归。
   - 多项暗色主题画笔修复、崩溃分析页与性能页稳定化、`IsFrozen` 写像素回归修复等。
-- **v2.5.5**（上一个发布版）：对齐 MCLCS-Linux 的收官修复批次——工具箱全局侧边栏移除已废弃的「文件变更检测」，新增「版本列表」与「版本设置」入口；添加服务器弹窗复用全局模态样式（暗色下不再呈黑块）；崩溃分析页补充主题画笔修复暗色配色；存档扫描对缺失 `level.dat` 的目录标记为警告而非误报兼容；GUI 产物定名为 `MCLCS Launcher.exe`、CLI 为 `mclcs.exe`。
+- **v2.5.5**（上一个发布版）：对齐 MCLCS-Linux 的收官修复批次——工具箱全局侧边栏移除已废弃的「文件变更检测」，新增「版本列表」与「版本设置」入口；添加服务器弹窗复用全局模态样式（暗色下不再呈黑块）；崩溃分析页补充主题画笔修复暗色配色；存档扫描对缺失 `level.dat` 的目录标记为警告而非误报兼容；GUI 产物定名为 `Chert Launcher.exe`、CLI 为 `chert.exe`。
 - **v2.5.4**：更新源迁移至 GitHub Pages 托管的 `latest.json`，稳定、免代理；自更新改为「下载 → 解压 → 原地替换安装目录并接力启动新版本」；发布物改为单个 `MCLCS-2.5.4-win-x64.zip`；GitHub 仓库为主仓库。
-- **v2.5.3**：启动器自身崩溃捕获与日志（`mclcs_crash.log`）；崩溃自动修复新增资源包/光影类别；新增存档损坏检测（只读，三色分级）；Mod 冲突禁用在「始终」策略下先弹窗确认。
+- **v2.5.3**：启动器自身崩溃捕获与日志（`chert_crash.log`）；崩溃自动修复新增资源包/光影类别；新增存档损坏检测（只读，三色分级）；Mod 冲突禁用在「始终」策略下先弹窗确认。
 - **v2.5.2**：修复开发工具，离线自检 SelfCheck 程序 52 项断言全部 PASS。
 - **v2.5.1**：接入多分辨率应用图标与托盘图标；修正下载队列按钮置灰反馈。
 - **v2.5.0**：升级 Mojang 版本清单至 Piston v2；修复安装器版本选择缺陷；新增最小化到托盘；HUD 覆盖全部启动路径。
@@ -56,14 +56,14 @@
 
 ## 下载与安装
 
-发布包为**自包含 single-file 版**：GUI 启动器（`MCLCS Launcher.exe`）与 CLI（`mclcs.exe`）合并于一个 ZIP，内嵌完整 .NET 10 运行时，**无需任何前置依赖**。
+发布包为**自包含 single-file 版**：GUI 启动器（`Chert Launcher.exe`）与 CLI（`chert.exe`）合并于一个 ZIP，内嵌完整 .NET 10 运行时，**无需任何前置依赖**。
 
 | 版本 | 资产 | 说明 |
 | --- | --- | --- |
 | **v2.5.5（最新）** | [CNB Releases](https://cnb.cool/RLRS-Studio/MCLCS-WPF/-/releases) | 自包含免运行时，解压即用 |
 | 全部历史版本 | [CNB Releases](https://cnb.cool/RLRS-Studio/MCLCS-WPF/-/releases) | 各版本发布直链 |
 
-下载后直接解压，运行 `MCLCS Launcher.exe` 即可。启动器内置**自动更新器**：启动时读取 GitHub Pages 上的 `latest.json`，发现新版本后直接下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载或 winget。
+下载后直接解压，运行 `Chert Launcher.exe` 即可。启动器内置**自动更新器**：启动时读取 GitHub Pages 上的 `latest.json`，发现新版本后直接下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载或 winget。
 
 ## 编译与发布
 
@@ -73,16 +73,16 @@
   dotnet publish src/MCLCS.App/MCLCS.App.csproj -c Release -r win-x64 `
     -p:PublishSingleFile=true -p:SelfContained=true `
     -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableWindowsTargeting=true
-  # 产物 MCLCS.App.exe 重命名为「MCLCS Launcher.exe」
+  # 产物 MCLCS.App.exe 重命名为「Chert Launcher.exe」
   ```
 - **发布 CLI（同目录，供 GUI 调用）**：
   ```powershell
   dotnet publish tools/MCLCS.Cli/MCLCS.Cli.csproj -c Release -r win-x64 `
     -p:PublishSingleFile=true -p:SelfContained=true `
     -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableWindowsTargeting=true
-  # 产物 mclcs.exe 复制到 GUI 发布目录（与 MCLCS Launcher.exe 同目录）
+  # 产物 chert.exe 复制到 GUI 发布目录（与 Chert Launcher.exe 同目录）
   ```
-- **合并打包**：将 `MCLCS Launcher.exe` 与 `mclcs.exe`（及各自的 `.dll` / `.pdb` 已内联为 single-file）放入同一目录，压缩为单个 `MCLCS-2.5.5-win-x64.zip` 即 CNB Release 资产（Linux 版对应 `MCLCS-2.5.5-Linux-x64.zip`）。
+- **合并打包**：将 `Chert Launcher.exe` 与 `chert.exe`（及各自的 `.dll` / `.pdb` 已内联为 single-file）放入同一目录，压缩为单个 `MCLCS-2.5.5-win-x64.zip` 即 CNB Release 资产（Linux 版对应 `MCLCS-2.5.5-Linux-x64.zip`）。
 - **Linux 交叉编译校验**：可用 Roslyn 直接引用 .NET 10 参考程序集完成 App / CLI 层编译校验（详见 `docs/BUILD.md`）。
 - **CLI 命令**：`launch` / `list` / `install` / `modpack` / `mods` / `skin` / `version`。
 

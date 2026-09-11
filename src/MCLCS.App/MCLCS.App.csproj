@@ -12,13 +12,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>2.5.6</Version>
+    <Product>Chert Launcher</Product>
+    <AssemblyTitle>Chert Launcher</AssemblyTitle>
+    <Company>RLRS-Studio</Company>
     <!-- 仅保留简体中文框架资源（zh-Hans），剔除其余语言卫星程序集，缩小发布体积 -->
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
     <RootNamespace>MCLCS.App</RootNamespace>
-    <!-- AssemblyName 保持 MCLCS.App：若改成 MCLCS 会与 CLI 工具的 mclcs 在 Windows 大小写不敏感下等同，
-         既触发 NuGet restore 的 Ambiguous project name，又会让二者 exe 在 CLI 输出目录同名互相覆盖。
-         故启动器内部名为 MCLCS.App，下面 RenameLauncherToMCLCS 目标把输出 exe 额外复制为用户友好的 MCLCS.exe
-         （同时复制 runtimeconfig/deps/pdb）；原 MCLCS.App.exe 保留，供 CLI 工程经 ProjectReference 拷贝其类型。 -->
+    <!-- AssemblyName 保持 MCLCS.App（代码标识，与命名空间一致，不改）；GUI 输出 exe 经下方 RenameLauncherToChert 目标复制为用户友好的“Chert Launcher.exe”，
+         CLI 工具 AssemblyName 改为 chert（输出 chert.exe）。原 MCLCS.App.exe 保留，供 CLI 工程经 ProjectReference 拷贝其类型。 -->
     <AssemblyName>MCLCS.App</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- 应用图标（Windows 多分辨率 ico）：在资源管理器/任务栏显示，并随打包进 exe。
@@ -46,16 +47,16 @@
     <None Include="Resources\MCLCS.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-    <!-- 构建后把 MCLCS.App.exe 额外复制为用户友好的“MCLCS Launcher.exe”（同时复制 runtimeconfig/deps/pdb）。
+    <!-- 构建后把 MCLCS.App.exe 额外复制为用户友好的“Chert Launcher.exe”（同时复制 runtimeconfig/deps/pdb）。
        原 MCLCS.App.exe 保留，供 CLI 工程通过 ProjectReference 拷贝其 MCLCS.App 命名空间类型使用。
        说明：AssemblyName 必须保持 MCLCS.App（图标 PackUri 与 CLI 类型引用都依赖它），故只能以“复制”方式给出带空格的产品名 exe，
        而非直接改 AssemblyName（那会复现之前图标全丢 + NuGet 撞名的问题）。 -->
-  <Target Name="RenameLauncherToMCLCS" AfterTargets="Build"
+  <Target Name="RenameLauncherToChert" AfterTargets="Build"
           Inputs="$(OutDir)$(TargetName).exe"
-          Outputs="$(OutDir)MCLCS Launcher.exe">
+          Outputs="$(OutDir)Chert Launcher.exe">
     <PropertyGroup>
       <_LauncherSrcBase>$(OutDir)$(TargetName)</_LauncherSrcBase>
-      <_LauncherDstBase>$(OutDir)MCLCS Launcher</_LauncherDstBase>
+      <_LauncherDstBase>$(OutDir)Chert Launcher</_LauncherDstBase>
     </PropertyGroup>
     <Copy SourceFiles="$(_LauncherSrcBase).exe"
           DestinationFiles="$(_LauncherDstBase).exe"
@@ -69,13 +70,19 @@
     <Copy SourceFiles="$(_LauncherSrcBase).pdb"
           DestinationFiles="$(_LauncherDstBase).pdb"
           Condition="Exists('$(_LauncherSrcBase).pdb')" />
-    <!-- 清理上一版复制目标产出的旧名 MCLCS.exe（及配套文件），避免与新的“MCLCS Launcher.exe”并存造成混淆。
-         注意：Windows 文件系统大小写不敏感，MCLCS.exe 与 mclcs.exe 视为同一文件；CLI 会把 mclcs.exe 复制到本目录，
-         故删除旧名时必须先确认 mclcs.* 不存在，否则会误删 CLI 的 mclcs.exe。 -->
-    <Delete Files="$(OutDir)MCLCS.exe" Condition="Exists('$(OutDir)MCLCS.exe') And !Exists('$(OutDir)mclcs.exe')" />
-    <Delete Files="$(OutDir)MCLCS.pdb" Condition="Exists('$(OutDir)MCLCS.pdb') And !Exists('$(OutDir)mclcs.pdb')" />
-    <Delete Files="$(OutDir)MCLCS.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS.runtimeconfig.json') And !Exists('$(OutDir)mclcs.runtimeconfig.json')" />
-    <Delete Files="$(OutDir)MCLCS.deps.json" Condition="Exists('$(OutDir)MCLCS.deps.json') And !Exists('$(OutDir)mclcs.deps.json')" />
+    <!-- 清理上一版复制目标产出的旧名（MCLCS Launcher.exe / MCLCS.exe / mclcs.exe 及配套文件），避免与新的“Chert Launcher.exe”“chert.exe”并存造成混淆。 -->
+    <Delete Files="$(OutDir)MCLCS Launcher.exe" Condition="Exists('$(OutDir)MCLCS Launcher.exe')" />
+    <Delete Files="$(OutDir)MCLCS Launcher.pdb" Condition="Exists('$(OutDir)MCLCS Launcher.pdb')" />
+    <Delete Files="$(OutDir)MCLCS Launcher.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS Launcher.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)MCLCS Launcher.deps.json" Condition="Exists('$(OutDir)MCLCS Launcher.deps.json')" />
+    <Delete Files="$(OutDir)MCLCS.exe" Condition="Exists('$(OutDir)MCLCS.exe')" />
+    <Delete Files="$(OutDir)MCLCS.pdb" Condition="Exists('$(OutDir)MCLCS.pdb')" />
+    <Delete Files="$(OutDir)MCLCS.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)MCLCS.deps.json" Condition="Exists('$(OutDir)MCLCS.deps.json')" />
+    <Delete Files="$(OutDir)mclcs.exe" Condition="Exists('$(OutDir)mclcs.exe')" />
+    <Delete Files="$(OutDir)mclcs.pdb" Condition="Exists('$(OutDir)mclcs.pdb')" />
+    <Delete Files="$(OutDir)mclcs.runtimeconfig.json" Condition="Exists('$(OutDir)mclcs.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)mclcs.deps.json" Condition="Exists('$(OutDir)mclcs.deps.json')" />
   </Target>
 
 </Project>

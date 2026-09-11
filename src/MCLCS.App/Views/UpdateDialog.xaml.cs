@@ -71,9 +71,9 @@ public partial class UpdateDialog : Window
         StatusText.Text = "正在通过内置下载器获取更新包…";
 
         var version = _result.LatestVersion ?? GameConstants.LauncherVersion;
-        var updRoot = Path.Combine(Path.GetTempPath(), "MCLCS", "update");
+        var updRoot = Path.Combine(Path.GetTempPath(), "Chert", "update");
         Directory.CreateDirectory(updRoot);
-        var zipPath = Path.Combine(updRoot, $"MCLCS-v{version}-win-x64.zip");
+        var zipPath = Path.Combine(updRoot, $"Chert-v{version}-win-x64.zip");
         var scriptPath = Path.Combine(updRoot, "update.ps1");
 
         var progress = new Progress<double>(p =>

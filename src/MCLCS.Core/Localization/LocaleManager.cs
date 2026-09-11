@@ -61,8 +61,8 @@ public static class LocaleManager
     }
 
     private static string BuiltInZhCN() => @"{
-  ""app.title"": ""MCLCS 启动器"",
-  ""app.launcher"": ""朗希夏"",
+  ""app.title"": ""燧石启动器"",
+  ""app.launcher"": ""燧石启动器"",
   ""tab.launch"": ""启动游戏"",
   ""tab.install"": ""安装版本"",
   ""tab.download"": ""下载中心"",
@@ -378,7 +378,7 @@ public static class LocaleManager
   ""settings.account.desc"": ""账号登录与多账号管理。"",
   ""settings.ai.desc"": ""AI 助手相关配置。"",
   ""settings.appearance.desc"": ""主题与四色配色自定义。"",
-  ""settings.about.desc"": ""关于朗希夏与版本信息。"",
+  ""settings.about.desc"": ""关于燧石启动器与版本信息。"",
 
   ""tool.versionlist"": ""版本列表"",
   ""tool.versionlist.desc"": ""管理已安装的游戏版本，选择并一键启动。"",
@@ -419,8 +419,8 @@ public static class LocaleManager
 }";
 
     private static string BuiltInEnUS() => @"{
-  ""app.title"": ""MCLCS Launcher"",
-  ""app.launcher"": ""Langxixia"",
+  ""app.title"": ""Chert Launcher"",
+  ""app.launcher"": ""Chert Launcher"",
   ""tab.launch"": ""Launch"",
   ""tab.install"": ""Install"",
   ""tab.download"": ""Download"",
@@ -736,7 +736,7 @@ public static class LocaleManager
   ""settings.account.desc"": ""Account login and multi-account management."",
   ""settings.ai.desc"": ""AI assistant configuration."",
   ""settings.appearance.desc"": ""Theme and four-color customization."",
-  ""settings.about.desc"": ""About Langxixia and version info."",
+  ""settings.about.desc"": ""About Chert Launcher and version info."",
 
   ""tool.versionlist"": ""Version List"",
   ""tool.versionlist.desc"": ""Manage installed game versions, pick and launch."",

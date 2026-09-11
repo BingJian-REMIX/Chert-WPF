@@ -6,7 +6,7 @@
     "releaseDate": "2026-09-04",
     "downloadUrl": "https://cnb.cool/RLRS-Studio/MCLCS-WPF/-/releases/download/v2.5.5/MCLCS-2.5.5-win-x64.zip",
     "singleFileAvailable": true,
-    "changelog": "## MCLCS 2.5.5\n\n进入公测前的收官修复版本，重点修复工具箱对齐、暗色模式配色与弹窗样式。\n\n### 工具箱与版本管理\n- **移除**已废弃的「文件变更检测」入口\n- **新增**「版本列表」与「版本设置」入口，对齐 MCLCS-Linux\n- 版本设置默认打开首个已安装版本，无版本时回退版本列表\n\n### 界面与配色\n- 修复**崩溃分析**页暗色模式下黑底/白字配色异常\n- **添加服务器**弹窗复用模态卡片样式，不再出现黑块/粉色按钮\n- 日志管理器文字配色随主题（暗色为浅色）\n\n### 存档\n- 存档扫描对**缺失 `level.dat`** 的目录标记为警告（橙），不再误报为「兼容」\n\n### 打包\n- 发布物更名为 `MCLCS-2.5.5-win-x64.zip`（GUI：`MCLCS Launcher.exe`，CLI：`mclcs.exe`）"
+    "changelog": "## Chert Launcher 2.5.5\n\n进入公测前的收官修复版本，重点修复工具箱对齐、暗色模式配色与弹窗样式。\n\n### 工具箱与版本管理\n- **移除**已废弃的「文件变更检测」入口\n- **新增**「版本列表」与「版本设置」入口，对齐 MCLCS-Linux\n- 版本设置默认打开首个已安装版本，无版本时回退版本列表\n\n### 界面与配色\n- 修复**崩溃分析**页暗色模式下黑底/白字配色异常\n- **添加服务器**弹窗复用模态卡片样式，不再出现黑块/粉色按钮\n- 日志管理器文字配色随主题（暗色为浅色）\n\n### 存档\n- 存档扫描对**缺失 `level.dat`** 的目录标记为警告（橙），不再误报为「兼容」\n\n### 打包\n- 发布物更名为 `MCLCS-2.5.5-win-x64.zip`（GUI：`Chert Launcher.exe`，CLI：`chert.exe`）"
   },
   "linux": {
     "version": "0.0.0",

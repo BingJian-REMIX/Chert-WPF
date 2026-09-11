@@ -80,9 +80,9 @@ public class LauncherService : ILogger
         GameRoot = gameRoot;
         _downloader = new HttpDownloader(_client, 8, this);
 
-        // 规格 2.2：地图站要求 User-Agent 为 MCLCS/版本号 (Windows; +仓库地址)
+        // 规格 2.2：地图站要求 User-Agent 为 Chert/版本号 (Windows; +仓库地址)
         _client.DefaultRequestHeaders.UserAgent.TryParseAdd(
-            $"MCLCS/{GameConstants.LauncherVersion} (Windows; +{GameConstants.GitHubRepoUrl})");
+            $"Chert/{GameConstants.LauncherVersion} (Windows; +{GameConstants.GitHubRepoUrl})");
 
         Pixelmap = new PixelmapClient(_client);
 

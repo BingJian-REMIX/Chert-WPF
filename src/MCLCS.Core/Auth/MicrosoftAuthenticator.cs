@@ -41,7 +41,7 @@ public class MicrosoftAuthenticator : IAuthenticator
         Action<string>? onUserCode = null)
     {
         _client = client;
-        _client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "MCLCS/2.5");
+        _client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "Chert/2.5");
         _clientId = string.IsNullOrWhiteSpace(clientId) ? DefaultClientId : clientId!;
         _onUserCode = onUserCode;
     }

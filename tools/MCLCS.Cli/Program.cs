@@ -302,7 +302,7 @@ internal static class Program
 
     private static void PrintHelp()
     {
-        Console.WriteLine($"MCLCS v{GameConstants.LauncherVersion} — Minecraft 启动器");
+        Console.WriteLine($"{GameConstants.LauncherDisplayName} v{GameConstants.LauncherVersion} — Minecraft 启动器");
         Console.WriteLine();
         Console.WriteLine("命令:");
         Console.WriteLine("  launch  <versionId> [--username <name>] [--memory <MB>] [--java <path>] [--game-dir <path>]");

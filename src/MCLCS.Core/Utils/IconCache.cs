@@ -24,7 +24,7 @@ public static class IconCache
     public static string CacheRoot { get; } =
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "MCLCS", "cache", "icons");
+            "Chert", "cache", "icons");
 
     /// <summary>根据 URL 计算缓存文件名（sha256 十六进制 + 推测扩展名）。</summary>
     public static string CacheFileFor(string url)

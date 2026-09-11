@@ -35,7 +35,7 @@ public partial class App : Application
         DispatcherUnhandledException += (_, e) =>
         {
             WriteCrashLog("DispatcherUnhandledException", e.Exception);
-            ShowFatalBox("启动器界面发生未处理异常，已写入 mclcs_crash.log。", e.Exception);
+            ShowFatalBox("启动器界面发生未处理异常，已写入 chert_crash.log。", e.Exception);
             e.Handled = true;
         };
     }
@@ -45,7 +45,7 @@ public partial class App : Application
         var ex = e.ExceptionObject as Exception;
         WriteCrashLog("AppDomain.UnhandledException", ex);
         if (e.IsTerminating)
-            ShowFatalBox("启动器发生未处理异常，已写入 mclcs_crash.log，即将退出。", ex);
+            ShowFatalBox("启动器发生未处理异常，已写入 chert_crash.log，即将退出。", ex);
     }
 
     private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
@@ -55,23 +55,23 @@ public partial class App : Application
         e.SetObserved();
     }
 
-    /// <summary>将崩溃信息追加写入 exe 同目录的 mclcs_crash.log（single-file 下用 Environment.ProcessPath 取真实路径）。</summary>
+    /// <summary>将崩溃信息追加写入 exe 同目录的 chert_crash.log（single-file 下用 Environment.ProcessPath 取真实路径）。</summary>
     private static void WriteCrashLog(string context, Exception? ex)
     {
         if (_crashHandling) return;
         _crashHandling = true;
         try
         {
-            // 崩溃日志路径跟随 exe 实际文件名：GUI 启动器输出“MCLCS Launcher.exe”（AssemblyName 仍保留 MCLCS.App，
-            // 仅用 RenameLauncherToMCLCS 目标复制输出文件名），CLI 工具输出 mclcs.exe。优先用 Environment.ProcessPath 取真实路径，
+            // 崩溃日志路径跟随 exe 实际文件名：GUI 启动器输出“Chert Launcher.exe”（AssemblyName 仍保留 MCLCS.App，
+            // 仅用 RenameLauncherToChert 目标复制输出文件名），CLI 工具输出 chert.exe。优先用 Environment.ProcessPath 取真实路径，
             // 兜底取当前进程主模块路径，确保无论改名与否都能定位到真正的 exe 同目录。
             var exePath = Environment.ProcessPath
                           ?? (System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName)
-                          ?? Path.Combine(AppContext.BaseDirectory, "MCLCS Launcher.exe");
+                          ?? Path.Combine(AppContext.BaseDirectory, "Chert Launcher.exe");
             var dir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory;
-            var logPath = Path.Combine(dir, "mclcs_crash.log");
+            var logPath = Path.Combine(dir, "chert_crash.log");
             var sb = new StringBuilder();
-            sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] MCLCS 启动器崩溃（{context}）");
+            sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] 燧石启动器崩溃（{context}）");
             sb.AppendLine($"版本：{GameConstants.LauncherVersion}");
             sb.AppendLine(ex?.ToString() ?? "(无异常对象)");
             sb.AppendLine(new string('-', 60));

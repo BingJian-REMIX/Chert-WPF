@@ -448,10 +448,10 @@ internal static class Program
     {
         Console.WriteLine("[多语言管理]");
         Check("默认 zh_CN", LocaleManager.CurrentLocale == "zh_CN");
-        Check("T(app.title) zh", LocaleManager.T("app.title") == "MCLCS 启动器");
+        Check("T(app.title) zh", LocaleManager.T("app.title") == "燧石启动器");
 
         LocaleManager.CurrentLocale = "en_US";
-        Check("T(app.title) en", LocaleManager.T("app.title") == "MCLCS Launcher");
+        Check("T(app.title) en", LocaleManager.T("app.title") == "Chert Launcher");
         Check("T(不存在) fallback", LocaleManager.T("nonexistent_key") == "nonexistent_key");
 
         LocaleManager.CurrentLocale = "zh_CN"; // 恢复
