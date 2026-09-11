@@ -25,17 +25,20 @@ public static class SkinModel3D
     private readonly record struct Uv(Rect Front, Rect Back, Rect Left, Rect Right, Rect Top, Rect Bottom);
 
     /// <summary>一个身体部位的定义（尺寸、中心、6 面矩形、第二层矩形）。</summary>
-    private readonly record struct PartDef(Uv First, Uv Overlay, double W, double H, double D, double Cx, double Cy, bool IsArm = false);
+    private readonly record struct PartDef(
+        Uv First, Uv Overlay,        // 头/躯干使用（IsLimb=false）
+        int Fx, int Fy, int Ofx, int Ofy, int MirrorFx, int MirrorFy, // 四肢正面坐标(实体/第二层) 与 legacy 镜像源(右肢)；非四肢置 0
+        double W, double H, double D, double Cx, double Cy, bool IsArm, bool IsLimb);
 
     /// <summary>第一层（实体）部位：头/躯干/右臂/左臂/右腿/左腿。</summary>
     private static readonly PartDef[] FirstLayer =
     {
-        new(HeadUv(),       HatUv(),       8, 8,  8,  0, 28),            // 头
-        new(BodyUv(),       JacketUv(),    8, 12, 4,  0, 18),            // 躯干
-        new(LimbUv(44, 20), LimbUv(44, 36), 4, 12, 4,  6, 18, true),     // 右臂
-        new(LimbUv(36, 52), LimbUv(52, 52), 4, 12, 4, -6, 18, true),     // 左臂
-        new(LimbUv(4, 20),  LimbUv(4, 36),  4, 12, 4,  2, 6),            // 右腿
-        new(LimbUv(20, 52), LimbUv(4, 52),  4, 12, 4, -2, 6),            // 左腿
+        new(HeadUv(),  HatUv(),  0,0,0,0,0,0,  8, 8,  8,  0, 28, false, false),  // 头
+        new(BodyUv(),  JacketUv(),0,0,0,0,0,0,  8, 12, 4,  0, 18, false, false),  // 躯干
+        new(default, default, 44,20,44,36,44,20, 4, 12, 4,  6, 18, true,  true),  // 右臂
+        new(default, default, 36,52,52,52,44,20, 4, 12, 4, -6, 18, true,  true),  // 左臂
+        new(default, default,  4,20, 4,36, 4,20, 4, 12, 4,  2,  6, false, true),  // 右腿
+        new(default, default, 20,52, 4,52, 4,20, 4, 12, 4, -2,  6, false, true),  // 左腿
     };
 
     /// <summary>构建角色模型。</summary>
@@ -70,33 +73,36 @@ public static class SkinModel3D
 
         double cy = def.Cy - CenterY;
 
-        Uv uv = useOverlay ? def.Overlay : def.First;
+        // 计算 6 面 UV：
+        //  - 四肢按有效宽度（slim=3 / classic=4）由 LimbUv 统一推导，保证 front/back/top/bottom
+        //    收窄为 w 的同时，left/back/bottom 的 X 同步左移，避免 slim 手臂后方/下方采样错位（缺一半）。
+        //  - 头/躯干用固定 UV。
+        Uv uv;
+        if (def.IsLimb)
+        {
+            int lw = def.IsArm && slim ? 3 : 4;
+            uv = useOverlay ? LimbUv(def.Ofx, def.Ofy, lw) : LimbUv(def.Fx, def.Fy, lw);
+        }
+        else
+        {
+            uv = useOverlay ? def.Overlay : def.First;
+        }
 
         // 64×32 旧皮肤无独立左侧区域：左臂/左腿镜像复用右侧纹理。
         // 必须左右镜像（交换 Left/Right），否则左肢外侧会显示右肢内侧纹理，
-        // 而旧皮肤右肢内侧多数为空 → 左肢外侧缺贴图。
-        if (legacy && !useOverlay)
+        // 而旧皮肤右肢内侧多数为空 → 左肢外侧缺贴图。注意此分支仅限 legacy 且非第二层。
+        if (legacy && def.IsLimb && !useOverlay && def.Cx < 0)
         {
-            int idx = Array.IndexOf(FirstLayer, def);
-            if (idx is 3 or 5)
-            {
-                var baseUv = idx is 3 ? LimbUv(44, 20) : LimbUv(4, 20);
-                uv = baseUv with { Left = baseUv.Right, Right = baseUv.Left };
-            }
+            int lw = def.IsArm && slim ? 3 : 4;
+            var baseUv = LimbUv(def.MirrorFx, def.MirrorFy, lw);
+            uv = baseUv with { Left = baseUv.Right, Right = baseUv.Left };
         }
 
-        // 左肢（def.Cx<0，位于身体 +X / 右侧）的内外侧与右肢相反：右肢 -X 面=外侧、+X 面=内侧，
-        // 左肢 -X 面=内侧、+X 面=外侧。AddBox 固定把 uv.Right 贴 -X、uv.Left 贴 +X，
-        // 故左肢需交换 Left/Right 字段，否则左臂/左腿的里外两面贴反（64×32 旧皮肤由上方 legacy 分支单独处理，这里仅限非 legacy）。
-        if (!legacy && def.Cx < 0)
-            uv = uv with { Left = uv.Right, Right = uv.Left };
-
-        if (def.IsArm && slim) uv = SlimUv(uv);
-
-        // 左右面 UV 分配约定（修正 bug）：模型 -X 面 = 角色右手外侧，应贴皮肤 Right 区；
-        // 模型 +X 面 = 角色左手外侧，应贴皮肤 Left 区。LimbUv 中 uv.Right 字段才是外侧纹理，
-        // uv.Left 字段是内侧（贴身体）纹理。AddBox 必须按此把 uv.Right 贴 -X、uv.Left 贴 +X，
-        // 早期版本把两者贴反，导致手臂/腿内外纹理镜像。
+        // 面 ↔ 模型方向约定（AddBox 固定）：
+        //   +Z = Front, -Z = Back, -X = Right(角色右手外侧), +X = Left(角色左手外侧),
+        //   +Y = Top, -Y = Bottom。
+        // 左肢(def.Cx<0)位于身体 +X 侧，其 +X 面即外侧；皮肤 Left 区已是该肢外侧纹理，
+        // 故 +X→uv.Left 自然正确，**无需**交换 Left/Right（早期交换反而把内外贴反）。
 
         double expand = 0.0;
         if (useOverlay)
@@ -110,7 +116,27 @@ public static class SkinModel3D
         AddBox(group, skin, tw, th, cx, cy, 0, w, h, d, uv);
     }
 
-    // —— UV 构造助手（坐标均来自标准 64×64 布局） ——
+    // —— UV 构造助手（坐标均来自标准 64×64 布局；w = 4 classic / 3 slim） ——
+    // 以右/外侧面(Right)为基准 x=r，顶沿 y=s，推导 6 面：
+    //   Right = (r,     s,     4, 12)  外侧
+    //   Front = (r+4,   s,     w, 12)  正面（front 紧贴外侧，宽 w）
+    //   Left  = (r+4+w, s,     4, 12)  内侧（深度面，宽恒 4）
+    //   Back  = (r+4+w+4, s,   w, 12)  背面（宽 w）
+    //   Top   = (r+4,   s-4,   w, 4)   顶面（宽 w）
+    //   Bottom= (r+4+w, s-4,   w, 4)   底面（宽 w）
+    // 其中 r = fx-4, s = fy（fx/fy 为正面左上角）。展开即下式。
+    private static Uv LimbUv(int fx, int fy, int w)
+    {
+        int right = fx - 4;          // 外侧(Right)左沿
+        int top = fy;               // 侧面顶沿（与正面顶沿同高）
+        return new Uv(
+            new Rect(fx,        fy,     w, 12),  // Front
+            new Rect(fx + w + 4, fy,   w, 12),  // Back
+            new Rect(fx + w,    fy,    4, 12),  // Left
+            new Rect(right,     fy,    4, 12),  // Right
+            new Rect(fx,        fy - 4, w, 4),  // Top
+            new Rect(fx + w,    fy - 4, w, 4)); // Bottom
+    }
 
     private static Uv HeadUv() => new(
         new Rect(8, 8, 8, 8), new Rect(24, 8, 8, 8), new Rect(16, 8, 8, 8), new Rect(0, 8, 8, 8),
@@ -120,10 +146,6 @@ public static class SkinModel3D
         new Rect(20, 20, 8, 12), new Rect(32, 20, 8, 12), new Rect(16, 20, 4, 12), new Rect(28, 20, 4, 12),
         new Rect(20, 16, 8, 4), new Rect(28, 16, 8, 4));
 
-    private static Uv LimbUv(int fx, int fy) => new(
-        new Rect(fx, fy, 4, 12), new Rect(fx + 8, fy, 4, 12), new Rect(fx + 4, fy, 4, 12), new Rect(fx - 4, fy, 4, 12),
-        new Rect(fx, fy - 4, 4, 4), new Rect(fx + 4, fy - 4, 4, 4));
-
     private static Uv HatUv() => new(
         new Rect(40, 8, 8, 8), new Rect(56, 8, 8, 8), new Rect(48, 8, 8, 8), new Rect(32, 8, 8, 8),
         new Rect(40, 0, 8, 8), new Rect(48, 0, 8, 8));
@@ -131,15 +153,6 @@ public static class SkinModel3D
     private static Uv JacketUv() => new(
         new Rect(20, 36, 8, 12), new Rect(32, 36, 8, 12), new Rect(16, 36, 4, 12), new Rect(28, 36, 4, 12),
         new Rect(20, 32, 8, 4), new Rect(28, 32, 8, 4));
-
-    /// <summary>slim 手臂：front/back/top/bottom 宽度由 4 收窄为 3，左右侧面保持 4（深度面）。</summary>
-    private static Uv SlimUv(Uv uv) => uv with
-    {
-        Front = uv.Front with { W = 3 },
-        Back = uv.Back with { W = 3 },
-        Top = uv.Top with { W = 3 },
-        Bottom = uv.Bottom with { W = 3 },
-    };
 
     private static void AddBox(Model3DGroup group, BitmapSource skin, int tw, int th,
         double cx, double cy, double cz, double w, double h, double d, Uv uv)
