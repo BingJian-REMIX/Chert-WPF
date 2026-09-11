@@ -47,8 +47,8 @@ public class SkinEditorViewModel : ObservableObject
         _bitmap = new WriteableBitmap(64, 64, 96, 96, PixelFormats.Bgra32, null);
         _faceBitmap = new WriteableBitmap(8, 8, 96, 96, PixelFormats.Bgra32, null);
 
-        // 默认史蒂夫蓝色底色
-        ClearToColor(Color.FromRgb(0x00, 0x9C, 0xFF));
+        // 默认皮肤：优先用内嵌的 dummy.png（替代旧的全蓝底色），加载失败再回退到史蒂夫蓝。
+        LoadDefaultSkin();
         FlushFull();
         SelectedPart = SkinLayout.Parts.FirstOrDefault();
 
@@ -338,6 +338,37 @@ public class SkinEditorViewModel : ObservableObject
     {
         for (var i = 0; i < _pixels.Length; i += 4)
         { _pixels[i] = c.B; _pixels[i + 1] = c.G; _pixels[i + 2] = c.R; _pixels[i + 3] = c.A; }
+    }
+
+    /// <summary>
+    /// 载入默认皮肤：读取程序集内嵌的 Resources/Skins/dummy.png（64x64 或 64x32）。
+    /// 任意失败（资源缺失/尺寸不符）则回退到史蒂夫蓝底色，保证编辑器始终有可见画布。
+    /// </summary>
+    private void LoadDefaultSkin()
+    {
+        const string uri = "pack://application:,,,/MCLCS.App;component/Resources/Skins/dummy.png";
+        try
+        {
+            var res = Application.GetResourceStream(new Uri(uri, UriKind.Absolute));
+            if (res is null) throw new InvalidOperationException("找不到内嵌默认皮肤资源");
+            using var stream = res.Stream;
+            var decoder = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            var frame = decoder.Frames[0];
+            if (frame.PixelWidth != 64 || (frame.PixelHeight != 64 && frame.PixelHeight != 32))
+                throw new InvalidOperationException("默认皮肤必须是 64x64 或 64x32");
+            var converted = new FormatConvertedBitmap(frame, PixelFormats.Bgra32, null, 0);
+            var src = new byte[converted.PixelWidth * converted.PixelHeight * 4];
+            converted.CopyPixels(src, converted.PixelWidth * 4, 0);
+            Array.Clear(_pixels);
+            var copyH = Math.Min(64, converted.PixelHeight);
+            for (var y = 0; y < copyH; y++)
+                Array.Copy(src, y * converted.PixelWidth * 4, _pixels, y * 64 * 4, converted.PixelWidth * 4);
+            IsLegacySkin = frame.PixelHeight == 32;
+        }
+        catch
+        {
+            ClearToColor(Color.FromRgb(0x00, 0x9C, 0xFF));
+        }
     }
 
     public void FlushFull()

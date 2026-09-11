@@ -37,6 +37,8 @@
     <Resource Include="Resources\Icons\dark\**\*.png" />
     <Resource Include="Resources\Icons\light@2x\**\*.png" />
     <Resource Include="Resources\Icons\dark@2x\**\*.png" />
+    <!-- 皮肤编辑器默认皮肤（替代旧的全蓝底色）。编译进程序集，运行时经 pack URI 读取。 -->
+    <Resource Include="Resources\Skins\dummy.png" />
   </ItemGroup>
 
   <!-- 系统托盘图标：与 ApplicationIcon 共用 Resources\MCLCS.ico，随构建复制到输出目录（bug #26）。 -->
