@@ -1,0 +1,47 @@
+<UserControl x:Class="Chert.App.Views.CrashAnalysisView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Chert.App.ViewModels">
+    <UserControl.DataContext>
+        <vm:CrashAnalysisViewModel/>
+    </UserControl.DataContext>
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="320"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="最近的崩溃报告" FontWeight="Bold" Margin="0,0,0,6"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+            <ListBox Grid.Row="1" ItemsSource="{Binding Reports}" SelectedItem="{Binding SelectedReport}"
+                     DisplayMemberPath="DisplayName"
+                     Background="{DynamicResource ListViewBackground}" Foreground="{DynamicResource PrimaryForeground}"
+                     BorderBrush="{DynamicResource ListViewBorder}"/>
+            <Button Grid.Row="2" Content="刷新" Command="{Binding RefreshCommand}" Width="100"
+                    HorizontalAlignment="Left" Margin="0,8,0,0" Padding="0,4"/>
+        </Grid>
+
+        <Grid Grid.Column="1" Margin="12,0,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="分析与建议" FontWeight="Bold" Margin="0,0,0,6"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+            <TextBox Grid.Row="1" Text="{Binding Summary, Mode=OneWay}" IsReadOnly="True"
+                     VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                     FontFamily="Consolas" FontSize="12"
+                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+                     BorderBrush="{DynamicResource InputBorder}"/>
+            <Button Grid.Row="2" Content="打开完整分析报告" Command="{Binding OpenDetailCommand}"
+                    Width="180" HorizontalAlignment="Left" Margin="0,8,0,0" Padding="0,4"/>
+        </Grid>
+    </Grid>
+</UserControl>

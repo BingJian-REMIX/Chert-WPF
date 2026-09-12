@@ -1,0 +1,49 @@
+<UserControl x:Class="Chert.App.Views.SkinView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+             xmlns:ctrl="clr-namespace:Chert.App.Controls"
+             xmlns:conv="clr-namespace:Chert.App.Converters"
+             xmlns:fw="clr-namespace:System.Windows.Controls;assembly=PresentationFramework">
+    <UserControl.Resources>
+        <fw:BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVisibility"/>
+    </UserControl.Resources>
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="皮肤预览" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="玩家名：" VerticalAlignment="Center" Margin="0,0,4,0"/>
+            <TextBox Text="{Binding PlayerName, UpdateSourceTrigger=PropertyChanged}" Width="160"
+                     VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <Button Content="查询" Command="{Binding FetchSkinCommand}" Width="60" Padding="0,2"/>
+            <TextBlock Text="{Binding ModelType, StringFormat='模型：{0}'}" VerticalAlignment="Center"
+                       Margin="12,0,0,0" Opacity="0.8"
+                       Visibility="{Binding HasSkin, Converter={StaticResource BoolToVisibility}}"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,0,0,8"/>
+
+        <!-- 3D 预览区 -->
+        <Border Grid.Row="3" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="8" Background="{DynamicResource ControlBackground}"
+                Visibility="{Binding HasSkin, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <ctrl:SkinPreview3D SkinImage="{Binding SkinImage}" Slim="{Binding Slim}" AutoRotate="True"
+                                    Margin="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                <TextBlock Text="拖动旋转 · 滚轮缩放" Foreground="{DynamicResource SecondaryForeground}" FontSize="11"
+                           HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="8" Opacity="0.7"/>
+            </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="3" Text="输入 Minecraft 正版用户名以获取皮肤" Foreground="{DynamicResource SecondaryForeground}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Visibility="{Binding HasSkin, Converter={StaticResource InvBoolToVisibility}}"/>
+    </Grid>
+</UserControl>

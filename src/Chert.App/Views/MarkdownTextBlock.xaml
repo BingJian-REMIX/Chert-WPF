@@ -1,0 +1,9 @@
+<UserControl x:Class="Chert.App.Views.MarkdownTextBlock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- 只读富文本容器：用于渲染 AI 助手回复（轻量 Markdown）。背景透明、无边框、不可聚焦，融入聊天气泡。 -->
+    <RichTextBox x:Name="Rtb" IsReadOnly="True" Focusable="False" BorderThickness="0"
+                 Background="Transparent" Padding="0" Margin="0"
+                 VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"
+                 IsDocumentEnabled="True"/>
+</UserControl>

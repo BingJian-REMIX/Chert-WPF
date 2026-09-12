@@ -1,0 +1,59 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        ====== 四色索引贴调色板（需求规格 1.2 / 2.4） ======
+
+        每色提供四档预计算笔刷，亮度算法与 Chert.Core.UI.TabThemeConfig.Brighten 完全一致：
+          · Solid     实色（标签底色 / 未选中态）
+          · Dim       暗化 0.7（未选中但需区分时的弱化色）
+          · Active    提亮 1.12（悬停 / 选中态底色）
+          · Underline 提亮 1.45（选中指示细线，同色不可见，必须提亮）
+
+        下列值为「默认四色」的静态基线；运行时 MainWindow 后台读取 TabThemeConfig
+        （用户可在 2.4 外观页自定义），用 Brighten 重新计算后覆写 Application.Current.Resources
+        中对应键，所有 DynamicResource 引用即时刷新。
+
+        命名：Tab{Kind}{档位}Brush  —— 例：TabGameUnderlineBrush
+    -->
+
+    <!-- ===== 游戏 / 绿 #4CAF50 ===== -->
+    <SolidColorBrush x:Key="TabGameBrush"        Color="#4CAF50"/>
+    <SolidColorBrush x:Key="TabGameDimBrush"     Color="#357B38"/>
+    <SolidColorBrush x:Key="TabGameActiveBrush"  Color="#55C45A"/>
+    <SolidColorBrush x:Key="TabGameUnderlineBrush" Color="#6EFE74"/>
+
+    <!-- ===== 下载 / 蓝 #2196F3 ===== -->
+    <SolidColorBrush x:Key="TabDownloadBrush"      Color="#2196F3"/>
+    <SolidColorBrush x:Key="TabDownloadDimBrush"   Color="#1769AA"/>
+    <SolidColorBrush x:Key="TabDownloadActiveBrush" Color="#25A8FF"/>
+    <SolidColorBrush x:Key="TabDownloadUnderlineBrush" Color="#30DAFF"/>
+
+    <!-- ===== 工具箱 / 橙 #FF9800 ===== -->
+    <SolidColorBrush x:Key="TabToolboxBrush"      Color="#FF9800"/>
+    <SolidColorBrush x:Key="TabToolboxDimBrush"   Color="#B36A00"/>
+    <SolidColorBrush x:Key="TabToolboxActiveBrush" Color="#FFAA00"/>
+    <SolidColorBrush x:Key="TabToolboxUnderlineBrush" Color="#FFDC00"/>
+
+    <!-- ===== 设置 / 灰 #607D8B ===== -->
+    <SolidColorBrush x:Key="TabSettingsBrush"      Color="#607D8B"/>
+    <SolidColorBrush x:Key="TabSettingsDimBrush"   Color="#435861"/>
+    <SolidColorBrush x:Key="TabSettingsActiveBrush" Color="#6C8C9C"/>
+    <SolidColorBrush x:Key="TabSettingsUnderlineBrush" Color="#8BB5CA"/>
+
+    <!--
+        语义键（由 MainWindow 后台按当前主标签实时覆写）：
+
+        TitleBarBrush         —— 标题栏背景，随当前主标签变色（TabThemeConfig.TitleBarFollowsTab）。
+                                 默认初始化为游戏绿，避免启动瞬间无色。
+        SidebarIndicatorBrush —— 侧边栏选中项左侧 3px 竖向指示线（规格 1.4），用当前主标签色。
+        TabForegroundBrush    —— 贴在同色索引贴上的文字色（恒白，保证对比度）。
+    -->
+    <SolidColorBrush x:Key="TitleBarBrush"         Color="#4CAF50"/>
+    <SolidColorBrush x:Key="SidebarIndicatorBrush" Color="#4CAF50"/>
+    <SolidColorBrush x:Key="TabForegroundBrush"    Color="#FFFFFF"/>
+    <!-- 标题栏前景（窗口控制图标 / 标题文字）默认白，运行期随 Light/Dark 主题覆盖 -->
+    <SolidColorBrush x:Key="TitleBarForeground"    Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="TitleBarOverlayForeground" Color="#40FFFFFF"/>
+
+</ResourceDictionary>
