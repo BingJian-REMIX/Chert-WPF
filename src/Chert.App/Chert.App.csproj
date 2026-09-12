@@ -1,88 +1,88 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
-    <!--
-      刻意不启用 UseWindowsForms：该开关会注入 System.Drawing 与 System.Windows.Forms 两个全局 using，
-      与 WPF 的 UserControl / Application / Brush / Point / Rectangle / MouseEventArgs 等类型大面积撞名（CS0104），
-      而全局 using 无法被文件级 using 遮蔽。选择文件夹改用 WPF 原生 Microsoft.Win32.OpenFolderDialog。
-    -->
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <Version>2.5.6</Version>
-    <Product>Chert Launcher</Product>
-    <AssemblyTitle>Chert Launcher</AssemblyTitle>
-    <Company>RLRS-Studio</Company>
-    <!-- 仅保留简体中文框架资源（zh-Hans），剔除其余语言卫星程序集，缩小发布体积 -->
-    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
-    <RootNamespace>Chert.App</RootNamespace>
-    <!-- AssemblyName 保持 Chert.App（代码标识，与命名空间一致，不改）；GUI 输出 exe 经下方 RenameLauncherToChert 目标复制为用户友好的“Chert Launcher.exe”，
-         CLI 工具 AssemblyName 改为 chert（输出 chert.exe）。原 Chert.App.exe 保留，供 CLI 工程经 ProjectReference 拷贝其类型。 -->
-    <AssemblyName>Chert.App</AssemblyName>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <!-- 应用图标（Windows 多分辨率 ico）：在资源管理器/任务栏显示，并随打包进 exe。
-         托盘图标同样取自该文件（见 Services/TrayIconService.cs）。 -->
-    <ApplicationIcon>Resources\Chert.ico</ApplicationIcon>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Chert.Core\Chert.Core.csproj" />
-  </ItemGroup>
-
-  <!-- PNG UI 图标：编译进程序集（Resource），不复制到输出目录，运行时不可被直接篡改/读取。
-       嵌入 1x（light/dark）与 2x 高清（light@2x/dark@2x），后者供“适配高分辨率屏幕”开关启用。 -->
-  <ItemGroup>
-    <Resource Include="Resources\Icons\light\**\*.png" />
-    <Resource Include="Resources\Icons\dark\**\*.png" />
-    <Resource Include="Resources\Icons\light@2x\**\*.png" />
-    <Resource Include="Resources\Icons\dark@2x\**\*.png" />
-    <!-- 皮肤编辑器默认皮肤（替代旧的全蓝底色）。编译进程序集，运行时经 pack URI 读取。 -->
-    <Resource Include="Resources\Skins\dummy.png" />
-  </ItemGroup>
-
-  <!-- 系统托盘图标：与 ApplicationIcon 共用 Resources\Chert.ico，随构建复制到输出目录（bug #26）。 -->
-  <ItemGroup>
-    <None Include="Resources\Chert.ico" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
-    <!-- 构建后把 Chert.App.exe 额外复制为用户友好的“Chert Launcher.exe”（同时复制 runtimeconfig/deps/pdb）。
-       原 Chert.App.exe 保留，供 CLI 工程通过 ProjectReference 拷贝其 Chert.App 命名空间类型使用。
-       说明：AssemblyName 必须保持 Chert.App（图标 PackUri 与 CLI 类型引用都依赖它），故只能以“复制”方式给出带空格的产品名 exe，
-       而非直接改 AssemblyName（那会复现之前图标全丢 + NuGet 撞名的问题）。 -->
-  <Target Name="RenameLauncherToChert" AfterTargets="Build"
-          Inputs="$(OutDir)$(TargetName).exe"
-          Outputs="$(OutDir)Chert Launcher.exe">
-    <PropertyGroup>
-      <_LauncherSrcBase>$(OutDir)$(TargetName)</_LauncherSrcBase>
-      <_LauncherDstBase>$(OutDir)Chert Launcher</_LauncherDstBase>
-    </PropertyGroup>
-    <Copy SourceFiles="$(_LauncherSrcBase).exe"
-          DestinationFiles="$(_LauncherDstBase).exe"
-          Condition="Exists('$(_LauncherSrcBase).exe')" />
-    <Copy SourceFiles="$(_LauncherSrcBase).runtimeconfig.json"
-          DestinationFiles="$(_LauncherDstBase).runtimeconfig.json"
-          Condition="Exists('$(_LauncherSrcBase).runtimeconfig.json')" />
-    <Copy SourceFiles="$(_LauncherSrcBase).deps.json"
-          DestinationFiles="$(_LauncherDstBase).deps.json"
-          Condition="Exists('$(_LauncherSrcBase).deps.json')" />
-    <Copy SourceFiles="$(_LauncherSrcBase).pdb"
-          DestinationFiles="$(_LauncherDstBase).pdb"
-          Condition="Exists('$(_LauncherSrcBase).pdb')" />
-    <!-- 清理上一版复制目标产出的旧名（Chert Launcher.exe / Chert.exe / chert.exe 及配套文件），避免与新的“Chert Launcher.exe”“chert.exe”并存造成混淆。 -->
-    <Delete Files="$(OutDir)Chert Launcher.exe" Condition="Exists('$(OutDir)Chert Launcher.exe')" />
-    <Delete Files="$(OutDir)Chert Launcher.pdb" Condition="Exists('$(OutDir)Chert Launcher.pdb')" />
-    <Delete Files="$(OutDir)Chert Launcher.runtimeconfig.json" Condition="Exists('$(OutDir)Chert Launcher.runtimeconfig.json')" />
-    <Delete Files="$(OutDir)Chert Launcher.deps.json" Condition="Exists('$(OutDir)Chert Launcher.deps.json')" />
-    <Delete Files="$(OutDir)Chert.exe" Condition="Exists('$(OutDir)Chert.exe')" />
-    <Delete Files="$(OutDir)MCLCS.pdb" Condition="Exists('$(OutDir)MCLCS.pdb')" />
-    <Delete Files="$(OutDir)MCLCS.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS.runtimeconfig.json')" />
-    <Delete Files="$(OutDir)MCLCS.deps.json" Condition="Exists('$(OutDir)MCLCS.deps.json')" />
-    <Delete Files="$(OutDir)chert.exe" Condition="Exists('$(OutDir)chert.exe')" />
-    <Delete Files="$(OutDir)mclcs.pdb" Condition="Exists('$(OutDir)mclcs.pdb')" />
-    <Delete Files="$(OutDir)mclcs.runtimeconfig.json" Condition="Exists('$(OutDir)mclcs.runtimeconfig.json')" />
-    <Delete Files="$(OutDir)mclcs.deps.json" Condition="Exists('$(OutDir)mclcs.deps.json')" />
-  </Target>
-
-</Project>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <!--
+      刻意不启用 UseWindowsForms：该开关会注入 System.Drawing 与 System.Windows.Forms 两个全局 using，
+      与 WPF 的 UserControl / Application / Brush / Point / Rectangle / MouseEventArgs 等类型大面积撞名（CS0104），
+      而全局 using 无法被文件级 using 遮蔽。选择文件夹改用 WPF 原生 Microsoft.Win32.OpenFolderDialog。
+    -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>2.6.0</Version>
+    <Product>Chert Launcher</Product>
+    <AssemblyTitle>Chert Launcher</AssemblyTitle>
+    <Company>RLRS-Studio</Company>
+    <!-- 仅保留简体中文框架资源（zh-Hans），剔除其余语言卫星程序集，缩小发布体积 -->
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <RootNamespace>Chert.App</RootNamespace>
+    <!-- AssemblyName 保持 Chert.App（代码标识，与命名空间一致，不改）；GUI 输出 exe 经下方 RenameLauncherToChert 目标复制为用户友好的“Chert Launcher.exe”，
+         CLI 工具 AssemblyName 改为 chert（输出 chert.exe）。原 Chert.App.exe 保留，供 CLI 工程经 ProjectReference 拷贝其类型。 -->
+    <AssemblyName>Chert.App</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- 应用图标（Windows 多分辨率 ico）：在资源管理器/任务栏显示，并随打包进 exe。
+         托盘图标同样取自该文件（见 Services/TrayIconService.cs）。 -->
+    <ApplicationIcon>Resources\Chert.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Chert.Core\Chert.Core.csproj" />
+  </ItemGroup>
+
+  <!-- PNG UI 图标：编译进程序集（Resource），不复制到输出目录，运行时不可被直接篡改/读取。
+       嵌入 1x（light/dark）与 2x 高清（light@2x/dark@2x），后者供“适配高分辨率屏幕”开关启用。 -->
+  <ItemGroup>
+    <Resource Include="Resources\Icons\light\**\*.png" />
+    <Resource Include="Resources\Icons\dark\**\*.png" />
+    <Resource Include="Resources\Icons\light@2x\**\*.png" />
+    <Resource Include="Resources\Icons\dark@2x\**\*.png" />
+    <!-- 皮肤编辑器默认皮肤（替代旧的全蓝底色）。编译进程序集，运行时经 pack URI 读取。 -->
+    <Resource Include="Resources\Skins\dummy.png" />
+  </ItemGroup>
+
+  <!-- 系统托盘图标：与 ApplicationIcon 共用 Resources\Chert.ico，随构建复制到输出目录（bug #26）。 -->
+  <ItemGroup>
+    <None Include="Resources\Chert.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+    <!-- 构建后把 Chert.App.exe 额外复制为用户友好的“Chert Launcher.exe”（同时复制 runtimeconfig/deps/pdb）。
+       原 Chert.App.exe 保留，供 CLI 工程通过 ProjectReference 拷贝其 Chert.App 命名空间类型使用。
+       说明：AssemblyName 必须保持 Chert.App（图标 PackUri 与 CLI 类型引用都依赖它），故只能以“复制”方式给出带空格的产品名 exe，
+       而非直接改 AssemblyName（那会复现之前图标全丢 + NuGet 撞名的问题）。 -->
+  <Target Name="RenameLauncherToChert" AfterTargets="Build"
+          Inputs="$(OutDir)$(TargetName).exe"
+          Outputs="$(OutDir)Chert Launcher.exe">
+    <PropertyGroup>
+      <_LauncherSrcBase>$(OutDir)$(TargetName)</_LauncherSrcBase>
+      <_LauncherDstBase>$(OutDir)Chert Launcher</_LauncherDstBase>
+    </PropertyGroup>
+    <Copy SourceFiles="$(_LauncherSrcBase).exe"
+          DestinationFiles="$(_LauncherDstBase).exe"
+          Condition="Exists('$(_LauncherSrcBase).exe')" />
+    <Copy SourceFiles="$(_LauncherSrcBase).runtimeconfig.json"
+          DestinationFiles="$(_LauncherDstBase).runtimeconfig.json"
+          Condition="Exists('$(_LauncherSrcBase).runtimeconfig.json')" />
+    <Copy SourceFiles="$(_LauncherSrcBase).deps.json"
+          DestinationFiles="$(_LauncherDstBase).deps.json"
+          Condition="Exists('$(_LauncherSrcBase).deps.json')" />
+    <Copy SourceFiles="$(_LauncherSrcBase).pdb"
+          DestinationFiles="$(_LauncherDstBase).pdb"
+          Condition="Exists('$(_LauncherSrcBase).pdb')" />
+    <!-- 清理上一版复制目标产出的旧名（Chert Launcher.exe / Chert.exe / chert.exe 及配套文件），避免与新的“Chert Launcher.exe”“chert.exe”并存造成混淆。 -->
+    <Delete Files="$(OutDir)Chert Launcher.exe" Condition="Exists('$(OutDir)Chert Launcher.exe')" />
+    <Delete Files="$(OutDir)Chert Launcher.pdb" Condition="Exists('$(OutDir)Chert Launcher.pdb')" />
+    <Delete Files="$(OutDir)Chert Launcher.runtimeconfig.json" Condition="Exists('$(OutDir)Chert Launcher.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)Chert Launcher.deps.json" Condition="Exists('$(OutDir)Chert Launcher.deps.json')" />
+    <Delete Files="$(OutDir)Chert.exe" Condition="Exists('$(OutDir)Chert.exe')" />
+    <Delete Files="$(OutDir)MCLCS.pdb" Condition="Exists('$(OutDir)MCLCS.pdb')" />
+    <Delete Files="$(OutDir)MCLCS.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)MCLCS.deps.json" Condition="Exists('$(OutDir)MCLCS.deps.json')" />
+    <Delete Files="$(OutDir)chert.exe" Condition="Exists('$(OutDir)chert.exe')" />
+    <Delete Files="$(OutDir)mclcs.pdb" Condition="Exists('$(OutDir)mclcs.pdb')" />
+    <Delete Files="$(OutDir)mclcs.runtimeconfig.json" Condition="Exists('$(OutDir)mclcs.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)mclcs.deps.json" Condition="Exists('$(OutDir)mclcs.deps.json')" />
+  </Target>
+
+</Project>
