@@ -88,7 +88,7 @@ public static class LauncherUpdater
             try
             {
                 using var doc = JsonDocument.Parse(json);
-                // Chert-upgrade/latest.json 为三端共用的多平台结构：根为 { wpf:{...}, linux:{...}, android:{...} }。
+                // chert-upgrade/latest.json 为三端共用的多平台结构：根为 { wpf:{...}, linux:{...}, android:{...} }。
                 // 本启动器只读取与 PlatformId 同名的平台小节；若根为旧的单平台对象则整体解析（向后兼容）。
                 var root = doc.RootElement;
                 var section = root.ValueKind == JsonValueKind.Object

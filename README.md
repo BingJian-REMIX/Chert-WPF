@@ -38,7 +38,7 @@
 ## 链接
 
 - 主仓库（GitHub）：<https://github.com/BingJian-REMIX/Chert-WPF>
-- 更新信息源（GitHub Pages）：<https://remix-laser-raising-studio.github.io/Chert-upgrade/latest.json>
+- 更新信息源（GitHub Pages）：<https://remix-laser-raising-studio.github.io/chert-upgrade/latest.json>
 
 ## 许可
 
