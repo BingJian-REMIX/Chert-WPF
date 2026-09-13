@@ -510,7 +510,7 @@
 
                     Style="{StaticResource PrimaryButtonStyle}"/>
 
-            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.8"><Run Text="{theme:Loc dl.total_pre}"/><Run Text="{Binding Queue.Count}"/><Run Text="{theme:Loc dl.total_post}"/></TextBlock>
+            <TextBlock VerticalAlignment="Center" Margin="12,0,0,0" Opacity="0.8"><Run Text="{theme:Loc dl.total_pre}"/><Run Text="{Binding Queue.Count, Mode=OneWay}"/><Run Text="{theme:Loc dl.total_post}"/></TextBlock>
 
         </StackPanel>
 

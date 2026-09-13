@@ -83,7 +83,7 @@
 
                     <Run Text="{theme:Loc server.m236}"/>
 
-                    <Run Text="{Binding Stats.Count}" FontWeight="Bold" Foreground="{DynamicResource PrimaryForeground}"/>
+                    <Run Text="{Binding Stats.Count, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource PrimaryForeground}"/>
 
                     <Run Text="{theme:Loc server.m237}"/>
 
