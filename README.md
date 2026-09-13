@@ -5,9 +5,9 @@
 
 燧石启动器（Chert Launcher，原 MCLCS）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`Chert.Core`），两端功能持续对齐。
 
-- 主仓库（GitHub）：<https://github.com/BingJian-REMIX/Chert-Launcher>
+- 主仓库（GitHub）：<https://github.com/BingJian-REMIX/Chert-WPF>
 - 更新信息源（GitHub Pages）：<https://remix-laser-raising-studio.github.io/Chert-upgrade/latest.json>
-- 下载包（CNB Release）：<https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases>
+- 下载包（CNB Release）：<https://cnb.cool/RLRS-Studio/Chert-WPF/-/releases>
 
 ## 产物命名
 
@@ -53,7 +53,7 @@
   - 多项暗色主题画笔修复、崩溃分析页与性能页稳定化、`IsFrozen` 写像素回归修复等。
 - **v2.6.0**（正式版，待发布）：
   - **自动更新按安装形态选包**：当前为 light 版则更新到 light 包，自包含版则更新到自包含包（latest.json 新增 `lightAvailable` / `lightDownloadUrl` 字段）。
-  - 自动更新兜底直链资产名由 `MCLCS-*` 收敛为 `Chert-Launcher-*` / `Chert-Light-*`；仓库地址统一指向 `Chert-Launcher`。
+  - 自动更新兜底直链资产名由 `MCLCS-*` 收敛为 `Chert-Launcher-*` / `Chert-Light-*`；仓库地址统一指向 `Chert-WPF`。
 - **v2.5.5**（上一个发布版）：对齐 MCLCS-Linux 的收官修复批次——工具箱全局侧边栏移除已废弃的「文件变更检测」，新增「版本列表」与「版本设置」入口；添加服务器弹窗复用全局模态样式（暗色下不再呈黑块）；崩溃分析页补充主题画笔修复暗色配色；存档扫描对缺失 `level.dat` 的目录标记为警告而非误报兼容；GUI 产物定名为 `Chert Launcher.exe`、CLI 为 `chert.exe`。
 - **v2.5.4**：更新源迁移至 GitHub Pages 托管的 `latest.json`，稳定、免代理；自更新改为「下载 → 解压 → 原地替换安装目录并接力启动新版本」；发布物改为单个 `MCLCS-2.5.4-win-x64.zip`；GitHub 仓库为主仓库。
 - **v2.5.3**：启动器自身崩溃捕获与日志（`chert_crash.log`）；崩溃自动修复新增资源包/光影类别；新增存档损坏检测（只读，三色分级）；Mod 冲突禁用在「始终」策略下先弹窗确认。
@@ -73,8 +73,8 @@
 
 | 版本 | 资产 | 说明 |
 | --- | --- | --- |
-| **v2.5.6（公测，最新）** | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases) | 自包含免运行时 / 轻量需 .NET 10 桌面运行时（两包手动选择） |
-| 全部历史版本 | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases) | 各版本发布直链 |
+| **v2.5.6（公测，最新）** | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-WPF/-/releases) | 自包含免运行时 / 轻量需 .NET 10 桌面运行时（两包手动选择） |
+| 全部历史版本 | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-WPF/-/releases) | 各版本发布直链 |
 
 下载后直接解压，运行 `Chert Launcher.exe` 即可。启动器内置**自动更新器**：启动时读取 GitHub Pages 上的 `latest.json`，发现新版本后直接下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载或 winget。（**v2.6.0 正式版起**，自动更新会按当前安装形态——自包含 / 轻量——自动选择对应的包。）
 

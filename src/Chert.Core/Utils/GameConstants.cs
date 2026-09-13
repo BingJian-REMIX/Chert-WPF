@@ -128,8 +128,8 @@ public static class GameConstants
 
     public const string AdoptiumApiBase = "https://api.adoptium.net/v3";
 
-    /// <summary>本项目在 GitHub 的仓库地址（关于页链接、地图站 User-Agent、发布页均指向此处）。2026-09-12 品牌更名后仓库改为 Chert-Launcher。</summary>
-    public const string GitHubRepoUrl = "https://github.com/BingJian-REMIX/Chert-Launcher";
+    /// <summary>本项目在 GitHub 的仓库地址（关于页链接、地图站 User-Agent、发布页均指向此处）。2026-09-12 品牌更名后仓库改为 Chert-WPF。</summary>
+    public const string GitHubRepoUrl = "https://github.com/BingJian-REMIX/Chert-WPF";
 
     /// <summary>GitHub 仓库地址（Uri 类型），供 XAML 的 Hyperlink.NavigateUri 使用。
     /// NavigateUri 是 Uri 依赖属性，x:Static 返回的字符串不会自动做 string→Uri 转换，
@@ -137,8 +137,8 @@ public static class GameConstants
     public static readonly Uri GitHubRepoUri = new Uri(GitHubRepoUrl);
 
     /// <summary>更新包（single-file zip）托管在 CNB Release；latest.json 的 downloadUrl 优先，
-    /// 仅当 downloadUrl 缺失时由 LauncherUpdater 兜底构造此处地址。最新版本信息（latest.json）本身托管在 GitHub Pages，不再依赖 CNB。2026-09-12 品牌更名后仓库改为 Chert-Launcher。</summary>
-    public const string CnbReleaseBase = "https://cnb.cool/RLRS-Studio/Chert-Launcher";
+    /// 仅当 downloadUrl 缺失时由 LauncherUpdater 兜底构造此处地址。最新版本信息（latest.json）本身托管在 GitHub Pages，不再依赖 CNB。2026-09-12 品牌更名后仓库改为 Chert-WPF。</summary>
+    public const string CnbReleaseBase = "https://cnb.cool/RLRS-Studio/Chert-WPF";
 
     /// <summary>
     /// 更新信息（latest.json）静态地址：GitHub Pages 托管的 <c>latest.json</c>
