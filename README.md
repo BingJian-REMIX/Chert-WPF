@@ -1,7 +1,7 @@
 # Chert Launcher / 燧石启动器 — Minecraft 启动器 (WPF)
 
-> **当前版本：v2.6.0（公测正式版）** · C# / WPF / .NET 10 · Windows
-> **路线图**：`v2.6.0` 为进入**公测（公开测试）**的正式版本；后续转入稳定迭代。
+> **当前版本：v2.5.6（公测 / 公开测试）** · C# / WPF / .NET 10 · Windows
+> **路线图**：`v2.5.6` 为进入**公测（公开测试）**的版本；`v2.6.0` 为**正式版（GA）**，在公测稳定后发布。
 
 燧石启动器（Chert Launcher，原 MCLCS）是一个用 C# / WPF 实现的 Minecraft 启动器，覆盖版本安装、启动、崩溃修复、下载、Mod 管理与工具箱等。本项目与 [MCLCS-Linux](https://cnb.cool/RLRS-Studio/MCLCS-Linux) 共享核心（`Chert.Core`），两端功能持续对齐。
 
@@ -20,11 +20,11 @@
 
 | 形态 | 资产名 | 体积 | 依赖 | 适用 |
 | --- | --- | --- | --- | --- |
-| **自包含（推荐）** | `Chert-Launcher-2.6.0-win-x64.zip` | ~120 MB | 无，内嵌完整 .NET 10 运行时 | 双击即跑、零依赖 |
-| **轻量（Light）** | `Chert-Light-2.6.0-win-x64.zip` | ~1 MB | 需目标机已装 **.NET 10 桌面运行时** | 体积敏感、已装运行时的用户 |
+| **自包含（推荐）** | `Chert-Launcher-2.5.6-win-x64.zip` | ~120 MB | 无，内嵌完整 .NET 10 运行时 | 双击即跑、零依赖 |
+| **轻量（Light）** | `Chert-Light-2.5.6-win-x64.zip` | ~1 MB | 需目标机已装 **.NET 10 桌面运行时** | 体积敏感、已装运行时的用户 |
 
 > 轻量版（framework-dependent）将运行时甩给系统，思路与 HMCL 的 9MB 单 jar 一致；自包含版与之相反，把整套运行时打进 exe，换取「免安装」。
-> 自动更新器会**按当前安装形态自动选包**：当前是 light 版则更新到 light 包，是自包含版则更新到自包含包。
+> 注：v2.5.6 公测的两包需**用户按自身环境手动选择**下载；**v2.6.0 正式版起**，自动更新器才会按当前安装形态自动选包（light 版更新到 light 包、自包含版更新到自包含包）。
 
 ## 功能一览
 
@@ -44,16 +44,16 @@
 
 ## 更新日志
 
-- **v2.6.0**（公测正式版）：
+- **v2.5.6**（公测）：
   - **正式定名 Chert Launcher / 燧石启动器**：全量重命名（命名空间 `Chert.*`、产物 `Chert Launcher.exe` / `chert.exe`、更新源 `Chert-upgrade`）。
-  - **发布双包**：新增轻量版 `Chert-Light`（framework-dependent 单文件，约 1MB，需 .NET 10 桌面运行时）；自包含版 `Chert-Launcher` 保持双击即跑零依赖。
-  - **自动更新按安装形态选包**：当前为 light 版则更新到 light 包，自包含版则更新到自包含包（latest.json 新增 `lightAvailable` / `lightDownloadUrl` 字段）。
-  - 自动更新兜底直链资产名由 `MCLCS-*` 收敛为 `Chert-Launcher-*` / `Chert-Light-*`。
-- **v2.5.6**（公测前最终功能版，开发中）：
+  - **发布双包**：新增轻量版 `Chert-Light`（framework-dependent 单文件，约 1MB，需 .NET 10 桌面运行时）；自包含版 `Chert-Launcher` 保持双击即跑零依赖。两包均需用户按自身环境手动选择下载。
   - **挂机工作流全面重构**：统一 WPF / Linux 双端宏格式（Core 解析器字节一致），词汇表由旧版「帧率/渲染距离/音量/视角」升级为完整键鼠宏——`F` 功能键 / `D` 延时 / `L` 长按 / `K` 数字键码 / `C` 左键连点 / `R` 右键连点 / `M` 鼠标移动 / `S` 滚轮 / `T` 文本 / `G` 按住 / `U` 松开 / `J` 随机等待 / `E` 按名称按键(全键盘) / `*` 循环；新增 `E` 全键盘动作、`G/U` 同时支持键码与名称；WPF 与 Linux 各新建 `AfkRunner` 执行器（SendInput / xdotool），编辑器支持类型选择弹窗、`T` 明文编辑与运行/停止。
   - **工具箱侧边栏「自动居中」滚动**：副页过多可滚动时，点击 / 键盘上下键 / 首次加载 / 窗口尺寸变化都会把当前选中项平滑滚到侧边栏垂直中央，列表不足一屏或触顶/触底时自然停靠边界。
   - **3D 皮肤预览锐化**：修复长期「糊」问题——每面按 8× 最近邻放大后补至 2 的幂画布，避开 WPF 3D 双线性放大与被 mipmap 缩小两条糊化路径；同时修正 NPOT 四肢缺面与冻结位图回归。
   - 多项暗色主题画笔修复、崩溃分析页与性能页稳定化、`IsFrozen` 写像素回归修复等。
+- **v2.6.0**（正式版，待发布）：
+  - **自动更新按安装形态选包**：当前为 light 版则更新到 light 包，自包含版则更新到自包含包（latest.json 新增 `lightAvailable` / `lightDownloadUrl` 字段）。
+  - 自动更新兜底直链资产名由 `MCLCS-*` 收敛为 `Chert-Launcher-*` / `Chert-Light-*`；仓库地址统一指向 `Chert-Launcher`。
 - **v2.5.5**（上一个发布版）：对齐 MCLCS-Linux 的收官修复批次——工具箱全局侧边栏移除已废弃的「文件变更检测」，新增「版本列表」与「版本设置」入口；添加服务器弹窗复用全局模态样式（暗色下不再呈黑块）；崩溃分析页补充主题画笔修复暗色配色；存档扫描对缺失 `level.dat` 的目录标记为警告而非误报兼容；GUI 产物定名为 `Chert Launcher.exe`、CLI 为 `chert.exe`。
 - **v2.5.4**：更新源迁移至 GitHub Pages 托管的 `latest.json`，稳定、免代理；自更新改为「下载 → 解压 → 原地替换安装目录并接力启动新版本」；发布物改为单个 `MCLCS-2.5.4-win-x64.zip`；GitHub 仓库为主仓库。
 - **v2.5.3**：启动器自身崩溃捕获与日志（`chert_crash.log`）；崩溃自动修复新增资源包/光影类别；新增存档损坏检测（只读，三色分级）；Mod 冲突禁用在「始终」策略下先弹窗确认。
@@ -73,10 +73,10 @@
 
 | 版本 | 资产 | 说明 |
 | --- | --- | --- |
-| **v2.6.0（最新）** | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases) | 自包含免运行时 / 轻量需 .NET 10 桌面运行时 |
+| **v2.5.6（公测，最新）** | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases) | 自包含免运行时 / 轻量需 .NET 10 桌面运行时（两包手动选择） |
 | 全部历史版本 | [CNB Releases](https://cnb.cool/RLRS-Studio/Chert-Launcher/-/releases) | 各版本发布直链 |
 
-下载后直接解压，运行 `Chert Launcher.exe` 即可。启动器内置**自动更新器**：启动时读取 GitHub Pages 上的 `latest.json`，发现新版本后直接下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载或 winget。自动更新会按当前安装形态（自包含 / 轻量）自动选择对应的包。
+下载后直接解压，运行 `Chert Launcher.exe` 即可。启动器内置**自动更新器**：启动时读取 GitHub Pages 上的 `latest.json`，发现新版本后直接下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载或 winget。（**v2.6.0 正式版起**，自动更新会按当前安装形态——自包含 / 轻量——自动选择对应的包。）
 
 ## 编译与发布
 
@@ -103,7 +103,7 @@
     -p:SelfContained=false -p:EnableWindowsTargeting=true
   # GUI 的 Chert.App.exe 重命名为「Chert Launcher.exe」；CLI 多文件（chert.exe + chert.dll + Chert.App.dll + Chert.Core.dll）与 GUI 同目录
   ```
-- **合并打包**：自包含版将 `Chert Launcher.exe` 与 `chert.exe`（及各自的 `.dll` / `.pdb` 已内联为 single-file）放入同一目录，压缩为 `Chert-Launcher-2.6.0-win-x64.zip`；轻量版将 GUI 单文件与 CLI 多文件同目录压缩为 `Chert-Light-2.6.0-win-x64.zip`，均作为 CNB Release 资产。
+- **合并打包**：自包含版将 `Chert Launcher.exe` 与 `chert.exe`（及各自的 `.dll` / `.pdb` 已内联为 single-file）放入同一目录，压缩为 `Chert-Launcher-2.5.6-win-x64.zip`；轻量版将 GUI 单文件与 CLI 多文件同目录压缩为 `Chert-Light-2.5.6-win-x64.zip`，均作为 CNB Release 资产。
 - **Linux 交叉编译校验**：可用 Roslyn 直接引用 .NET 10 参考程序集完成 App / CLI 层编译校验（详见 `docs/BUILD.md`）。
 - **CLI 命令**：`launch` / `list` / `install` / `modpack` / `mods` / `skin` / `version`。
 
