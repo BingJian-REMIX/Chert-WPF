@@ -3,6 +3,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using Chert.App.Services;
+using Chert.App.Themes;
+using Chert.Core.Localization;
 using Chert.Core.Update;
 using Chert.Core.Utils;
 
@@ -23,7 +25,7 @@ public partial class UpdateDialog : Window
         InitializeComponent();
         _result = result;
 
-        TitleText.Text = $"发现新版本 v{result.LatestVersion}";
+        TitleText.Text = LocaleManager.T("update.found") + $" v{result.LatestVersion}";
 
         // 紧急更新（status=emgent）：显示红色横幅并置边框高亮，副标题强调立即安装。
         if (result.Status == "emgent")
@@ -31,16 +33,16 @@ public partial class UpdateDialog : Window
             EmergencyBanner.Visibility = Visibility.Visible;
             Card.BorderBrush = new SolidColorBrush(Color.FromRgb(0xC0, 0x39, 0x2B));
         }
-        SubtitleText.Text = $"当前 {result.CurrentVersion} → 最新 {result.LatestVersion}" +
+        SubtitleText.Text = LocaleManager.Tf("update.version_line", result.CurrentVersion, result.LatestVersion) +
                             (result.Status == "emgent"
-                                ? "（紧急更新，请尽快安装）"
-                                : (result.Mandatory ? "（建议立即更新）" : ""));
+                                ? LocaleManager.T("update.emgent_note")
+                                : (result.Mandatory ? LocaleManager.T("update.recommend_note") : ""));
 
         ChangelogBox.Markdown = string.IsNullOrWhiteSpace(result.Changelog)
-            ? "（无法获取更新日志，请点击下方「下载更新」在发布页查看详情）"
+            ? LocaleManager.T("update.no_changelog")
             : result.Changelog;
 
-        // 让遮罩铺满 Owner 窗口，卡片在其上居中。
+        // 让遮罩铺满 Owner 窗口，卡片在其上居中；并播放统一入场动画。
         Loaded += (_, _) =>
         {
             if (Owner is Window o && o.IsLoaded)
@@ -50,6 +52,7 @@ public partial class UpdateDialog : Window
                 Width = o.ActualWidth;
                 Height = o.ActualHeight;
             }
+            AnimationHelper.PlayModalEnter(Card);
         };
     }
 
@@ -77,7 +80,7 @@ public partial class UpdateDialog : Window
         DownloadButton.IsEnabled = false;
         LaterButton.IsEnabled = false;
         ProgressPanel.Visibility = Visibility.Visible;
-        StatusText.Text = "正在通过内置下载器获取更新包…";
+        StatusText.Text = LocaleManager.T("update.fetching");
 
         var version = _result.LatestVersion ?? GameConstants.LauncherVersion;
         var updRoot = Path.Combine(Path.GetTempPath(), "Chert", "update");
@@ -88,7 +91,7 @@ public partial class UpdateDialog : Window
         var progress = new Progress<double>(p =>
         {
             ProgressBar.Value = p;
-            StatusText.Text = $"下载中… {Math.Round(p * 100)}%";
+            StatusText.Text = LocaleManager.Tf("update.downloading_pct", Math.Round(p * 100));
         });
 
         try
@@ -137,7 +140,7 @@ Start-Process -FilePath $exe
 
             File.WriteAllText(scriptPath, script);
 
-            StatusText.Text = "下载完成，正在应用更新…";
+            StatusText.Text = LocaleManager.T("update.applying");
             // 启动脚本（不等待），随后退出当前进程以释放文件锁，由脚本完成替换与重启
             Process.Start(new ProcessStartInfo("powershell",
                 $"-ExecutionPolicy Bypass -File \"{scriptPath}\"") { UseShellExecute = true });
@@ -145,7 +148,7 @@ Start-Process -FilePath $exe
         }
         catch (Exception ex)
         {
-            StatusText.Text = $"更新失败：{ex.Message}";
+            StatusText.Text = LocaleManager.Tf("update.failed", ex.Message);
             TryOpenBrowser(url);
             DownloadButton.IsEnabled = true;
             LaterButton.IsEnabled = true;

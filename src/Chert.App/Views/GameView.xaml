@@ -1,368 +1,736 @@
-<UserControl x:Class="Chert.App.Views.GameView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels"
-             xmlns:theme="clr-namespace:Chert.App.Themes"
-             Background="{DynamicResource WindowBackground}">
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
-    </UserControl.Resources>
-
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                  Padding="20,18,20,24">
-        <StackPanel>
-
-            <!-- ===== 快速启动区 ===== -->
-            <ContentControl Style="{StaticResource CardStyle}" Margin="0,0,0,18">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="2*"/>
-                        <ColumnDefinition Width="1.1*"/>
-                        <ColumnDefinition Width="0.8*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-
-                    <TextBlock Grid.Column="0" Grid.ColumnSpan="4" Text="{theme:Loc game.quick_launch}"
-                               FontSize="15" FontWeight="Bold"
-                               Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,12"/>
-
-                    <ComboBox Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
-                              ItemsSource="{Binding Versions.Versions}"
-                              SelectedItem="{Binding Versions.SelectedVersion}"
-                              DisplayMemberPath="DisplayName"
-                              Background="{DynamicResource InputBackground}"
-                              Foreground="{DynamicResource InputForeground}"
-                              BorderBrush="{DynamicResource InputBorder}"
-                              Padding="8,6" VerticalContentAlignment="Center"/>
-
-                    <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" Margin="10,0,0,0">
-                        <Button Content="{theme:Loc game.btn_start}" MinWidth="96" Height="34"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Command="{Binding LaunchCommand}"/>
-                        <!-- bug #10/#78：游戏页仅保留版本库入口，无框图标按钮 -->
-                        <Button Content="📦 版本库" MinWidth="72" Height="34" Margin="8,0,0,0"
-                                Style="{StaticResource GhostButtonStyle}"
-                                Command="{Binding OpenVersionLibraryCommand}"
-                                ToolTip="打开版本列表大页"/>
-                    </StackPanel>
-
-                    <!-- 第二行标签 -->
-                    <TextBlock Grid.Column="0" Grid.Row="2" Text="{theme:Loc game.account}"
-                               Margin="0,12,0,4" FontSize="11"
-                               Foreground="{DynamicResource SecondaryForeground}"/>
-                    <TextBlock Grid.Column="1" Grid.Row="2" Text="{theme:Loc game.username}"
-                               Margin="10,12,0,4" FontSize="11"
-                               Foreground="{DynamicResource SecondaryForeground}"/>
-                    <TextBlock Grid.Column="2" Grid.Row="2" Text="{theme:Loc game.memory}"
-                               Margin="10,12,0,4" FontSize="11"
-                               Foreground="{DynamicResource SecondaryForeground}"/>
-
-                    <!-- 账号下拉：随所选版本自动跟随该版本绑定的账号 -->
-                    <ComboBox Grid.Column="0" Grid.Row="3"
-                              ItemsSource="{Binding Accounts}"
-                              SelectedItem="{Binding SelectedAccount}"
-                              Background="{DynamicResource InputBackground}"
-                              Foreground="{DynamicResource InputForeground}"
-                              BorderBrush="{DynamicResource InputBorder}"
-                              Padding="8,6" VerticalContentAlignment="Center"
-                              ToolTip="{theme:Loc game.account}">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Username}" VerticalAlignment="Center"/>
-                                    <Border Margin="8,0,0,0" Padding="5,1" CornerRadius="3"
-                                            VerticalAlignment="Center" Background="#607D8B">
-                                        <Border.Style>
-                                            <Style TargetType="Border">
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding AuthType}" Value="microsoft">
-                                                        <Setter Property="Background" Value="#4CAF50"/>
-                                                    </DataTrigger>
-                                                    <DataTrigger Binding="{Binding AuthType}" Value="authlib">
-                                                        <Setter Property="Background" Value="#FF9800"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Border.Style>
-                                        <TextBlock Text="{Binding AuthType}" FontSize="10" Foreground="White"/>
-                                    </Border>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-
-                    <TextBox Grid.Column="1" Grid.Row="3" Margin="10,0,0,0"
-                             Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputForeground}"
-                             BorderBrush="{DynamicResource InputBorder}"
-                             Padding="8,6" VerticalContentAlignment="Center">
-                        <TextBox.Resources>
-                            <Style TargetType="TextBox">
-                                <Style.Triggers>
-                                    <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                                    </Trigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBox.Resources>
-                    </TextBox>
-
-                    <TextBox Grid.Column="2" Grid.Row="3" Margin="10,0,0,0"
-                             Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"
-                             Background="{DynamicResource InputBackground}"
-                             Foreground="{DynamicResource InputForeground}"
-                             BorderBrush="{DynamicResource InputBorder}"
-                             Padding="8,6" VerticalContentAlignment="Center"/>
-
-                    <TextBlock Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="4"
-                               Text="{theme:Loc game.no_account}" Margin="0,8,0,0" FontSize="11"
-                               Foreground="{DynamicResource SecondaryForeground}"
-                               Visibility="{Binding HasAccount, Converter={StaticResource BoolToVisInvert}}"/>
-                </Grid>
-            </ContentControl>
-
-            <!-- ===== 局域网游戏 ===== -->
-            <Grid Margin="0,0,0,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{theme:Loc game.lan}" FontSize="14" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="{theme:Loc btn.refresh}" Padding="12,5"
-                        Style="{StaticResource GhostButtonStyle}" Command="{Binding ScanLanCommand}"/>
-            </Grid>
-            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
-                <ItemsControl ItemsSource="{Binding LanServers}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <ContentControl Style="{StaticResource CardStyle}" Width="230" Height="116">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Motd}" FontWeight="Bold"
-                                                   Foreground="{DynamicResource PrimaryForeground}"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Endpoint}" Margin="0,4,0,0"
-                                                   Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                                    </StackPanel>
-                                    <Button Grid.Row="1" Content="{theme:Loc game.join}" HorizontalAlignment="Right"
-                                            Margin="0,8,0,0" Padding="14,5"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Command="{Binding DataContext.JoinLanCommand,
-                                                RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"/>
-                                </Grid>
-                            </ContentControl>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-            <TextBlock Text="未发现局域网世界，请在游戏内开启「对局域网开放」后点击刷新。"
-                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
-                       Margin="2,6,0,0" Visibility="{Binding LanEmpty, Converter={StaticResource BoolToVisibility}}"/>
-
-            <!-- ===== 服务器列表 ===== -->
-            <Grid Margin="0,18,0,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{theme:Loc game.servers}" FontSize="14" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
-                <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Content="{theme:Loc btn.refresh}" Padding="12,5" Margin="0,0,8,0"
-                            Style="{StaticResource GhostButtonStyle}" Command="{Binding RefreshServersCommand}"/>
-                    <Button Content="{theme:Loc btn.add}" Padding="12,5"
-                            Style="{StaticResource GhostButtonStyle}" Command="{Binding AddServerCommand}"/>
-                </StackPanel>
-            </Grid>
-            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
-                <ItemsControl ItemsSource="{Binding Servers}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <ContentControl Style="{StaticResource CardStyle}" Width="240" Height="120">
-                                <ContentControl.ContextMenu>
-                                    <ContextMenu>
-                                        <MenuItem Header="{theme:Loc game.edit}" Command="{Binding DataContext.EditServerCommand,
-                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                  CommandParameter="{Binding}"/>
-                                        <MenuItem Header="{theme:Loc btn.delete}" Command="{Binding DataContext.DeleteServerCommand,
-                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                  CommandParameter="{Binding}"/>
-                                    </ContextMenu>
-                                </ContentControl.ContextMenu>
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
-                                                <Ellipse.Style>
-                                                    <Style TargetType="Ellipse">
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="0"><Setter Property="Fill" Value="#4CAF50"/></DataTrigger>
-                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="1"><Setter Property="Fill" Value="#FFC107"/></DataTrigger>
-                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="2"><Setter Property="Fill" Value="#FF9800"/></DataTrigger>
-                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="3"><Setter Property="Fill" Value="#9AA0A6"/></DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Ellipse.Style>
-                                            </Ellipse>
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"
-                                                       Foreground="{DynamicResource PrimaryForeground}"
-                                                       TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Address}" Margin="14,4,0,0"
-                                                   Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                                    </StackPanel>
-                                    <Button Grid.Row="1" Content="{theme:Loc game.join}" HorizontalAlignment="Right"
-                                            Margin="0,8,0,0" Padding="14,5"
-                                            Style="{StaticResource PrimaryButtonStyle}"
-                                            Command="{Binding DataContext.JoinServerCommand,
-                                                RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}"/>
-                                </Grid>
-                            </ContentControl>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-            <TextBlock Text="服务器列表为空。"
-                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
-                       Margin="2,6,0,0" Visibility="{Binding ServersEmpty, Converter={StaticResource BoolToVisibility}}"/>
-
-            <!-- ===== 智能推荐 ===== -->
-            <Grid Margin="0,18,0,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{theme:Loc game.recommend}" FontSize="14" FontWeight="Bold"
-                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="刷新推荐" Padding="12,5"
-                        Style="{StaticResource GhostButtonStyle}" Command="{Binding RefreshRecommendCommand}"/>
-            </Grid>
-            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
-                <ItemsControl ItemsSource="{Binding Recommendations}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <ContentControl Style="{StaticResource CardStyle}" Width="250" Height="150">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding Title}" FontWeight="Bold"
-                                                   Foreground="{DynamicResource PrimaryForeground}"
-                                                   TextTrimming="CharacterEllipsis"/>
-                                        <Border Margin="8,0,0,0" Padding="6,1" CornerRadius="4"
-                                                Visibility="{Binding IsDependencyCompletion, Converter={StaticResource BoolToVisibility}}"
-                                                Background="#E74C3C">
-                                            <TextBlock Text="依赖" FontSize="10" Foreground="White"/>
-                                        </Border>
-                                    </StackPanel>
-                                    <TextBlock Grid.Row="1" Text="{Binding Description}" Margin="0,6,0,0"
-                                               Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
-                                               TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Row="1" Text="{Binding Reason}" Margin="0,6,18,0"
-                                               Foreground="{DynamicResource AccentForeground}" FontSize="11"
-                                               TextWrapping="Wrap" VerticalAlignment="Bottom"/>
-                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
-                                                Margin="0,8,0,0">
-                                        <Button Content="一键安装" Padding="12,5"
-                                                Style="{StaticResource PrimaryButtonStyle}"
-                                                Command="{Binding DataContext.InstallRecommendCommand,
-                                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"/>
-                                        <Button Content="不感兴趣" Padding="12,5" Margin="8,0,0,0"
-                                                Style="{StaticResource GhostButtonStyle}"
-                                                Command="{Binding DataContext.NotInterestedRecommendCommand,
-                                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                CommandParameter="{Binding}"/>
-                                    </StackPanel>
-                                </Grid>
-                            </ContentControl>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-            <TextBlock Text="暂无推荐，可点击「刷新推荐」。"
-                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
-                       Margin="2,6,0,0" Visibility="{Binding RecommendEmpty, Converter={StaticResource BoolToVisibility}}"/>
-
-            <!-- ===== 统计区 ===== -->
-            <TextBlock Text="{theme:Loc game.stats}" FontSize="14" FontWeight="Bold" Margin="0,18,0,6"
-                       Foreground="{DynamicResource PrimaryForeground}"/>
-            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
-                <StackPanel Style="{StaticResource CardFlowPanelStyle}">
-                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
-                        <StackPanel>
-                            <TextBlock Text="{theme:Loc game.recent_version}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                            <TextBlock Text="{Binding Versions.SelectedVersion.DisplayName, TargetNullValue=—}"
-                                       Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
-                                       Foreground="{DynamicResource PrimaryForeground}"/>
-                        </StackPanel>
-                    </ContentControl>
-                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
-                        <StackPanel>
-                            <TextBlock Text="{theme:Loc game.weekly_time}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                            <TextBlock Text="{Binding WeekTimeText}" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
-                                       Foreground="{DynamicResource PrimaryForeground}"/>
-                        </StackPanel>
-                    </ContentControl>
-                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
-                        <StackPanel>
-                            <TextBlock Text="崩溃次数（年）" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                            <TextBlock Text="{Binding CrashCountText}" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
-                                       Foreground="{DynamicResource PrimaryForeground}"/>
-                        </StackPanel>
-                    </ContentControl>
-                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96"
-                                    Cursor="Hand" MouseLeftButtonUp="AnnualReportCard_Click"
-                                    Visibility="{Binding ShowAnnualReport, Converter={StaticResource BoolToVisibility}}">
-                        <StackPanel>
-                            <TextBlock Text="{theme:Loc game.annual_report}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
-                            <TextBlock Text="查看" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
-                                       Foreground="{DynamicResource AccentBrush}"/>
-                            <TextBlock Text="今日可查看年度游玩统计" Margin="0,4,0,0" FontSize="10"
-                                       Foreground="{DynamicResource SecondaryForeground}"
-                                       TextTrimming="CharacterEllipsis"/>
-                        </StackPanel>
-                    </ContentControl>
-                </StackPanel>
-            </ScrollViewer>
-
-        </StackPanel>
-    </ScrollViewer>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.GameView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+
+             xmlns:theme="clr-namespace:Chert.App.Themes"
+
+             Background="{DynamicResource WindowBackground}">
+
+    <UserControl.Resources>
+
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+
+    </UserControl.Resources>
+
+
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+
+                  Padding="20,18,20,24">
+
+        <StackPanel>
+
+
+
+            <!-- ===== 快速启动区 ===== -->
+
+            <ContentControl Style="{StaticResource CardStyle}" Margin="0,0,0,18">
+
+                <Grid>
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="2*"/>
+
+                        <ColumnDefinition Width="1.1*"/>
+
+                        <ColumnDefinition Width="0.8*"/>
+
+                        <ColumnDefinition Width="Auto"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <Grid.RowDefinitions>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                        <RowDefinition Height="Auto"/>
+
+                    </Grid.RowDefinitions>
+
+
+
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="4" Text="{theme:Loc game.quick_launch}"
+
+                               FontSize="15" FontWeight="Bold"
+
+                               Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,12"/>
+
+
+
+                    <ComboBox Grid.Column="0" Grid.ColumnSpan="3" Grid.Row="1"
+
+                              ItemsSource="{Binding Versions.Versions}"
+
+                              SelectedItem="{Binding Versions.SelectedVersion}"
+
+                              DisplayMemberPath="DisplayName"
+
+                              Background="{DynamicResource InputBackground}"
+
+                              Foreground="{DynamicResource InputForeground}"
+
+                              BorderBrush="{DynamicResource InputBorder}"
+
+                              Padding="8,6" VerticalContentAlignment="Center"/>
+
+
+
+                    <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" Margin="10,0,0,0">
+
+                        <Button Content="{theme:Loc game.btn_start}" MinWidth="96" Height="34"
+
+                                Style="{StaticResource PrimaryButtonStyle}"
+
+                                Command="{Binding LaunchCommand}"/>
+
+                        <!-- bug #10/#78：游戏页仅保留版本库入口，无框图标按钮 -->
+
+                        <Button Content="{theme:Loc game.m146}" MinWidth="72" Height="34" Margin="8,0,0,0"
+
+                                Style="{StaticResource GhostButtonStyle}"
+
+                                Command="{Binding OpenVersionLibraryCommand}"
+
+                                ToolTip="{theme:Loc game.m147}"/>
+
+                    </StackPanel>
+
+
+
+                    <!-- 第二行标签 -->
+
+                    <TextBlock Grid.Column="0" Grid.Row="2" Text="{theme:Loc game.account}"
+
+                               Margin="0,12,0,4" FontSize="11"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="1" Grid.Row="2" Text="{theme:Loc game.username}"
+
+                               Margin="10,12,0,4" FontSize="11"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="2" Grid.Row="2" Text="{theme:Loc game.memory}"
+
+                               Margin="10,12,0,4" FontSize="11"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+
+
+                    <!-- 账号下拉：随所选版本自动跟随该版本绑定的账号 -->
+
+                    <ComboBox Grid.Column="0" Grid.Row="3"
+
+                              ItemsSource="{Binding Accounts}"
+
+                              SelectedItem="{Binding SelectedAccount}"
+
+                              Background="{DynamicResource InputBackground}"
+
+                              Foreground="{DynamicResource InputForeground}"
+
+                              BorderBrush="{DynamicResource InputBorder}"
+
+                              Padding="8,6" VerticalContentAlignment="Center"
+
+                              ToolTip="{theme:Loc game.account}">
+
+                        <ComboBox.ItemTemplate>
+
+                            <DataTemplate>
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <TextBlock Text="{Binding Username}" VerticalAlignment="Center"/>
+
+                                    <Border Margin="8,0,0,0" Padding="5,1" CornerRadius="3"
+
+                                            VerticalAlignment="Center" Background="#607D8B">
+
+                                        <Border.Style>
+
+                                            <Style TargetType="Border">
+
+                                                <Style.Triggers>
+
+                                                    <DataTrigger Binding="{Binding AuthType}" Value="microsoft">
+
+                                                        <Setter Property="Background" Value="#4CAF50"/>
+
+                                                    </DataTrigger>
+
+                                                    <DataTrigger Binding="{Binding AuthType}" Value="authlib">
+
+                                                        <Setter Property="Background" Value="#FF9800"/>
+
+                                                    </DataTrigger>
+
+                                                </Style.Triggers>
+
+                                            </Style>
+
+                                        </Border.Style>
+
+                                        <TextBlock Text="{Binding AuthType}" FontSize="10" Foreground="White"/>
+
+                                    </Border>
+
+                                </StackPanel>
+
+                            </DataTemplate>
+
+                        </ComboBox.ItemTemplate>
+
+                    </ComboBox>
+
+
+
+                    <TextBox Grid.Column="1" Grid.Row="3" Margin="10,0,0,0"
+
+                             Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+
+                             Background="{DynamicResource InputBackground}"
+
+                             Foreground="{DynamicResource InputForeground}"
+
+                             BorderBrush="{DynamicResource InputBorder}"
+
+                             Padding="8,6" VerticalContentAlignment="Center">
+
+                        <TextBox.Resources>
+
+                            <Style TargetType="TextBox">
+
+                                <Style.Triggers>
+
+                                    <Trigger Property="IsMouseOver" Value="True">
+
+                                        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+
+                                    </Trigger>
+
+                                </Style.Triggers>
+
+                            </Style>
+
+                        </TextBox.Resources>
+
+                    </TextBox>
+
+
+
+                    <TextBox Grid.Column="2" Grid.Row="3" Margin="10,0,0,0"
+
+                             Text="{Binding MemoryMb, UpdateSourceTrigger=PropertyChanged}"
+
+                             Background="{DynamicResource InputBackground}"
+
+                             Foreground="{DynamicResource InputForeground}"
+
+                             BorderBrush="{DynamicResource InputBorder}"
+
+                             Padding="8,6" VerticalContentAlignment="Center"/>
+
+
+
+                    <TextBlock Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="4"
+
+                               Text="{theme:Loc game.no_account}" Margin="0,8,0,0" FontSize="11"
+
+                               Foreground="{DynamicResource SecondaryForeground}"
+
+                               Visibility="{Binding HasAccount, Converter={StaticResource BoolToVisInvert}}"/>
+
+                </Grid>
+
+            </ContentControl>
+
+
+
+            <!-- ===== 局域网游戏 ===== -->
+
+            <Grid Margin="0,0,0,6">
+
+                <Grid.ColumnDefinitions>
+
+                    <ColumnDefinition Width="*"/>
+
+                    <ColumnDefinition Width="Auto"/>
+
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{theme:Loc game.lan}" FontSize="14" FontWeight="Bold"
+
+                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1" Content="{theme:Loc btn.refresh}" Padding="12,5"
+
+                        Style="{StaticResource GhostButtonStyle}" Command="{Binding ScanLanCommand}"/>
+
+            </Grid>
+
+            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
+
+                <ItemsControl ItemsSource="{Binding LanServers}">
+
+                    <ItemsControl.ItemsPanel>
+
+                        <ItemsPanelTemplate>
+
+                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
+
+                        </ItemsPanelTemplate>
+
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <ContentControl Style="{StaticResource CardStyle}" Width="230" Height="116">
+
+                                <Grid>
+
+                                    <Grid.RowDefinitions>
+
+                                        <RowDefinition Height="*"/>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel>
+
+                                        <TextBlock Text="{Binding Motd}" FontWeight="Bold"
+
+                                                   Foreground="{DynamicResource PrimaryForeground}"
+
+                                                   TextTrimming="CharacterEllipsis"/>
+
+                                        <TextBlock Text="{Binding Endpoint}" Margin="0,4,0,0"
+
+                                                   Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                                    </StackPanel>
+
+                                    <Button Grid.Row="1" Content="{theme:Loc game.join}" HorizontalAlignment="Right"
+
+                                            Margin="0,8,0,0" Padding="14,5"
+
+                                            Style="{StaticResource PrimaryButtonStyle}"
+
+                                            Command="{Binding DataContext.JoinLanCommand,
+
+                                                RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                            CommandParameter="{Binding}"/>
+
+                                </Grid>
+
+                            </ContentControl>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+            </ScrollViewer>
+
+            <TextBlock Text="{theme:Loc game.m148}"
+
+                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
+
+                       Margin="2,6,0,0" Visibility="{Binding LanEmpty, Converter={StaticResource BoolToVisibility}}"/>
+
+
+
+            <!-- ===== 服务器列表 ===== -->
+
+            <Grid Margin="0,18,0,6">
+
+                <Grid.ColumnDefinitions>
+
+                    <ColumnDefinition Width="*"/>
+
+                    <ColumnDefinition Width="Auto"/>
+
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{theme:Loc game.servers}" FontSize="14" FontWeight="Bold"
+
+                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+
+                    <Button Content="{theme:Loc btn.refresh}" Padding="12,5" Margin="0,0,8,0"
+
+                            Style="{StaticResource GhostButtonStyle}" Command="{Binding RefreshServersCommand}"/>
+
+                    <Button Content="{theme:Loc btn.add}" Padding="12,5"
+
+                            Style="{StaticResource GhostButtonStyle}" Command="{Binding AddServerCommand}"/>
+
+                </StackPanel>
+
+            </Grid>
+
+            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
+
+                <ItemsControl ItemsSource="{Binding Servers}">
+
+                    <ItemsControl.ItemsPanel>
+
+                        <ItemsPanelTemplate>
+
+                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
+
+                        </ItemsPanelTemplate>
+
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <ContentControl Style="{StaticResource CardStyle}" Width="240" Height="120">
+
+                                <ContentControl.ContextMenu>
+
+                                    <ContextMenu>
+
+                                        <MenuItem Header="{theme:Loc game.edit}" Command="{Binding DataContext.EditServerCommand,
+
+                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                                  CommandParameter="{Binding}"/>
+
+                                        <MenuItem Header="{theme:Loc btn.delete}" Command="{Binding DataContext.DeleteServerCommand,
+
+                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                                  CommandParameter="{Binding}"/>
+
+                                    </ContextMenu>
+
+                                </ContentControl.ContextMenu>
+
+                                <Grid>
+
+                                    <Grid.RowDefinitions>
+
+                                        <RowDefinition Height="*"/>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel>
+
+                                        <StackPanel Orientation="Horizontal">
+
+                                            <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+
+                                                <Ellipse.Style>
+
+                                                    <Style TargetType="Ellipse">
+
+                                                        <Style.Triggers>
+
+                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="0"><Setter Property="Fill" Value="#4CAF50"/></DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="1"><Setter Property="Fill" Value="#FFC107"/></DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="2"><Setter Property="Fill" Value="#FF9800"/></DataTrigger>
+
+                                                            <DataTrigger Binding="{Binding LatencyLevel}" Value="3"><Setter Property="Fill" Value="#9AA0A6"/></DataTrigger>
+
+                                                        </Style.Triggers>
+
+                                                    </Style>
+
+                                                </Ellipse.Style>
+
+                                            </Ellipse>
+
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold"
+
+                                                       Foreground="{DynamicResource PrimaryForeground}"
+
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                        </StackPanel>
+
+                                        <TextBlock Text="{Binding Address}" Margin="14,4,0,0"
+
+                                                   Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                                    </StackPanel>
+
+                                    <Button Grid.Row="1" Content="{theme:Loc game.join}" HorizontalAlignment="Right"
+
+                                            Margin="0,8,0,0" Padding="14,5"
+
+                                            Style="{StaticResource PrimaryButtonStyle}"
+
+                                            Command="{Binding DataContext.JoinServerCommand,
+
+                                                RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                            CommandParameter="{Binding}"/>
+
+                                </Grid>
+
+                            </ContentControl>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+            </ScrollViewer>
+
+            <TextBlock Text="{theme:Loc game.m149}"
+
+                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
+
+                       Margin="2,6,0,0" Visibility="{Binding ServersEmpty, Converter={StaticResource BoolToVisibility}}"/>
+
+
+
+            <!-- ===== 智能推荐 ===== -->
+
+            <Grid Margin="0,18,0,6">
+
+                <Grid.ColumnDefinitions>
+
+                    <ColumnDefinition Width="*"/>
+
+                    <ColumnDefinition Width="Auto"/>
+
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="{theme:Loc game.recommend}" FontSize="14" FontWeight="Bold"
+
+                           Foreground="{DynamicResource PrimaryForeground}" VerticalAlignment="Center"/>
+
+                <Button Grid.Column="1" Content="{theme:Loc game.m150}" Padding="12,5"
+
+                        Style="{StaticResource GhostButtonStyle}" Command="{Binding RefreshRecommendCommand}"/>
+
+            </Grid>
+
+            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
+
+                <ItemsControl ItemsSource="{Binding Recommendations}">
+
+                    <ItemsControl.ItemsPanel>
+
+                        <ItemsPanelTemplate>
+
+                            <StackPanel Style="{StaticResource CardFlowPanelStyle}"/>
+
+                        </ItemsPanelTemplate>
+
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <ContentControl Style="{StaticResource CardStyle}" Width="250" Height="150">
+
+                                <Grid>
+
+                                    <Grid.RowDefinitions>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                        <RowDefinition Height="*"/>
+
+                                        <RowDefinition Height="Auto"/>
+
+                                    </Grid.RowDefinitions>
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold"
+
+                                                   Foreground="{DynamicResource PrimaryForeground}"
+
+                                                   TextTrimming="CharacterEllipsis"/>
+
+                                        <Border Margin="8,0,0,0" Padding="6,1" CornerRadius="4"
+
+                                                Visibility="{Binding IsDependencyCompletion, Converter={StaticResource BoolToVisibility}}"
+
+                                                Background="#E74C3C">
+
+                                            <TextBlock Text="{theme:Loc game.m151}" FontSize="10" Foreground="White"/>
+
+                                        </Border>
+
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}" Margin="0,6,0,0"
+
+                                               Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
+
+                                               TextWrapping="Wrap"/>
+
+                                    <TextBlock Grid.Row="1" Text="{Binding Reason}" Margin="0,6,18,0"
+
+                                               Foreground="{DynamicResource AccentForeground}" FontSize="11"
+
+                                               TextWrapping="Wrap" VerticalAlignment="Bottom"/>
+
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+
+                                                Margin="0,8,0,0">
+
+                                        <Button Content="{theme:Loc game.install_mod}" Padding="12,5"
+
+                                                Style="{StaticResource PrimaryButtonStyle}"
+
+                                                Command="{Binding DataContext.InstallRecommendCommand,
+
+                                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                                CommandParameter="{Binding}"/>
+
+                                        <Button Content="{theme:Loc game.not_interested}" Padding="12,5" Margin="8,0,0,0"
+
+                                                Style="{StaticResource GhostButtonStyle}"
+
+                                                Command="{Binding DataContext.NotInterestedRecommendCommand,
+
+                                                    RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                                CommandParameter="{Binding}"/>
+
+                                    </StackPanel>
+
+                                </Grid>
+
+                            </ContentControl>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+            </ScrollViewer>
+
+            <TextBlock Text="{theme:Loc game.m152}"
+
+                       Foreground="{DynamicResource SecondaryForeground}" FontSize="12"
+
+                       Margin="2,6,0,0" Visibility="{Binding RecommendEmpty, Converter={StaticResource BoolToVisibility}}"/>
+
+
+
+            <!-- ===== 统计区 ===== -->
+
+            <TextBlock Text="{theme:Loc game.stats}" FontSize="14" FontWeight="Bold" Margin="0,18,0,6"
+
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+            <ScrollViewer Style="{StaticResource HorizontalScrollViewerStyle}">
+
+                <StackPanel Style="{StaticResource CardFlowPanelStyle}">
+
+                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
+
+                        <StackPanel>
+
+                            <TextBlock Text="{theme:Loc game.recent_version}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                            <TextBlock Text="{Binding Versions.SelectedVersion.DisplayName, TargetNullValue=—}"
+
+                                       Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                        </StackPanel>
+
+                    </ContentControl>
+
+                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
+
+                        <StackPanel>
+
+                            <TextBlock Text="{theme:Loc game.weekly_time}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                            <TextBlock Text="{Binding WeekTimeText}" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                        </StackPanel>
+
+                    </ContentControl>
+
+                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96">
+
+                        <StackPanel>
+
+                            <TextBlock Text="{theme:Loc game.m153}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                            <TextBlock Text="{Binding CrashCountText}" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                        </StackPanel>
+
+                    </ContentControl>
+
+                    <ContentControl Style="{StaticResource CardStyle}" Width="180" Height="96"
+
+                                    Cursor="Hand" MouseLeftButtonUp="AnnualReportCard_Click"
+
+                                    Visibility="{Binding ShowAnnualReport, Converter={StaticResource BoolToVisibility}}">
+
+                        <StackPanel>
+
+                            <TextBlock Text="{theme:Loc game.annual_report}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+
+                            <TextBlock Text="{theme:Loc game.m154}" Margin="0,8,0,0" FontWeight="Bold" FontSize="16"
+
+                                       Foreground="{DynamicResource AccentBrush}"/>
+
+                            <TextBlock Text="{theme:Loc game.m155}" Margin="0,4,0,0" FontSize="10"
+
+                                       Foreground="{DynamicResource SecondaryForeground}"
+
+                                       TextTrimming="CharacterEllipsis"/>
+
+                        </StackPanel>
+
+                    </ContentControl>
+
+                </StackPanel>
+
+            </ScrollViewer>
+
+
+
+        </StackPanel>
+
+    </ScrollViewer>
+
+</UserControl>
+

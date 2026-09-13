@@ -1,137 +1,275 @@
-<UserControl x:Class="Chert.App.Views.AiSettingsView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels">
-    <ScrollViewer Margin="18" VerticalScrollBarVisibility="Auto">
-        <StackPanel MaxWidth="820" HorizontalAlignment="Left">
-
-            <TextBlock Text="AI 助手" FontWeight="Bold" FontSize="16"/>
-
-            <!-- 第一层：总开关 -->
-            <StackPanel Margin="0,16,0,0">
-                <WrapPanel>
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-                                  IsChecked="{Binding AiEnabled, Mode=TwoWay}"/>
-                    <TextBlock Text="启用 AI 助手" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                </WrapPanel>
-                <TextBlock Text="开启后可选本地部署或外部 API，用于崩溃分析、Mod 推荐翻译等场景。"
-                           Foreground="{DynamicResource SecondaryForeground}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
-
-            <!-- 第二层：部署方式（总开关开启后显示）-->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding AiDetailsVisibility}">
-                <TextBlock Text="部署方式" FontWeight="Bold" Margin="0,0,0,4"/>
-                <ComboBox SelectedValue="{Binding AiMode, Mode=TwoWay}" SelectedValuePath="Tag" Width="240" HorizontalAlignment="Left">
-                    <ComboBoxItem Content="外部 API（填 Key 即用，零下载、零占用）" Tag="External"/>
-                    <ComboBoxItem Content="本地部署（自动安装 Ollama + 轻量模型）" Tag="Local"/>
-                </ComboBox>
-            </StackPanel>
-
-            <!-- 本地部署面板 -->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding LocalDeployVisibility}">
-                <TextBlock Text="本地部署（Ollama）" FontWeight="Bold" Margin="0,0,0,4"/>
-
-                <!-- Ollama 安装状态 -->
-                <StackPanel Orientation="Horizontal" Margin="0,4"
-                            Visibility="{Binding OllamaInstalled, Converter={x:Static vm:VisibilityHelper.BoolToVis}}">
-                    <Ellipse Width="12" Height="12" Fill="#32CD32" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding OllamaVersion, StringFormat='Ollama 已安装（{0}）'}" VerticalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Margin="0,4"
-                            Visibility="{Binding OllamaInstalled, Converter={x:Static vm:VisibilityHelper.BoolToVisInvert}}">
-                    <Button Content="一键安装 Ollama" Command="{Binding InstallOllamaCommand}" Width="130" Padding="8,3" Style="{StaticResource PrimaryButtonStyle}"/>
-                    <TextBlock Text="{Binding OllamaInstallText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryForeground}"/>
-                </StackPanel>
-
-                <!-- 安装进度 -->
-                <StackPanel Margin="0,4" Visibility="{Binding OllamaInstalling, Converter={x:Static vm:VisibilityHelper.BoolToVis}}">
-                    <ProgressBar Value="{Binding OllamaInstallProgress, Mode=OneWay}" Height="16" Minimum="0" Maximum="1"
-                                 Background="{DynamicResource ProgressBackground}" Foreground="{DynamicResource ProgressForeground}"/>
-                    <Button Content="取消" Command="{Binding CancelOllamaInstallCommand}" Width="80" Margin="0,4,0,0" HorizontalAlignment="Left"/>
-                </StackPanel>
-
-                <!-- 模型选择 -->
-                <StackPanel Margin="0,8,0,0" IsEnabled="{Binding OllamaInstalled}">
-                    <TextBlock Text="模型" FontWeight="Bold" Margin="0,0,0,4"/>
-                    <ComboBox x:Name="LocalModelCombo" Width="380" DisplayMemberPath="DisplayName"
-                              ItemsSource="{Binding LocalModels}"
-                              SelectedValue="{Binding SelectedLocalModel, Mode=TwoWay}" SelectedValuePath="DisplayName"
-                              SelectionChanged="LocalModelCombo_SelectionChanged"/>
-                    <TextBlock Text="{Binding SelectedModelSizeText}" FontSize="12" Foreground="{DynamicResource SecondaryForeground}" Margin="0,4,0,0"/>
-                    <TextBlock Text="{Binding SelectedModelSubText}" FontSize="12" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,2,0,0"/>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                        <Button Content="{Binding ModelButtonText}" Command="{Binding PullModelCommand}" Width="170" Padding="8,3" Style="{StaticResource PrimaryButtonStyle}"/>
-                        <TextBlock Text="{Binding ModelDownloadText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryForeground}"/>
-                    </StackPanel>
-                    <ProgressBar Value="{Binding ModelDownloadProgress, Mode=OneWay}" Height="16" Minimum="0" Maximum="1" Margin="0,4,0,0"
-                                 Background="{DynamicResource ProgressBackground}" Foreground="{DynamicResource ProgressForeground}"
-                                 Visibility="{Binding ModelDownloading, Converter={x:Static vm:VisibilityHelper.BoolToVis}}"/>
-                    <Button Content="取消" Command="{Binding CancelModelDownloadCommand}" Width="80" Margin="4,4,0,0" HorizontalAlignment="Left"
-                            Visibility="{Binding ModelDownloading, Converter={x:Static vm:VisibilityHelper.BoolToVis}}"/>
-
-                    <!-- Ollama 服务状态（服务灯）-->
-                    <StackPanel Orientation="Horizontal" Margin="8,10,0,0">
-                        <TextBlock Text="服务状态：" VerticalAlignment="Center"/>
-                        <Ellipse Width="12" Height="12" Margin="6,0,6,0" VerticalAlignment="Center"
-                                 Fill="{Binding OllamaServiceStatus, Converter={StaticResource OllamaStatusBrush}}"/>
-                        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}">
-                            <TextBlock.Style>
-                                <Style TargetType="TextBlock">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="Running">
-                                            <Setter Property="Text" Value="运行中"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="Starting">
-                                            <Setter Property="Text" Value="启动中"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="NotRunning">
-                                            <Setter Property="Text" Value="未启动"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </TextBlock.Style>
-                        </TextBlock>
-                        <Button Content="刷新" Command="{Binding RefreshAiStatusCommand}" Padding="10,2" Margin="8,0,0,0" HorizontalAlignment="Left"/>
-                    </StackPanel>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- 外部 API 面板 -->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding ExternalDeployVisibility}">
-                <TextBlock Text="外部 API（OpenAI 兼容）" FontWeight="Bold" Margin="0,0,0,4"/>
-                <TextBlock Text="API 端点" Foreground="{DynamicResource SecondaryForeground}"/>
-                <TextBox Text="{Binding AiEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="480" HorizontalAlignment="Left"
-                         Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
-                <TextBlock Text="API Key" Foreground="{DynamicResource SecondaryForeground}" Margin="0,6,0,0"/>
-                <PasswordBox x:Name="AiKeyPw" Width="480" HorizontalAlignment="Left" PasswordChanged="AiKeyPw_PasswordChanged"
-                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
-                <TextBlock Text="模型名" Foreground="{DynamicResource SecondaryForeground}" Margin="0,6,0,0"/>
-                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                    <TextBox Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" Width="200" HorizontalAlignment="Left"
-                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
-                    <Button Content="测试连接" Command="{Binding TestConnectionCommand}" HorizontalAlignment="Left" Margin="8,0,0,0" Padding="6,3" Style="{StaticResource PrimaryButtonStyle}"/>
-                </StackPanel>
-            </StackPanel>
-
-            <!-- 第三层：功能子开关 -->
-            <StackPanel Margin="0,16,0,0" Visibility="{Binding AiDetailsVisibility}">
-                <TextBlock Text="AI 功能" FontWeight="Bold" Margin="0,0,0,6"/>
-                <WrapPanel Margin="0,2">
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiCrashInterpret, Mode=TwoWay}"/>
-                    <TextBlock Text="崩溃日志智能解读" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                </WrapPanel>
-                <WrapPanel Margin="0,2">
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiRecommendReason, Mode=TwoWay}"/>
-                    <TextBlock Text="生成推荐理由" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                </WrapPanel>
-                <WrapPanel Margin="0,2">
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiModTranslate, Mode=TwoWay}"/>
-                    <TextBlock Text="Mod 描述翻译" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                </WrapPanel>
-            </StackPanel>
-
-            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource StatusForeground}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-        </StackPanel>
-    </ScrollViewer>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.AiSettingsView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <ScrollViewer Margin="18" VerticalScrollBarVisibility="Auto">
+
+        <StackPanel MaxWidth="820" HorizontalAlignment="Left">
+
+
+
+            <TextBlock Text="{theme:Loc tool.aichat}" FontWeight="Bold" FontSize="16"/>
+
+
+
+            <!-- 第一层：总开关 -->
+
+            <StackPanel Margin="0,16,0,0">
+
+                <WrapPanel>
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                  IsChecked="{Binding AiEnabled, Mode=TwoWay}"/>
+
+                    <TextBlock Text="{theme:Loc settings.ai_enable}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                </WrapPanel>
+
+                <TextBlock Text="{theme:Loc ai.m11}"
+
+                           Foreground="{DynamicResource SecondaryForeground}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"/>
+
+            </StackPanel>
+
+
+
+            <!-- 第二层：部署方式（总开关开启后显示）-->
+
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding AiDetailsVisibility}">
+
+                <TextBlock Text="{theme:Loc settings.ai_mode}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+                <ComboBox SelectedValue="{Binding AiMode, Mode=TwoWay}" SelectedValuePath="Tag" Width="240" HorizontalAlignment="Left">
+
+                    <ComboBoxItem Content="{theme:Loc ai.m12}" Tag="External"/>
+
+                    <ComboBoxItem Content="{theme:Loc ai.m13}" Tag="Local"/>
+
+                </ComboBox>
+
+            </StackPanel>
+
+
+
+            <!-- 本地部署面板 -->
+
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding LocalDeployVisibility}">
+
+                <TextBlock Text="{theme:Loc ai.m14}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+
+
+                <!-- Ollama 安装状态 -->
+
+                <StackPanel Orientation="Horizontal" Margin="0,4"
+
+                            Visibility="{Binding OllamaInstalled, Converter={x:Static vm:VisibilityHelper.BoolToVis}}">
+
+                    <Ellipse Width="12" Height="12" Fill="#32CD32" Margin="0,0,6,0" VerticalAlignment="Center"/>
+
+                    <TextBlock VerticalAlignment="Center"><Run Text="{theme:Loc ai.ollama_pre}"/><Run Text="{Binding OllamaVersion}"/><Run Text="{theme:Loc ai.ollama_post}"/></TextBlock>
+
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4"
+
+                            Visibility="{Binding OllamaInstalled, Converter={x:Static vm:VisibilityHelper.BoolToVisInvert}}">
+
+                    <Button Content="{theme:Loc ai.m15}" Command="{Binding InstallOllamaCommand}" Width="130" Padding="8,3" Style="{StaticResource PrimaryButtonStyle}"/>
+
+                    <TextBlock Text="{Binding OllamaInstallText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                </StackPanel>
+
+
+
+                <!-- 安装进度 -->
+
+                <StackPanel Margin="0,4" Visibility="{Binding OllamaInstalling, Converter={x:Static vm:VisibilityHelper.BoolToVis}}">
+
+                    <ProgressBar Value="{Binding OllamaInstallProgress, Mode=OneWay}" Height="16" Minimum="0" Maximum="1"
+
+                                 Background="{DynamicResource ProgressBackground}" Foreground="{DynamicResource ProgressForeground}"/>
+
+                    <Button Content="{theme:Loc btn.cancel}" Command="{Binding CancelOllamaInstallCommand}" Width="80" Margin="0,4,0,0" HorizontalAlignment="Left"/>
+
+                </StackPanel>
+
+
+
+                <!-- 模型选择 -->
+
+                <StackPanel Margin="0,8,0,0" IsEnabled="{Binding OllamaInstalled}">
+
+                    <TextBlock Text="{theme:Loc settings.ai_model}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+                    <ComboBox x:Name="LocalModelCombo" Width="380" DisplayMemberPath="DisplayName"
+
+                              ItemsSource="{Binding LocalModels}"
+
+                              SelectedValue="{Binding SelectedLocalModel, Mode=TwoWay}" SelectedValuePath="DisplayName"
+
+                              SelectionChanged="LocalModelCombo_SelectionChanged"/>
+
+                    <TextBlock Text="{Binding SelectedModelSizeText}" FontSize="12" Foreground="{DynamicResource SecondaryForeground}" Margin="0,4,0,0"/>
+
+                    <TextBlock Text="{Binding SelectedModelSubText}" FontSize="12" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+
+
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+
+                        <Button Content="{Binding ModelButtonText}" Command="{Binding PullModelCommand}" Width="170" Padding="8,3" Style="{StaticResource PrimaryButtonStyle}"/>
+
+                        <TextBlock Text="{Binding ModelDownloadText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    </StackPanel>
+
+                    <ProgressBar Value="{Binding ModelDownloadProgress, Mode=OneWay}" Height="16" Minimum="0" Maximum="1" Margin="0,4,0,0"
+
+                                 Background="{DynamicResource ProgressBackground}" Foreground="{DynamicResource ProgressForeground}"
+
+                                 Visibility="{Binding ModelDownloading, Converter={x:Static vm:VisibilityHelper.BoolToVis}}"/>
+
+                    <Button Content="{theme:Loc btn.cancel}" Command="{Binding CancelModelDownloadCommand}" Width="80" Margin="4,4,0,0" HorizontalAlignment="Left"
+
+                            Visibility="{Binding ModelDownloading, Converter={x:Static vm:VisibilityHelper.BoolToVis}}"/>
+
+
+
+                    <!-- Ollama 服务状态（服务灯）-->
+
+                    <StackPanel Orientation="Horizontal" Margin="8,10,0,0">
+
+                        <TextBlock Text="{theme:Loc ai.m16}" VerticalAlignment="Center"/>
+
+                        <Ellipse Width="12" Height="12" Margin="6,0,6,0" VerticalAlignment="Center"
+
+                                 Fill="{Binding OllamaServiceStatus, Converter={StaticResource OllamaStatusBrush}}"/>
+
+                        <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}">
+
+                            <TextBlock.Style>
+
+                                <Style TargetType="TextBlock">
+
+                                    <Style.Triggers>
+
+                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="Running">
+
+                                            <Setter Property="Text" Value="运行中"/>
+
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="Starting">
+
+                                            <Setter Property="Text" Value="启动中"/>
+
+                                        </DataTrigger>
+
+                                        <DataTrigger Binding="{Binding OllamaServiceStatus}" Value="NotRunning">
+
+                                            <Setter Property="Text" Value="未启动"/>
+
+                                        </DataTrigger>
+
+                                    </Style.Triggers>
+
+                                </Style>
+
+                            </TextBlock.Style>
+
+                        </TextBlock>
+
+                        <Button Content="{theme:Loc mods.refresh}" Command="{Binding RefreshAiStatusCommand}" Padding="10,2" Margin="8,0,0,0" HorizontalAlignment="Left"/>
+
+                    </StackPanel>
+
+                </StackPanel>
+
+            </StackPanel>
+
+
+
+            <!-- 外部 API 面板 -->
+
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding ExternalDeployVisibility}">
+
+                <TextBlock Text="{theme:Loc ai.m17}" FontWeight="Bold" Margin="0,0,0,4"/>
+
+                <TextBlock Text="{theme:Loc ai.m18}" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                <TextBox Text="{Binding AiEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="480" HorizontalAlignment="Left"
+
+                         Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+
+                <TextBlock Text="{theme:Loc settings.ai_key}" Foreground="{DynamicResource SecondaryForeground}" Margin="0,6,0,0"/>
+
+                <PasswordBox x:Name="AiKeyPw" Width="480" HorizontalAlignment="Left" PasswordChanged="AiKeyPw_PasswordChanged"
+
+                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+
+                <TextBlock Text="{theme:Loc ai.m19}" Foreground="{DynamicResource SecondaryForeground}" Margin="0,6,0,0"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+
+                    <TextBox Text="{Binding AiModel, UpdateSourceTrigger=PropertyChanged}" Width="200" HorizontalAlignment="Left"
+
+                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+
+                    <Button Content="{theme:Loc settings.ai_test}" Command="{Binding TestConnectionCommand}" HorizontalAlignment="Left" Margin="8,0,0,0" Padding="6,3" Style="{StaticResource PrimaryButtonStyle}"/>
+
+                </StackPanel>
+
+            </StackPanel>
+
+
+
+            <!-- 第三层：功能子开关 -->
+
+            <StackPanel Margin="0,16,0,0" Visibility="{Binding AiDetailsVisibility}">
+
+                <TextBlock Text="{theme:Loc ai.m20}" FontWeight="Bold" Margin="0,0,0,6"/>
+
+                <WrapPanel Margin="0,2">
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiCrashInterpret, Mode=TwoWay}"/>
+
+                    <TextBlock Text="{theme:Loc ai.m21}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                </WrapPanel>
+
+                <WrapPanel Margin="0,2">
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiRecommendReason, Mode=TwoWay}"/>
+
+                    <TextBlock Text="{theme:Loc ai.m22}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                </WrapPanel>
+
+                <WrapPanel Margin="0,2">
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding AiModTranslate, Mode=TwoWay}"/>
+
+                    <TextBlock Text="{theme:Loc ai.m23}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                </WrapPanel>
+
+            </StackPanel>
+
+
+
+            <TextBlock Text="{Binding Status}" Foreground="{DynamicResource StatusForeground}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+
+        </StackPanel>
+
+    </ScrollViewer>
+
+</UserControl>
+

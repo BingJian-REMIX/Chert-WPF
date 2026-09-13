@@ -1,188 +1,377 @@
-<UserControl x:Class="Chert.App.Views.SkinEditorView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels"
-             xmlns:views="clr-namespace:Chert.App.Views"
-             xmlns:ctrl="clr-namespace:Chert.App.Controls"
-             xmlns:conv="clr-namespace:Chert.App.Converters">
-    <UserControl.DataContext>
-        <vm:SkinEditorViewModel/>
-    </UserControl.DataContext>
-    <UserControl.Resources>
-        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-        <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVis"/>
-    </UserControl.Resources>
-
-    <Grid Margin="8">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="200"/>
-        </Grid.ColumnDefinitions>
-
-        <!-- ==== 左：部位树 + 工具 + 调色板 ==== -->
-        <Grid Grid.Column="0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- 部位选择 -->
-            <TextBlock Grid.Row="0" Text="身体部位" FontWeight="Bold" Margin="0,0,0,4"
-                       Foreground="{DynamicResource PrimaryForeground}"/>
-            <TreeView Grid.Row="1" ItemsSource="{Binding Parts}" Height="200"
-                      Background="{DynamicResource ControlBackground}"
-                      BorderBrush="{DynamicResource ControlBorder}">
-                <TreeView.ItemTemplate>
-                    <HierarchicalDataTemplate ItemsSource="{Binding Faces}">
-                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"
-                                   Foreground="{DynamicResource PrimaryForeground}" Margin="0,2"/>
-                        <HierarchicalDataTemplate.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding FaceName}" FontSize="11" Cursor="Hand"
-                                           Foreground="{DynamicResource SecondaryForeground}" Margin="8,1,0,1"
-                                           MouseLeftButtonDown="Face_Click"/>
-                            </DataTemplate>
-                        </HierarchicalDataTemplate.ItemTemplate>
-                    </HierarchicalDataTemplate>
-                </TreeView.ItemTemplate>
-            </TreeView>
-
-            <!-- 工具 -->
-            <StackPanel Grid.Row="2" Margin="0,8,0,0">
-                <TextBlock Text="工具" FontWeight="Bold" Margin="0,0,0,4"
-                           Foreground="{DynamicResource PrimaryForeground}"/>
-
-                <WrapPanel Margin="0,2">
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-                                  x:Name="SymmetryToggle" IsChecked="{Binding SymmetryEnabled}"/>
-                    <TextBlock Text="对称绘制" VerticalAlignment="Center" Margin="6,0,0,0"
-                               Foreground="{DynamicResource PrimaryForeground}"/>
-                </WrapPanel>
-                <WrapPanel Margin="0,2">
-                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-                                  x:Name="EraserToggle" IsChecked="{Binding IsEraser}"/>
-                    <TextBlock Text="橡皮擦" VerticalAlignment="Center" Margin="6,0,0,0"
-                               Foreground="{DynamicResource PrimaryForeground}"/>
-                </WrapPanel>
-
-                <TextBlock Text="画笔大小" Margin="0,8,0,2" Foreground="{DynamicResource SecondaryForeground}"/>
-                <ComboBox x:Name="BrushCombo" SelectedIndex="0" Width="80"
-                          SelectionChanged="Brush_Changed">
-                    <ComboBoxItem Content="1px" Tag="1"/>
-                    <ComboBoxItem Content="2px" Tag="2"/>
-                    <ComboBoxItem Content="3px" Tag="3"/>
-                </ComboBox>
-
-                <Separator Margin="0,8"/>
-                <WrapPanel>
-                    <Button Content="← 撤销" Command="{Binding UndoCommand}" Width="62" Padding="0,2"/>
-                    <Button Content="重做 →" Command="{Binding RedoCommand}" Width="62" Padding="0,2" Margin="4,0,0,0"/>
-                </WrapPanel>
-                <Button Content="清空全部" Command="{Binding ClearCommand}" Width="128" Padding="0,3" Margin="0,4"/>
-                <Separator Margin="0,4"/>
-                <Button Content="导入 PNG" Command="{Binding ImportCommand}" Width="128" Padding="0,4" Margin="0,2"/>
-                <Button Content="导出 PNG" Command="{Binding ExportCommand}" Width="128" Padding="0,4"
-                        Style="{StaticResource PrimaryButtonStyle}" Margin="0,2"/>
-                <Button Content="应用到离线账号" Command="{Binding ApplyToAccountCommand}" Width="128" Padding="0,4" Margin="0,2"/>
-            </StackPanel>
-
-            <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10"
-                       Foreground="{DynamicResource StatusForeground}" Margin="0,4,0,0"/>
-        </Grid>
-
-        <!-- ==== 中：面编辑画布 + 3D ==== -->
-        <Grid Grid.Column="1" Margin="8,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <WrapPanel Grid.Row="0" Margin="0,0,0,4">
-                <ToggleButton x:Name="Mode2D" Content="2D 编辑" Width="64" Height="24"
-                              FontSize="11" IsChecked="True" Click="Mode_Changed"/>
-                <ToggleButton x:Name="Mode3D" Content="3D 预览" Width="64" Height="24"
-                              FontSize="11" IsChecked="False" Click="Mode_Changed" Margin="4,0,0,0"/>
-                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
-                           Foreground="{DynamicResource AccentBrush}"
-                           Text="{Binding SelectedFace.Display}"/>
-                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"
-                              Margin="14,0,0,0" IsChecked="{Binding IsSlim, Mode=TwoWay}"/>
-                <TextBlock Text="纤细手臂" VerticalAlignment="Center" Margin="4,0,0,0"
-                           Foreground="{DynamicResource SecondaryForeground}"/>
-            </WrapPanel>
-
-            <!-- 2D 面编辑 -->
-            <ScrollViewer Grid.Row="1" x:Name="Editor2D" HorizontalScrollBarVisibility="Auto"
-                          VerticalScrollBarVisibility="Auto">
-                <Grid>
-                    <Image x:Name="FaceImage" Source="{Binding FaceBitmap}"
-                           Width="{Binding FaceZoomedW}" Height="{Binding FaceZoomedH}"
-                           RenderOptions.BitmapScalingMode="NearestNeighbor"
-                           MouseLeftButtonDown="FaceCanvas_MouseDown"
-                           MouseMove="FaceCanvas_MouseMove"
-                           Cursor="Cross"/>
-                </Grid>
-            </ScrollViewer>
-
-            <!-- 3D 预览（改用分面裁切 + 双层叠加的正确引擎 SkinPreview3D） -->
-            <Grid Grid.Row="1" x:Name="Preview3D" Visibility="Collapsed">
-                <ctrl:SkinPreview3D x:Name="Skin3D" SkinImage="{Binding FullBitmap, Mode=OneWay}"
-                                    Slim="{Binding IsSlim}" AutoRotate="True"/>
-            </Grid>
-
-            <WrapPanel Grid.Row="2" Margin="0,4,0,0">
-                <TextBlock Text="缩放" VerticalAlignment="Center" Margin="0,0,4,0"
-                           Foreground="{DynamicResource SecondaryForeground}"/>
-                <ComboBox x:Name="ZoomCombo" SelectedIndex="1" Width="70"
-                          SelectionChanged="Zoom_Changed">
-                    <ComboBoxItem Content="8x" Tag="8"/>
-                    <ComboBoxItem Content="10x" Tag="10"/>
-                    <ComboBoxItem Content="16x" Tag="16"/>
-                    <ComboBoxItem Content="24x" Tag="24"/>
-                </ComboBox>
-                <Button x:Name="FillBtn" Content="填充" Width="52" Padding="0,2" Margin="12,0,0,0"
-                        Click="FillBtn_Click"/>
-            </WrapPanel>
-        </Grid>
-
-        <!-- ==== 右：预览 + 调色板 ==== -->
-        <Grid Grid.Column="2">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-
-            <!-- 64x64 整体预览 -->
-            <TextBlock Grid.Row="0" Text="64x64 预览" FontWeight="Bold" Margin="0,0,0,4"
-                       Foreground="{DynamicResource PrimaryForeground}"/>
-            <Image Grid.Row="1" Source="{Binding FullBitmap}" Width="192" Height="192"
-                   RenderOptions.BitmapScalingMode="NearestNeighbor"
-                   Stretch="Uniform"/>
-
-            <!-- 当前颜色 -->
-            <StackPanel Grid.Row="2" Margin="0,8,0,0">
-                <TextBlock Text="当前颜色" FontWeight="Bold" Margin="0,0,0,4"
-                           Foreground="{DynamicResource PrimaryForeground}"/>
-                <Grid>
-                    <Border x:Name="PrimaryColorPreview" Width="40" Height="40" CornerRadius="4"
-                            HorizontalAlignment="Left"/>
-                    <Border x:Name="SecondaryColorPreview" Width="20" Height="20" CornerRadius="2"
-                            HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,-2"/>
-                </Grid>
-            </StackPanel>
-
-            <!-- 调色板 -->
-            <StackPanel Grid.Row="3" Margin="0,8,0,0">
-                <TextBlock Text="调色板" FontWeight="Bold" Margin="0,0,0,4"
-                           Foreground="{DynamicResource PrimaryForeground}"/>
-                <WrapPanel x:Name="PalettePanel" Width="180"/>
-            </StackPanel>
-        </Grid>
-    </Grid>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.SkinEditorView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+
+             xmlns:views="clr-namespace:Chert.App.Views"
+
+             xmlns:ctrl="clr-namespace:Chert.App.Controls"
+
+             xmlns:conv="clr-namespace:Chert.App.Converters"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+
+        <vm:SkinEditorViewModel/>
+
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVis"/>
+
+    </UserControl.Resources>
+
+
+
+    <Grid Margin="8">
+
+        <Grid.ColumnDefinitions>
+
+            <ColumnDefinition Width="200"/>
+
+            <ColumnDefinition Width="*"/>
+
+            <ColumnDefinition Width="200"/>
+
+        </Grid.ColumnDefinitions>
+
+
+
+        <!-- ==== 左：部位树 + 工具 + 调色板 ==== -->
+
+        <Grid Grid.Column="0">
+
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="*"/>
+
+                <RowDefinition Height="Auto"/>
+
+            </Grid.RowDefinitions>
+
+
+
+            <!-- 部位选择 -->
+
+            <TextBlock Grid.Row="0" Text="{theme:Loc skin.m255}" FontWeight="Bold" Margin="0,0,0,4"
+
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+            <TreeView Grid.Row="1" ItemsSource="{Binding Parts}" Height="200"
+
+                      Background="{DynamicResource ControlBackground}"
+
+                      BorderBrush="{DynamicResource ControlBorder}">
+
+                <TreeView.ItemTemplate>
+
+                    <HierarchicalDataTemplate ItemsSource="{Binding Faces}">
+
+                        <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="12"
+
+                                   Foreground="{DynamicResource PrimaryForeground}" Margin="0,2"/>
+
+                        <HierarchicalDataTemplate.ItemTemplate>
+
+                            <DataTemplate>
+
+                                <TextBlock Text="{Binding FaceName}" FontSize="11" Cursor="Hand"
+
+                                           Foreground="{DynamicResource SecondaryForeground}" Margin="8,1,0,1"
+
+                                           MouseLeftButtonDown="Face_Click"/>
+
+                            </DataTemplate>
+
+                        </HierarchicalDataTemplate.ItemTemplate>
+
+                    </HierarchicalDataTemplate>
+
+                </TreeView.ItemTemplate>
+
+            </TreeView>
+
+
+
+            <!-- 工具 -->
+
+            <StackPanel Grid.Row="2" Margin="0,8,0,0">
+
+                <TextBlock Text="{theme:Loc skin.m256}" FontWeight="Bold" Margin="0,0,0,4"
+
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+
+
+                <WrapPanel Margin="0,2">
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                  x:Name="SymmetryToggle" IsChecked="{Binding SymmetryEnabled}"/>
+
+                    <TextBlock Text="{theme:Loc skin.m257}" VerticalAlignment="Center" Margin="6,0,0,0"
+
+                               Foreground="{DynamicResource PrimaryForeground}"/>
+
+                </WrapPanel>
+
+                <WrapPanel Margin="0,2">
+
+                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                  x:Name="EraserToggle" IsChecked="{Binding IsEraser}"/>
+
+                    <TextBlock Text="{theme:Loc skin.m258}" VerticalAlignment="Center" Margin="6,0,0,0"
+
+                               Foreground="{DynamicResource PrimaryForeground}"/>
+
+                </WrapPanel>
+
+
+
+                <TextBlock Text="{theme:Loc skin.m259}" Margin="0,8,0,2" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                <ComboBox x:Name="BrushCombo" SelectedIndex="0" Width="80"
+
+                          SelectionChanged="Brush_Changed">
+
+                    <ComboBoxItem Content="1px" Tag="1"/>
+
+                    <ComboBoxItem Content="2px" Tag="2"/>
+
+                    <ComboBoxItem Content="3px" Tag="3"/>
+
+                </ComboBox>
+
+
+
+                <Separator Margin="0,8"/>
+
+                <WrapPanel>
+
+                    <Button Content="{theme:Loc skin.m260}" Command="{Binding UndoCommand}" Width="62" Padding="0,2"/>
+
+                    <Button Content="{theme:Loc skin.m261}" Command="{Binding RedoCommand}" Width="62" Padding="0,2" Margin="4,0,0,0"/>
+
+                </WrapPanel>
+
+                <Button Content="{theme:Loc skin.m262}" Command="{Binding ClearCommand}" Width="128" Padding="0,3" Margin="0,4"/>
+
+                <Separator Margin="0,4"/>
+
+                <Button Content="{theme:Loc skin.m263}" Command="{Binding ImportCommand}" Width="128" Padding="0,4" Margin="0,2"/>
+
+                <Button Content="{theme:Loc skin.m264}" Command="{Binding ExportCommand}" Width="128" Padding="0,4"
+
+                        Style="{StaticResource PrimaryButtonStyle}" Margin="0,2"/>
+
+                <Button Content="{theme:Loc skin.m265}" Command="{Binding ApplyToAccountCommand}" Width="128" Padding="0,4" Margin="0,2"/>
+
+            </StackPanel>
+
+
+
+            <TextBlock Grid.Row="3" Text="{Binding StatusMessage}" TextWrapping="Wrap" FontSize="10"
+
+                       Foreground="{DynamicResource StatusForeground}" Margin="0,4,0,0"/>
+
+        </Grid>
+
+
+
+        <!-- ==== 中：面编辑画布 + 3D ==== -->
+
+        <Grid Grid.Column="1" Margin="8,0">
+
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="*"/>
+
+                <RowDefinition Height="Auto"/>
+
+            </Grid.RowDefinitions>
+
+
+
+            <WrapPanel Grid.Row="0" Margin="0,0,0,4">
+
+                <ToggleButton x:Name="Mode2D" Content="{theme:Loc skin.m266}" Width="64" Height="24"
+
+                              FontSize="11" IsChecked="True" Click="Mode_Changed"/>
+
+                <ToggleButton x:Name="Mode3D" Content="{theme:Loc skin.m267}" Width="64" Height="24"
+
+                              FontSize="11" IsChecked="False" Click="Mode_Changed" Margin="4,0,0,0"/>
+
+                <TextBlock VerticalAlignment="Center" Margin="12,0,0,0"
+
+                           Foreground="{DynamicResource AccentBrush}"
+
+                           Text="{Binding SelectedFace.Display}"/>
+
+                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"
+
+                              Margin="14,0,0,0" IsChecked="{Binding IsSlim, Mode=TwoWay}"/>
+
+                <TextBlock Text="{theme:Loc skin.m268}" VerticalAlignment="Center" Margin="4,0,0,0"
+
+                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+            </WrapPanel>
+
+
+
+            <!-- 2D 面编辑 -->
+
+            <ScrollViewer Grid.Row="1" x:Name="Editor2D" HorizontalScrollBarVisibility="Auto"
+
+                          VerticalScrollBarVisibility="Auto">
+
+                <Grid>
+
+                    <Image x:Name="FaceImage" Source="{Binding FaceBitmap}"
+
+                           Width="{Binding FaceZoomedW}" Height="{Binding FaceZoomedH}"
+
+                           RenderOptions.BitmapScalingMode="NearestNeighbor"
+
+                           MouseLeftButtonDown="FaceCanvas_MouseDown"
+
+                           MouseMove="FaceCanvas_MouseMove"
+
+                           Cursor="Cross"/>
+
+                </Grid>
+
+            </ScrollViewer>
+
+
+
+            <!-- 3D 预览（改用分面裁切 + 双层叠加的正确引擎 SkinPreview3D） -->
+
+            <Grid Grid.Row="1" x:Name="Preview3D" Visibility="Collapsed">
+
+                <ctrl:SkinPreview3D x:Name="Skin3D" SkinImage="{Binding FullBitmap, Mode=OneWay}"
+
+                                    Slim="{Binding IsSlim}" AutoRotate="True"/>
+
+            </Grid>
+
+
+
+            <WrapPanel Grid.Row="2" Margin="0,4,0,0">
+
+                <TextBlock Text="{theme:Loc skin.m269}" VerticalAlignment="Center" Margin="0,0,4,0"
+
+                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+                <ComboBox x:Name="ZoomCombo" SelectedIndex="1" Width="70"
+
+                          SelectionChanged="Zoom_Changed">
+
+                    <ComboBoxItem Content="8x" Tag="8"/>
+
+                    <ComboBoxItem Content="10x" Tag="10"/>
+
+                    <ComboBoxItem Content="16x" Tag="16"/>
+
+                    <ComboBoxItem Content="24x" Tag="24"/>
+
+                </ComboBox>
+
+                <Button x:Name="FillBtn" Content="{theme:Loc skin.m270}" Width="52" Padding="0,2" Margin="12,0,0,0"
+
+                        Click="FillBtn_Click"/>
+
+            </WrapPanel>
+
+        </Grid>
+
+
+
+        <!-- ==== 右：预览 + 调色板 ==== -->
+
+        <Grid Grid.Column="2">
+
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="*"/>
+
+            </Grid.RowDefinitions>
+
+
+
+            <!-- 64x64 整体预览 -->
+
+            <TextBlock Grid.Row="0" Text="{theme:Loc skin.m271}" FontWeight="Bold" Margin="0,0,0,4"
+
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+            <Image Grid.Row="1" Source="{Binding FullBitmap}" Width="192" Height="192"
+
+                   RenderOptions.BitmapScalingMode="NearestNeighbor"
+
+                   Stretch="Uniform"/>
+
+
+
+            <!-- 当前颜色 -->
+
+            <StackPanel Grid.Row="2" Margin="0,8,0,0">
+
+                <TextBlock Text="{theme:Loc skin.m272}" FontWeight="Bold" Margin="0,0,0,4"
+
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                <Grid>
+
+                    <Border x:Name="PrimaryColorPreview" Width="40" Height="40" CornerRadius="4"
+
+                            HorizontalAlignment="Left"/>
+
+                    <Border x:Name="SecondaryColorPreview" Width="20" Height="20" CornerRadius="2"
+
+                            HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,-2"/>
+
+                </Grid>
+
+            </StackPanel>
+
+
+
+            <!-- 调色板 -->
+
+            <StackPanel Grid.Row="3" Margin="0,8,0,0">
+
+                <TextBlock Text="{theme:Loc skin.m273}" FontWeight="Bold" Margin="0,0,0,4"
+
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                <WrapPanel x:Name="PalettePanel" Width="180"/>
+
+            </StackPanel>
+
+        </Grid>
+
+    </Grid>
+
+</UserControl>
+

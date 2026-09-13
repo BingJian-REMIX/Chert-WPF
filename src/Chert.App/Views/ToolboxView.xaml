@@ -1,89 +1,179 @@
-<UserControl x:Class="Chert.App.Views.ToolboxView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels"
-             Background="{DynamicResource WindowBackground}">
-    <UserControl.DataContext>
-        <vm:ToolboxViewModel/>
-    </UserControl.DataContext>
-
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <!-- bug #2：副侧边栏与全局侧边栏（Sidebar.Toolbox）功能完全重复，列宽收为 0 -->
-            <ColumnDefinition Width="0"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
-
-        <!-- bug #2：工具箱内置图标侧边栏已隐藏，面板切换统一由全局侧边栏路由
-             （MainWindow.RouteSidebar → ToolboxView.ShowPanel）。
-             控件本身保留，SelectedPanel 绑定仍用于同步选中态。 -->
-        <ListBox Grid.Column="0" Visibility="Collapsed"
-                 ItemsSource="{Binding PanelItems}"
-                 SelectedItem="{Binding SelectedPanel}"
-                 Background="{DynamicResource ControlBackground}"
-                 BorderBrush="{DynamicResource ControlBorder}"
-                 Width="48" Padding="0,4"
-                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="Padding" Value="2"/>
-                    <Setter Property="Margin" Value="0,1"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="ListBoxItem">
-                                <ContentPresenter/>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </ListBox.ItemContainerStyle>
-
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid Height="38" Cursor="Hand"
-                          ToolTip="{Binding Title}">
-                        <!-- 图标块 -->
-                        <Border Width="30" Height="30" CornerRadius="6"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Background="{DynamicResource ButtonBackground}">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-                            <TextBlock Text="{Binding Icon}" FontSize="14"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Foreground" Value="{DynamicResource SecondaryForeground}"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                                <Setter Property="Foreground" Value="White"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </Border>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <!-- ===== 右侧内容区 ===== -->
-        <Grid Grid.Column="1" Margin="8,0,0,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
-            <!-- 内容区直接承载子面板（命令速查/命令助手等自带搜索框，无需再叠加全局框） -->
-            <!-- 注意：面板必须放在 Height="*" 的 Row1，而非 Row0(Auto)。放在 Auto 行时面板拿到
-                 无限高度，内部 ScrollViewer 因父容器无约束高度而不出滚动条，表现为“不能滚动”。 -->
-            <ContentControl Grid.Row="1" Content="{Binding SelectedView}"/>
-        </Grid>
-    </Grid>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.ToolboxView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+
+             Background="{DynamicResource WindowBackground}"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+
+        <vm:ToolboxViewModel/>
+
+    </UserControl.DataContext>
+
+
+
+    <Grid>
+
+        <Grid.ColumnDefinitions>
+
+            <!-- bug #2：副侧边栏与全局侧边栏（Sidebar.Toolbox）功能完全重复，列宽收为 0 -->
+
+            <ColumnDefinition Width="0"/>
+
+            <ColumnDefinition Width="*"/>
+
+        </Grid.ColumnDefinitions>
+
+
+
+        <!-- bug #2：工具箱内置图标侧边栏已隐藏，面板切换统一由全局侧边栏路由
+
+             （MainWindow.RouteSidebar → ToolboxView.ShowPanel）。
+
+             控件本身保留，SelectedPanel 绑定仍用于同步选中态。 -->
+
+        <ListBox Grid.Column="0" Visibility="Collapsed"
+
+                 ItemsSource="{Binding PanelItems}"
+
+                 SelectedItem="{Binding SelectedPanel}"
+
+                 Background="{DynamicResource ControlBackground}"
+
+                 BorderBrush="{DynamicResource ControlBorder}"
+
+                 Width="48" Padding="0,4"
+
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+            <ListBox.ItemContainerStyle>
+
+                <Style TargetType="ListBoxItem">
+
+                    <Setter Property="Padding" Value="2"/>
+
+                    <Setter Property="Margin" Value="0,1"/>
+
+                    <Setter Property="Template">
+
+                        <Setter.Value>
+
+                            <ControlTemplate TargetType="ListBoxItem">
+
+                                <ContentPresenter/>
+
+                            </ControlTemplate>
+
+                        </Setter.Value>
+
+                    </Setter>
+
+                </Style>
+
+            </ListBox.ItemContainerStyle>
+
+
+
+            <ListBox.ItemTemplate>
+
+                <DataTemplate>
+
+                    <Grid Height="38" Cursor="Hand"
+
+                          ToolTip="{Binding Title}">
+
+                        <!-- 图标块 -->
+
+                        <Border Width="30" Height="30" CornerRadius="6"
+
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                Background="{DynamicResource ButtonBackground}">
+
+                            <Border.Style>
+
+                                <Style TargetType="Border">
+
+                                    <Style.Triggers>
+
+                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+
+                                            <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+
+                                        </DataTrigger>
+
+                                    </Style.Triggers>
+
+                                </Style>
+
+                            </Border.Style>
+
+                            <TextBlock Text="{Binding Icon}" FontSize="14"
+
+                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+
+                                <TextBlock.Style>
+
+                                    <Style TargetType="TextBlock">
+
+                                        <Setter Property="Foreground" Value="{DynamicResource SecondaryForeground}"/>
+
+                                        <Style.Triggers>
+
+                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+
+                                                <Setter Property="Foreground" Value="White"/>
+
+                                            </DataTrigger>
+
+                                        </Style.Triggers>
+
+                                    </Style>
+
+                                </TextBlock.Style>
+
+                            </TextBlock>
+
+                        </Border>
+
+                    </Grid>
+
+                </DataTemplate>
+
+            </ListBox.ItemTemplate>
+
+        </ListBox>
+
+
+
+        <!-- ===== 右侧内容区 ===== -->
+
+        <Grid Grid.Column="1" Margin="8,0,0,0">
+
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/>
+
+                <RowDefinition Height="*"/>
+
+            </Grid.RowDefinitions>
+
+            <!-- 内容区直接承载子面板（命令速查/命令助手等自带搜索框，无需再叠加全局框） -->
+
+            <!-- 注意：面板必须放在 Height="*" 的 Row1，而非 Row0(Auto)。放在 Auto 行时面板拿到
+
+                 无限高度，内部 ScrollViewer 因父容器无约束高度而不出滚动条，表现为“不能滚动”。 -->
+
+            <ContentControl Grid.Row="1" Content="{Binding SelectedView}"/>
+
+        </Grid>
+
+    </Grid>
+
+</UserControl>
+

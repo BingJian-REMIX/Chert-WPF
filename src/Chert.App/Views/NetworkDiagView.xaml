@@ -1,51 +1,103 @@
-<UserControl x:Class="Chert.App.Views.NetworkDiagView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels">
-    <UserControl.DataContext>
-        <vm:NetworkDiagViewModel/>
-    </UserControl.DataContext>
-    <Grid Margin="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="网络诊断" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
-            <Button Content="重新检测" Command="{Binding DiagnoseCommand}" Width="90" Margin="16,0,0,0" Padding="0,2"/>
-        </StackPanel>
-
-        <TextBlock Grid.Row="1" Text="{Binding Hint}" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,6"
-                   Foreground="{DynamicResource SecondaryForeground}"/>
-
-        <ListBox Grid.Row="2" ItemsSource="{Binding Results}"
-                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
-                 BorderBrush="{DynamicResource InputBorder}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Grid Margin="2">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Name}"/>
-                        <TextBlock Grid.Column="1" Text="{Binding Url}" Foreground="{DynamicResource SecondaryForeground}"
-                                   TextTrimming="CharacterEllipsis"/>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0">
-                                <Ellipse.Fill>
-                                    <SolidColorBrush Color="{Binding Reachable, Converter={StaticResource BoolToColor}}"/>
-                                </Ellipse.Fill>
-                            </Ellipse>
-                            <TextBlock Text="{Binding LatencyMs, StringFormat={}{0} ms}" Margin="0,0,8,0"/>
-                            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}"/>
-                        </StackPanel>
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-    </Grid>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.NetworkDiagView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+
+        <vm:NetworkDiagViewModel/>
+
+    </UserControl.DataContext>
+
+    <Grid Margin="12">
+
+        <Grid.RowDefinitions>
+
+            <RowDefinition Height="Auto"/>
+
+            <RowDefinition Height="Auto"/>
+
+            <RowDefinition Height="*"/>
+
+        </Grid.RowDefinitions>
+
+
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+
+            <TextBlock Text="{theme:Loc tool.network}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+
+            <Button Content="{theme:Loc net.m207}" Command="{Binding DiagnoseCommand}" Width="90" Margin="16,0,0,0" Padding="0,2"/>
+
+        </StackPanel>
+
+
+
+        <TextBlock Grid.Row="1" Text="{Binding Hint}" TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,6"
+
+                   Foreground="{DynamicResource SecondaryForeground}"/>
+
+
+
+        <ListBox Grid.Row="2" ItemsSource="{Binding Results}"
+
+                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                 BorderBrush="{DynamicResource InputBorder}">
+
+            <ListBox.ItemTemplate>
+
+                <DataTemplate>
+
+                    <Grid Margin="2">
+
+                        <Grid.ColumnDefinitions>
+
+                            <ColumnDefinition Width="200"/>
+
+                            <ColumnDefinition Width="*"/>
+
+                            <ColumnDefinition Width="Auto"/>
+
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" FontWeight="Bold" Text="{Binding Name}"/>
+
+                        <TextBlock Grid.Column="1" Text="{Binding Url}" Foreground="{DynamicResource SecondaryForeground}"
+
+                                   TextTrimming="CharacterEllipsis"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+
+                            <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0">
+
+                                <Ellipse.Fill>
+
+                                    <SolidColorBrush Color="{Binding Reachable, Converter={StaticResource BoolToColor}}"/>
+
+                                </Ellipse.Fill>
+
+                            </Ellipse>
+
+                            <TextBlock Text="{Binding LatencyMs, StringFormat={}{0} ms}" Margin="0,0,8,0"/>
+
+                            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}"/>
+
+                        </StackPanel>
+
+                    </Grid>
+
+                </DataTemplate>
+
+            </ListBox.ItemTemplate>
+
+        </ListBox>
+
+    </Grid>
+
+</UserControl>
+

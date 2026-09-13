@@ -1,223 +1,447 @@
-<UserControl x:Class="Chert.App.Views.AiAssistView"
-             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:Chert.App.ViewModels"
-             xmlns:local="clr-namespace:Chert.App.Views">
-    <UserControl.DataContext>
-        <vm:AiAssistViewModel/>
-    </UserControl.DataContext>
-
-    <UserControl.Resources>
-        <!-- 欢迎态建议卡片 -->
-        <Style x:Key="SuggestionCardStyle" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="14,12"/>
-            <Setter Property="Margin" Value="6"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.5"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
-
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- 对话区 -->
-        <ScrollViewer x:Name="ChatScroll" Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="16,8">
-            <StackPanel MaxWidth="820" Margin="0,8,0,8" HorizontalAlignment="Stretch">
-
-                <!-- 欢迎态（对话未开始） -->
-                <StackPanel Visibility="{Binding ShowWelcome, Converter={StaticResource BoolToVis}}"
-                            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,36,0,16" MaxWidth="640">
-                    <Border Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Center"
-                            Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-                        <Grid>
-                            <Image Source="{Binding AssistantLogo}" Stretch="Uniform" Margin="9"
-                                   Visibility="{Binding HasLogo, Converter={StaticResource BoolToVis}}"/>
-                            <Border Background="{Binding AssistantBrandBrush}" CornerRadius="32"
-                                    Visibility="{Binding HasBrand, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding AssistantInitial}" FontSize="26" FontWeight="Bold"
-                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <TextBlock Text="🤖" FontSize="34" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Visibility="{Binding ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
-                        </Grid>
-                    </Border>
-                    <TextBlock Text="MCLCS AI 助手" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,6"/>
-                    <TextBlock Text="我可以帮你分析崩溃日志、推荐 Mod、翻译描述、生成年度总结，也可以直接聊天。"
-                               Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
-                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
-                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding CrashCommand}">
-                            <StackPanel>
-                                <TextBlock Text="崩溃分析" FontWeight="Bold"/>
-                                <TextBlock Text="自动分析最近一次崩溃日志" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding TranslateCommand}">
-                            <StackPanel>
-                                <TextBlock Text="Mod 翻译" FontWeight="Bold"/>
-                                <TextBlock Text="把英文 Mod 描述译为中文" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding RecommendCommand}">
-                            <StackPanel>
-                                <TextBlock Text="配装推荐" FontWeight="Bold"/>
-                                <TextBlock Text="按你的玩法偏好推荐 Mod" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding SummaryCommand}">
-                            <StackPanel>
-                                <TextBlock Text="年度总结" FontWeight="Bold"/>
-                                <TextBlock Text="汇总你这一年的游玩记录" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                            </StackPanel>
-                        </Button>
-                    </WrapPanel>
-                </StackPanel>
-
-                <!-- 消息列表 -->
-                <ItemsControl ItemsSource="{Binding Messages}"
-                              Visibility="{Binding ShowWelcome, Converter={StaticResource BoolToVisInvert}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Grid Margin="0,8,0,0">
-                                <!-- 用户气泡（右对齐） -->
-                                <Border Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}"
-                                        Background="{DynamicResource AccentBrush}" CornerRadius="14,14,4,14"
-                                        Padding="12,9" MaxWidth="600" HorizontalAlignment="Right">
-                                    <TextBlock Text="{Binding Content}" Foreground="White" TextWrapping="Wrap" FontSize="13"/>
-                                </Border>
-
-                                <!-- 助手气泡（左对齐 + 头像 + Markdown） -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" MaxWidth="680"
-                                            Visibility="{Binding IsUser, Converter={StaticResource BoolToVisInvert}}">
-                                    <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
-                                            Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-                                        <Grid>
-                                            <Image Source="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantLogo}"
-                                                   Stretch="Uniform" Margin="3"
-                                                   Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasLogo, Converter={StaticResource BoolToVis}}"/>
-                                            <Border Background="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantBrandBrush}"
-                                                    CornerRadius="15"
-                                                    Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasBrand, Converter={StaticResource BoolToVis}}">
-                                                <TextBlock Text="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantInitial}"
-                                                           FontSize="12" FontWeight="Bold" Foreground="White"
-                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <TextBlock Text="🤖" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
-                                        </Grid>
-                                    </Border>
-                                    <Border Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4"
-                                            Padding="12,10" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-                                        <local:MarkdownTextBlock Markdown="{Binding Content}"/>
-                                    </Border>
-                                </StackPanel>
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-
-                <!-- 思考中指示（请求进行中） -->
-                <Border Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0"
-                        HorizontalAlignment="Left" MaxWidth="680">
-                    <StackPanel Orientation="Horizontal">
-                        <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
-                                Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-                            <Grid>
-                                <Image Source="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantLogo}"
-                                       Stretch="Uniform" Margin="3"
-                                       Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasLogo, Converter={StaticResource BoolToVis}}"/>
-                                <Border Background="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantBrandBrush}"
-                                        CornerRadius="15"
-                                        Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasBrand, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantInitial}"
-                                               FontSize="12" FontWeight="Bold" Foreground="White"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Text="🤖" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
-                            </Grid>
-                        </Border>
-                        <Border Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4" Padding="14,12"
-                                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <StackPanel.Triggers>
-                                    <EventTrigger RoutedEvent="Loaded">
-                                        <BeginStoryboard>
-                                            <Storyboard RepeatBehavior="Forever">
-                                                <DoubleAnimation Storyboard.TargetName="D1" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0"/>
-                                                <DoubleAnimation Storyboard.TargetName="D2" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0.2"/>
-                                                <DoubleAnimation Storyboard.TargetName="D3" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0.4"/>
-                                            </Storyboard>
-                                        </BeginStoryboard>
-                                    </EventTrigger>
-                                </StackPanel.Triggers>
-                                <Ellipse x:Name="D1" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}" Margin="0,0,5,0"/>
-                                <Ellipse x:Name="D2" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}" Margin="0,0,5,0"/>
-                                <Ellipse x:Name="D3" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Border>
-
-            </StackPanel>
-        </ScrollViewer>
-
-        <!-- 输入栏（钉在底部，输入框多行自适应增高） -->
-        <Border Grid.Row="1" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,1,0,0" Padding="16,12">
-            <StackPanel MaxWidth="820">
-                <!-- 快捷功能 chips（纯文字） -->
-                <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
-                    <Button Style="{StaticResource GhostButtonStyle}" Content="崩溃分析" Command="{Binding CrashCommand}" Margin="0,0,6,0"/>
-                    <Button Style="{StaticResource GhostButtonStyle}" Content="Mod 翻译" Command="{Binding TranslateCommand}" Margin="0,0,6,0"/>
-                    <Button Style="{StaticResource GhostButtonStyle}" Content="配装推荐" Command="{Binding RecommendCommand}" Margin="0,0,6,0"/>
-                    <Button Style="{StaticResource GhostButtonStyle}" Content="年度总结" Command="{Binding SummaryCommand}"/>
-                </WrapPanel>
-                <Grid VerticalAlignment="Bottom">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Border Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="10" Padding="4">
-                        <Grid>
-                            <TextBlock x:Name="InputHint" Text="输入你的问题…（可粘贴崩溃日志）"
-                                       Foreground="{DynamicResource SecondaryForeground}" Margin="8,8,8,8"
-                                       IsHitTestVisible="False" VerticalAlignment="Top"/>
-                            <TextBox x:Name="InputBox" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
-                                     MinHeight="42" MaxHeight="160" TextWrapping="Wrap" VerticalContentAlignment="Top"
-                                     Background="Transparent" BorderThickness="0" Foreground="{DynamicResource PrimaryForeground}"
-                                     VerticalScrollBarVisibility="Auto" Padding="4"
-                                     TextChanged="InputBox_TextChanged" GotFocus="InputBox_GotFocus" LostFocus="InputBox_LostFocus"/>
-                        </Grid>
-                    </Border>
-                    <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Content="发送" MinWidth="76" Height="44"
-                            Command="{Binding SendCommand}" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
-                </Grid>
-                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="2,6,0,0" TextWrapping="Wrap" FontSize="12"/>
-            </StackPanel>
-        </Border>
-    </Grid>
-</UserControl>
+<UserControl x:Class="Chert.App.Views.AiAssistView"
+
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+
+             xmlns:local="clr-namespace:Chert.App.Views"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+
+        <vm:AiAssistViewModel/>
+
+    </UserControl.DataContext>
+
+
+
+    <UserControl.Resources>
+
+        <!-- 欢迎态建议卡片 -->
+
+        <Style x:Key="SuggestionCardStyle" TargetType="Button">
+
+            <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
+
+            <Setter Property="BorderThickness" Value="1"/>
+
+            <Setter Property="Padding" Value="14,12"/>
+
+            <Setter Property="Margin" Value="6"/>
+
+            <Setter Property="Cursor" Value="Hand"/>
+
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+
+            <Setter Property="Template">
+
+                <Setter.Value>
+
+                    <ControlTemplate TargetType="Button">
+
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12"
+
+                                Padding="{TemplateBinding Padding}">
+
+                            <ContentPresenter/>
+
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+
+                            <Trigger Property="IsMouseOver" Value="True">
+
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+
+                            </Trigger>
+
+                            <Trigger Property="IsEnabled" Value="False">
+
+                                <Setter Property="Opacity" Value="0.5"/>
+
+                            </Trigger>
+
+                        </ControlTemplate.Triggers>
+
+                    </ControlTemplate>
+
+                </Setter.Value>
+
+            </Setter>
+
+        </Style>
+
+    </UserControl.Resources>
+
+
+
+    <Grid>
+
+        <Grid.RowDefinitions>
+
+            <RowDefinition Height="*"/>
+
+            <RowDefinition Height="Auto"/>
+
+        </Grid.RowDefinitions>
+
+
+
+        <!-- 对话区 -->
+
+        <ScrollViewer x:Name="ChatScroll" Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="16,8">
+
+            <StackPanel MaxWidth="820" Margin="0,8,0,8" HorizontalAlignment="Stretch">
+
+
+
+                <!-- 欢迎态（对话未开始） -->
+
+                <StackPanel Visibility="{Binding ShowWelcome, Converter={StaticResource BoolToVis}}"
+
+                            HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,36,0,16" MaxWidth="640">
+
+                    <Border Width="64" Height="64" CornerRadius="32" HorizontalAlignment="Center"
+
+                            Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                        <Grid>
+
+                            <Image Source="{Binding AssistantLogo}" Stretch="Uniform" Margin="9"
+
+                                   Visibility="{Binding HasLogo, Converter={StaticResource BoolToVis}}"/>
+
+                            <Border Background="{Binding AssistantBrandBrush}" CornerRadius="32"
+
+                                    Visibility="{Binding HasBrand, Converter={StaticResource BoolToVis}}">
+
+                                <TextBlock Text="{Binding AssistantInitial}" FontSize="26" FontWeight="Bold"
+
+                                           Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                            </Border>
+
+                            <TextBlock Text="🤖" FontSize="34" HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                   Visibility="{Binding ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
+
+                        </Grid>
+
+                    </Border>
+
+                    <TextBlock Text="{theme:Loc ai.m01}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,14,0,6"/>
+
+                    <TextBlock Text="{theme:Loc ai.m02}"
+
+                               Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+
+                    <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,18,0,0">
+
+                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding CrashCommand}">
+
+                            <StackPanel>
+
+                                <TextBlock Text="{theme:Loc tool.crash}" FontWeight="Bold"/>
+
+                                <TextBlock Text="{theme:Loc ai.m03}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                            </StackPanel>
+
+                        </Button>
+
+                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding TranslateCommand}">
+
+                            <StackPanel>
+
+                                <TextBlock Text="{theme:Loc settings.ai_translate}" FontWeight="Bold"/>
+
+                                <TextBlock Text="{theme:Loc ai.m04}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                            </StackPanel>
+
+                        </Button>
+
+                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding RecommendCommand}">
+
+                            <StackPanel>
+
+                                <TextBlock Text="{theme:Loc ai.m05}" FontWeight="Bold"/>
+
+                                <TextBlock Text="{theme:Loc ai.m06}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                            </StackPanel>
+
+                        </Button>
+
+                        <Button Style="{StaticResource SuggestionCardStyle}" Command="{Binding SummaryCommand}">
+
+                            <StackPanel>
+
+                                <TextBlock Text="{theme:Loc ai.m07}" FontWeight="Bold"/>
+
+                                <TextBlock Text="{theme:Loc ai.m08}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12" TextWrapping="Wrap" Margin="0,2,0,0"/>
+
+                            </StackPanel>
+
+                        </Button>
+
+                    </WrapPanel>
+
+                </StackPanel>
+
+
+
+                <!-- 消息列表 -->
+
+                <ItemsControl ItemsSource="{Binding Messages}"
+
+                              Visibility="{Binding ShowWelcome, Converter={StaticResource BoolToVisInvert}}">
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <Grid Margin="0,8,0,0">
+
+                                <!-- 用户气泡（右对齐） -->
+
+                                <Border Visibility="{Binding IsUser, Converter={StaticResource BoolToVis}}"
+
+                                        Background="{DynamicResource AccentBrush}" CornerRadius="14,14,4,14"
+
+                                        Padding="12,9" MaxWidth="600" HorizontalAlignment="Right">
+
+                                    <TextBlock Text="{Binding Content}" Foreground="White" TextWrapping="Wrap" FontSize="13"/>
+
+                                </Border>
+
+
+
+                                <!-- 助手气泡（左对齐 + 头像 + Markdown） -->
+
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" MaxWidth="680"
+
+                                            Visibility="{Binding IsUser, Converter={StaticResource BoolToVisInvert}}">
+
+                                    <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
+
+                                            Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                                        <Grid>
+
+                                            <Image Source="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantLogo}"
+
+                                                   Stretch="Uniform" Margin="3"
+
+                                                   Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasLogo, Converter={StaticResource BoolToVis}}"/>
+
+                                            <Border Background="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantBrandBrush}"
+
+                                                    CornerRadius="15"
+
+                                                    Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasBrand, Converter={StaticResource BoolToVis}}">
+
+                                                <TextBlock Text="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantInitial}"
+
+                                                           FontSize="12" FontWeight="Bold" Foreground="White"
+
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                            </Border>
+
+                                            <TextBlock Text="🤖" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                                   Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
+
+                                        </Grid>
+
+                                    </Border>
+
+                                    <Border Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4"
+
+                                            Padding="12,10" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                                        <local:MarkdownTextBlock Markdown="{Binding Content}"/>
+
+                                    </Border>
+
+                                </StackPanel>
+
+                            </Grid>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+
+
+                <!-- 思考中指示（请求进行中） -->
+
+                <Border Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" Margin="0,8,0,0"
+
+                        HorizontalAlignment="Left" MaxWidth="680">
+
+                    <StackPanel Orientation="Horizontal">
+
+                        <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
+
+                                Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                            <Grid>
+
+                                <Image Source="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantLogo}"
+
+                                       Stretch="Uniform" Margin="3"
+
+                                       Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasLogo, Converter={StaticResource BoolToVis}}"/>
+
+                                <Border Background="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantBrandBrush}"
+
+                                        CornerRadius="15"
+
+                                        Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.HasBrand, Converter={StaticResource BoolToVis}}">
+
+                                    <TextBlock Text="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.AssistantInitial}"
+
+                                               FontSize="12" FontWeight="Bold" Foreground="White"
+
+                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+                                </Border>
+
+                                <TextBlock Text="🤖" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+
+                                       Visibility="{Binding RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}, Path=DataContext.ShowRobotFallback, Converter={StaticResource BoolToVis}}"/>
+
+                            </Grid>
+
+                        </Border>
+
+                        <Border Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4" Padding="14,12"
+
+                                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                <StackPanel.Triggers>
+
+                                    <EventTrigger RoutedEvent="Loaded">
+
+                                        <BeginStoryboard>
+
+                                            <Storyboard RepeatBehavior="Forever">
+
+                                                <DoubleAnimation Storyboard.TargetName="D1" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0"/>
+
+                                                <DoubleAnimation Storyboard.TargetName="D2" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0.2"/>
+
+                                                <DoubleAnimation Storyboard.TargetName="D3" Storyboard.TargetProperty="Opacity" From="0.25" To="1" Duration="0:0:0.6" AutoReverse="True" BeginTime="0:0:0.4"/>
+
+                                            </Storyboard>
+
+                                        </BeginStoryboard>
+
+                                    </EventTrigger>
+
+                                </StackPanel.Triggers>
+
+                                <Ellipse x:Name="D1" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}" Margin="0,0,5,0"/>
+
+                                <Ellipse x:Name="D2" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}" Margin="0,0,5,0"/>
+
+                                <Ellipse x:Name="D3" Width="7" Height="7" Fill="{DynamicResource SecondaryForeground}"/>
+
+                            </StackPanel>
+
+                        </Border>
+
+                    </StackPanel>
+
+                </Border>
+
+
+
+            </StackPanel>
+
+        </ScrollViewer>
+
+
+
+        <!-- 输入栏（钉在底部，输入框多行自适应增高） -->
+
+        <Border Grid.Row="1" Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,1,0,0" Padding="16,12">
+
+            <StackPanel MaxWidth="820">
+
+                <!-- 快捷功能 chips（纯文字） -->
+
+                <WrapPanel Orientation="Horizontal" Margin="0,0,0,8">
+
+                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc tool.crash}" Command="{Binding CrashCommand}" Margin="0,0,6,0"/>
+
+                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc settings.ai_translate}" Command="{Binding TranslateCommand}" Margin="0,0,6,0"/>
+
+                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc ai.m05}" Command="{Binding RecommendCommand}" Margin="0,0,6,0"/>
+
+                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc ai.m07}" Command="{Binding SummaryCommand}"/>
+
+                </WrapPanel>
+
+                <Grid VerticalAlignment="Bottom">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="*"/>
+
+                        <ColumnDefinition Width="Auto"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <Border Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}" BorderThickness="1" CornerRadius="10" Padding="4">
+
+                        <Grid>
+
+                            <TextBlock x:Name="InputHint" Text="{theme:Loc ai.m09}"
+
+                                       Foreground="{DynamicResource SecondaryForeground}" Margin="8,8,8,8"
+
+                                       IsHitTestVisible="False" VerticalAlignment="Top"/>
+
+                            <TextBox x:Name="InputBox" Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True"
+
+                                     MinHeight="42" MaxHeight="160" TextWrapping="Wrap" VerticalContentAlignment="Top"
+
+                                     Background="Transparent" BorderThickness="0" Foreground="{DynamicResource PrimaryForeground}"
+
+                                     VerticalScrollBarVisibility="Auto" Padding="4"
+
+                                     TextChanged="InputBox_TextChanged" GotFocus="InputBox_GotFocus" LostFocus="InputBox_LostFocus"/>
+
+                        </Grid>
+
+                    </Border>
+
+                    <Button Grid.Column="1" Style="{StaticResource PrimaryButtonStyle}" Content="{theme:Loc ai.m10}" MinWidth="76" Height="44"
+
+                            Command="{Binding SendCommand}" Margin="8,0,0,0" VerticalAlignment="Bottom"/>
+
+                </Grid>
+
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="2,6,0,0" TextWrapping="Wrap" FontSize="12"/>
+
+            </StackPanel>
+
+        </Border>
+
+    </Grid>
+
+</UserControl>
+
