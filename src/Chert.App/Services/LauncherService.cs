@@ -727,8 +727,8 @@ public class LauncherService : ILogger
         IProgress<double>? progress = item is null ? null : new Progress<double>(p =>
         {
             item!.Progress = p * 100;
-            StatusBarViewModel.Current.DownloadProgress = p * 100;
-            StatusBarViewModel.Current.DownloadText = $"安装 Java {required}：{p:P0}";
+            Chert.App.ViewModels.StatusBarViewModel.Current.DownloadProgress = p * 100;
+            Chert.App.ViewModels.StatusBarViewModel.Current.DownloadText = $"安装 Java {required}：{p:P0}";
         });
 
         CancellationTokenSource? linkedCts = null;
@@ -770,8 +770,8 @@ public class LauncherService : ILogger
                 else dlVm.Queue.Remove(item);
             }, System.Threading.CancellationToken.None);
         }
-        StatusBarViewModel.Current.DownloadProgress = 0;
-        StatusBarViewModel.Current.DownloadText = "Java 安装完成";
+        Chert.App.ViewModels.StatusBarViewModel.Current.DownloadProgress = 0;
+        Chert.App.ViewModels.StatusBarViewModel.Current.DownloadText = "Java 安装完成";
         ToastService.Show("Java 安装完成",
             $"已安装 Java {java.MajorVersion}（{java.RawVersion}）。", ToastKind.Success);
         return java;
