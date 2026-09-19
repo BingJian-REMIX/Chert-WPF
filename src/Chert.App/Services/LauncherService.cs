@@ -415,7 +415,7 @@ public class LauncherService : ILogger
                     ?? (string.IsNullOrEmpty(plan.VersionId)
                         ? GameConstants.MinimumJavaMajorVersion
                         : JavaDetector.RequiredMajorForVersionId(GameRoot, plan.VersionId));
-                var java = await JavaDetector.FindBestAsync(required);
+                var java = await JavaDetector.FindBestAsync(required, required == 8);
                 if (java is null)
                 {
                     Log($"未找到 Java {required}+，尝试下载安装（{profile.PreferredJavaVendor}）…");
@@ -676,7 +676,8 @@ public class LauncherService : ILogger
         if (!string.IsNullOrEmpty(explicitPath) && File.Exists(explicitPath))
         {
             var (major, raw) = await JavaDetector.QueryVersionAsync(explicitPath);
-            if (major >= required)
+            bool acceptExplicit = required == 8 ? major == 8 : major >= required;
+            if (acceptExplicit)
                 return new JavaInfo { JavaExe = explicitPath, MajorVersion = major, RawVersion = raw };
         }
 
