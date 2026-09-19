@@ -5,6 +5,8 @@ using Chert.Core.MultiInstance;
 using Chert.Core.Profiles;
 using Chert.Core.Toolbox;
 using Chert.Core.Utils;
+using Chert.Core.Installers;
+using System.Net.Http;
 
 namespace Chert.Core.Launcher;
 
@@ -35,6 +37,42 @@ public static class GameLauncher
     /// 参数为已注册到 InstanceTracker 的游戏进程。
     /// </summary>
     public static event Action<System.Diagnostics.Process, long>? GameProcessStarted;
+
+    /// <summary>
+    /// 启动前补全 inheritsFrom 链上的前置原版（如 Forge 1.12.2 需要原版 1.12.2 的 client jar）。
+    /// 缺失会导致 ClasspathBuilder 静默跳过原版 jar，classpath 缺原版 → Java 启动退出码 1。
+    /// 仅对缺失的父（前置）版本调用 VanillaInstaller 补全，已齐备则跳过。
+    /// </summary>
+    private static async Task EnsureInheritedBaseAsync(string gameRoot, string versionId, ILogger? logger, CancellationToken ct)
+    {
+        var current = versionId;
+        var guard = 0;
+        while (guard++ < 20)
+        {
+            var jsonPath = PathEx.VersionJsonPath(gameRoot, current);
+            if (!File.Exists(jsonPath)) break;
+            var v = VersionMerger.LoadVersion(gameRoot, current);
+            var parent = v.InheritsFrom;
+            if (string.IsNullOrEmpty(parent)) break;
+            var parentJar = PathEx.VersionJarPath(gameRoot, parent);
+            var parentJson = PathEx.VersionJsonPath(gameRoot, parent);
+            if (File.Exists(parentJar) && File.Exists(parentJson)) break;
+            try
+            {
+                LogLine(logger, gameRoot, $"前置原版 {parent} 缺失，自动下载补全 ...");
+                using var http = new HttpClient();
+                var dl = new HttpDownloader(http, logger: logger);
+                await new VanillaInstaller(gameRoot, http, dl, logger).InstallAsync(parent, null, ct);
+                LogLine(logger, gameRoot, $"前置原版 {parent} 补全完成");
+            }
+            catch (Exception ex)
+            {
+                LogLine(logger, gameRoot, $"补全前置原版 {parent} 失败：{ex.Message}");
+                break;
+            }
+            current = parent;
+        }
+    }
 
     /// <summary>从 JVM 参数解析 -Xmx（最大堆内存，MB），用于 HUD 内存百分比显示。解析失败返回 0。</summary>
     private static long ParseMaxMemoryMb(System.Collections.Generic.IEnumerable<string> jvmArgs)
@@ -129,6 +167,10 @@ public static class GameLauncher
         ILogger? logger = null,
         CancellationToken ct = default)
     {
+        // 启动前确保 inheritsFrom 链上的前置原版已安装（如 Forge 1.12.2 需原版 1.12.2 的 client jar）。
+        // 缺失会导致 ClasspathBuilder 静默跳过原版 jar → classpath 缺原版 → Java 启动找不到原版类 → 退出码 1。
+        await EnsureInheritedBaseAsync(gameRoot, versionId, logger, ct);
+
         var merged = VersionMerger.Merge(gameRoot, versionId);
         var nativesDir = PathEx.NativesDir(gameRoot, versionId);
         Directory.CreateDirectory(nativesDir);
