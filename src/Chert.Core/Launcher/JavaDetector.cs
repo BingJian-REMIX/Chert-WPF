@@ -247,7 +247,12 @@ public static class JavaDetector
         {
             var match = detected.FirstOrDefault(j =>
                 string.Equals(j.JavaExe, explicitPath, StringComparison.OrdinalIgnoreCase));
-            if (match is not null) return match;
+            if (match is not null)
+            {
+                // 老版本（需精确 Java 8）不接受显式路径的高/低版本兜底，否则交由下方自动选择/下载
+                var reqForExplicit = RequiredMajorForVersionId(gameRoot, versionId);
+                if (reqForExplicit != 8 || match.MajorVersion == 8) return match;
+            }
         }
 
         var required = RequiredMajorForVersionId(gameRoot, versionId);

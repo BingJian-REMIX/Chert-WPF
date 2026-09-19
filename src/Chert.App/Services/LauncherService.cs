@@ -685,11 +685,14 @@ public class LauncherService : ILogger
         if (detected.Count > 0)
         {
             var picked = JavaDetector.SelectForVersion(detected, GameRoot, versionId, explicitPath);
-            if (picked is not null && picked.MajorVersion >= required) return picked;
+            if (picked is not null && (required != 8 || picked.MajorVersion == required)) return picked;
         }
 
         // 本地没有满足要求的 Java：尝试下载安装该版本所需主版本
         var java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
+        // 精确需求（如 Java 8）自动安装失败时，绝不兜底更高版本（否则会静默崩溃）；直接报错提示手动安装
+        if (java is null && required == 8)
+            throw new InvalidOperationException("未找到 Java 8，自动安装失败，请手动安装 Java 8 后重试。");
         return java
             ?? (detected.Count > 0 ? detected.OrderByDescending(j => j.MajorVersion).First() : null)
             ?? throw new InvalidOperationException("未找到可用的 Java 运行环境");
