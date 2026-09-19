@@ -680,7 +680,7 @@ public class LauncherService : ILogger
                 return new JavaInfo { JavaExe = explicitPath, MajorVersion = major, RawVersion = raw };
         }
 
-        var detected = await JavaDetector.DetectAsync();
+        var detected = await JavaDetector.DetectAsync(new[] { Path.Combine(GameRoot, "runtime") });
         if (detected.Count > 0)
         {
             var picked = JavaDetector.SelectForVersion(detected, GameRoot, versionId, explicitPath);
@@ -701,7 +701,7 @@ public class LauncherService : ILogger
     /// </summary>
     private async Task<JavaInfo?> EnsureJavaWithUiAsync(int required, string gameRoot, LauncherProfile profile, CancellationToken ct)
     {
-        var existing = await JavaDetector.FindBestAsync(required);
+        var existing = await JavaDetector.FindBestAsync(required, required == 8);
         if (existing is not null) return existing;
 
         ToastService.Show("正在自动安装 Java",

@@ -6,14 +6,15 @@ namespace Chert.Core.Launcher;
 public static class CrashDetector
 {
     /// <summary>返回最新的崩溃报告文件（crash-*.txt），无则 null。</summary>
-    public static string? FindLatestCrashReport(string gameRoot)
+    public static string? FindLatestCrashReport(string gameRoot, HashSet<string>? ignorePaths = null)
     {
         var dir = PathEx.CrashReportsDir(gameRoot);
         if (!Directory.Exists(dir)) return null;
 
-        return Directory.EnumerateFiles(dir, "crash-*.txt", SearchOption.TopDirectoryOnly)
-            .OrderByDescending(File.GetLastWriteTimeUtc)
-            .FirstOrDefault();
+        var files = Directory.EnumerateFiles(dir, "crash-*.txt", SearchOption.TopDirectoryOnly);
+        if (ignorePaths is not null)
+            files = files.Where(f => !ignorePaths.Contains(Path.GetFullPath(f)));
+        return files.OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
     }
 
     /// <summary>返回所有崩溃报告（按时间倒序）。</summary>

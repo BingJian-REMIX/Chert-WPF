@@ -43,7 +43,7 @@ public static class JavaInstaller
         ILogger? logger = null,
         CancellationToken ct = default)
     {
-        var existing = await JavaDetector.FindBestAsync(minMajor);
+        var existing = await JavaDetector.FindBestAsync(minMajor, minMajor == 8);
         if (existing is not null)
         {
             logger?.Log($"已找到可用 Java：{existing}");

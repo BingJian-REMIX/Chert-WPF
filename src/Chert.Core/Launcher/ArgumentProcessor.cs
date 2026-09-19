@@ -11,7 +11,7 @@ public class LaunchOptions
     public string AccessToken { get; set; } = "0";
     public string UserType { get; set; } = "mojang";
     public string UserProperties { get; set; } = "{}";
-    public int MaxMemoryMb { get; set; } = 2048;
+    public int MaxMemoryMb { get; set; } = 4096;
     public int MinMemoryMb { get; set; } = 512;
     public bool Demo { get; set; }
     public (int Width, int Height)? Resolution { get; set; }

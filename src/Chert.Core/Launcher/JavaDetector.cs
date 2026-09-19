@@ -171,12 +171,11 @@ public static class JavaDetector
     }
 
     /// <summary>筛选满足最小版本要求、且版本最高的 Java。</summary>
-    public static async Task<JavaInfo?> FindBestAsync(int minMajor, IEnumerable<string>? extraDirs = null)
+    public static async Task<JavaInfo?> FindBestAsync(int minMajor, bool exact = false, IEnumerable<string>? extraDirs = null)
     {
         var all = await DetectAsync(extraDirs);
-        return all.Where(j => j.MajorVersion >= minMajor)
-                  .OrderByDescending(j => j.MajorVersion)
-                  .FirstOrDefault();
+        var filtered = exact ? all.Where(j => j.MajorVersion == minMajor) : all.Where(j => j.MajorVersion >= minMajor);
+        return exact ? filtered.FirstOrDefault() : filtered.OrderByDescending(j => j.MajorVersion).FirstOrDefault();
     }
 
     /// <summary>从版本 Id 中解析 MC 版本号（兼容 "1.20.4"、"fabric-1.20.4"、"1.20.4-forge-..." 等写法）。</summary>
@@ -252,10 +251,14 @@ public static class JavaDetector
         }
 
         var required = RequiredMajorForVersionId(gameRoot, versionId);
-        var satisfying = detected.Where(j => j.MajorVersion >= required).ToList();
+        // 老 MC / Forge（1.16.5 及以下）只能运行在精确 Java 8 上，不能用更高版本兜底
+        bool exact = required == 8;
+        var satisfying = detected.Where(j => exact ? j.MajorVersion == required : j.MajorVersion >= required).ToList();
         // 满足要求时优先选最低版本（老 MC/Forge 常不兼容过高 Java）
-        return satisfying.Count > 0
-            ? satisfying.OrderBy(j => j.MajorVersion).First()
-            : detected.OrderByDescending(j => j.MajorVersion).First();
+        if (satisfying.Count > 0)
+            return satisfying.OrderBy(j => j.MajorVersion).First();
+        // 精确需求的版本（如 Java 8）本地无匹配时不兜底高版本，交由上层自动下载对应版本
+        if (exact) return null;
+        return detected.OrderByDescending(j => j.MajorVersion).First();
     }
 }

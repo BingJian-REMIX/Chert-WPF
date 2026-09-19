@@ -188,6 +188,9 @@ public static class GameLauncher
         var cmdLine = string.Join(" ", psi.ArgumentList.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a));
         LogLine(logger, gameRoot, $"启动命令：{psi.FileName} {cmdLine}");
 
+        // bug #3-①：记录启动前已有的崩溃报告，启动后只认本次启动新增的，避免误检陈旧报告（如 2022 年旧档）
+        var preCrashReports = new HashSet<string>(CrashDetector.FindAllCrashReports(gameDir), StringComparer.OrdinalIgnoreCase);
+
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException("无法启动游戏进程");
 
@@ -202,7 +205,7 @@ public static class GameLauncher
         var exitCode = proc.ExitCode;
 
         // 隔离版本的崩溃报告落在自己的工作目录下
-        var crash = CrashDetector.FindLatestCrashReport(gameDir);
+        var crash = CrashDetector.FindLatestCrashReport(gameDir, preCrashReports);
         if (crash is not null)
             LogLine(logger, gameRoot, $"检测到崩溃报告：{crash}（退出码 {exitCode}）");
         else

@@ -26,7 +26,7 @@ public class LauncherProfile
     public string DefaultUsername { get; set; } = "Player";
 
     [JsonPropertyName("maxMemoryMb")]
-    public int MaxMemoryMb { get; set; } = 2048;
+    public int MaxMemoryMb { get; set; } = 4096;
 
     [JsonPropertyName("minMemoryMb")]
     public int MinMemoryMb { get; set; } = 512;
