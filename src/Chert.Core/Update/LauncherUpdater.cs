@@ -127,12 +127,17 @@ public static class LauncherUpdater
             if (result.Available)
             {
                 result.Changelog = info.Changelog;
-                result.DownloadUrl = info.DownloadUrl
-                    ?? $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/Chert-Launcher-{info.Version}-win-x64.zip";
+                // 下载入口一律走 https 直链：仅当 latest.json 的 downloadUrl 是 http(s) 绝对地址时才采用，
+                // 否则（ssh://、git@、相对路径等任何非 https 形式）一律丢弃并改用代码构造的 CNB Release https 直链。
+                // 落实「拉更新直接用 http 式」——永不依赖 ssh/git 协议拉取更新包。
+                result.DownloadUrl = ResolveHttps(info.DownloadUrl,
+                    $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/Chert-Launcher-{info.Version}-win-x64.zip");
                 result.SingleFileAvailable = info.SingleFileAvailable;
                 result.LightAvailable = info.LightAvailable;
-                result.LightDownloadUrl = info.LightDownloadUrl
-                    ?? (result.LightAvailable ? $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/Chert-Light-{info.Version}-win-x64.zip" : null);
+                result.LightDownloadUrl = result.LightAvailable
+                    ? ResolveHttps(info.LightDownloadUrl,
+                        $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/Chert-Light-{info.Version}-win-x64.zip")
+                    : null;
                 result.Mandatory = result.Mandatory || info.Mandatory;
             }
         }
