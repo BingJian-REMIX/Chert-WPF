@@ -419,7 +419,7 @@ public class LauncherService : ILogger
                 if (java is null)
                 {
                     Log($"未找到 Java {required}+，尝试下载安装（{profile.PreferredJavaVendor}）…");
-                    java = await JavaInstaller.EnsureJavaAsync(required, GameRoot, _downloader, profile.PreferredJavaVendor, this, ct);
+                    java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
                 }
                 if (java is null)
                 {
@@ -688,10 +688,93 @@ public class LauncherService : ILogger
         }
 
         // 本地没有满足要求的 Java：尝试下载安装该版本所需主版本
-        var java = await JavaInstaller.EnsureJavaAsync(required, GameRoot, _downloader, profile.PreferredJavaVendor, this, ct);
+        var java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
         return java
             ?? (detected.Count > 0 ? detected.OrderByDescending(j => j.MajorVersion).First() : null)
             ?? throw new InvalidOperationException("未找到可用的 Java 运行环境");
+    }
+
+    /// <summary>
+    /// 解析可用 Java；本地缺失时自动安装（Temurin / Oracle），并在右下角 Toast 提示、
+    /// 可选地将其作为一条「Java 自动安装」任务显示于下载队列（实时进度）。
+    /// 仅当 UI 层 Chert.App.ViewModels.DownloadPageViewModel.Current 已就绪时才入队，否则仅弹 Toast。
+    /// </summary>
+    private async Task<JavaInfo?> EnsureJavaWithUiAsync(int required, string gameRoot, LauncherProfile profile, CancellationToken ct)
+    {
+        var existing = await JavaDetector.FindBestAsync(required);
+        if (existing is not null) return existing;
+
+        ToastService.Show("正在自动安装 Java",
+            $"未找到 Java {required}+，启动器正在自动下载并安装运行环境（Temurin / Oracle）。", ToastKind.Info);
+
+        Chert.App.ViewModels.DownloadQueueItem? item = null;
+        CancellationTokenSource? cts = null;
+        var dlVm = Chert.App.ViewModels.DownloadPageViewModel.Current;
+        if (dlVm is not null)
+        {
+            cts = new CancellationTokenSource();
+            item = new Chert.App.ViewModels.DownloadQueueItem
+            {
+                Title = $"Java {required}（自动安装）",
+                Summary = "启动器自动安装运行环境",
+                Kind = "java",
+                Status = "安装中"
+            };
+            item.Cts = cts;
+            dlVm.Queue.Add(item);
+        }
+
+        IProgress<double>? progress = item is null ? null : new Progress<double>(p =>
+        {
+            item!.Progress = p * 100;
+            StatusBarViewModel.Current.DownloadProgress = p * 100;
+            StatusBarViewModel.Current.DownloadText = $"安装 Java {required}：{p:P0}";
+        });
+
+        CancellationTokenSource? linkedCts = null;
+        var effectiveCt = cts is null ? ct : (linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, cts.Token)).Token;
+
+        JavaInfo? java;
+        try
+        {
+            java = await JavaInstaller.EnsureJavaAsync(required, gameRoot, _downloader, profile.PreferredJavaVendor, progress, this, effectiveCt);
+        }
+        finally
+        {
+            linkedCts?.Dispose();
+        }
+
+        if (effectiveCt.IsCancellationRequested)
+        {
+            if (item is not null && item.Status != "已取消") item.Status = "已取消";
+            return null;
+        }
+
+        if (java is null)
+        {
+            if (item is not null) item.Status = "失败";
+            ToastService.Show("Java 自动安装失败",
+                $"无法自动安装 Java {required}+，请手动安装后重试。", ToastKind.Error, seconds: 8);
+            return null;
+        }
+
+        if (item is not null)
+        {
+            item.Status = "已完成";
+            item.Progress = 100;
+            // 自动安装任务非用户手动队列，完成后延迟自动移除，避免一直留在队列里
+            _ = System.Threading.Tasks.Task.Delay(System.TimeSpan.FromSeconds(5)).ContinueWith(_ =>
+            {
+                var app = System.Windows.Application.Current;
+                if (app is not null) app.Dispatcher.Invoke(() => dlVm.Queue.Remove(item));
+                else dlVm.Queue.Remove(item);
+            }, System.Threading.CancellationToken.None);
+        }
+        StatusBarViewModel.Current.DownloadProgress = 0;
+        StatusBarViewModel.Current.DownloadText = "Java 安装完成";
+        ToastService.Show("Java 安装完成",
+            $"已安装 Java {java.MajorVersion}（{java.RawVersion}）。", ToastKind.Success);
+        return java;
     }
 
     // ---- 下载中心（Modrinth）----
