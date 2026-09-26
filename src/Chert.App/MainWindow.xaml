@@ -126,17 +126,17 @@
 
                     <!-- 环形进度：仅在有下载任务时显示（无任务不显环，bug3.txt #2） -->
 
-                    <Grid Visibility="{Binding IsDownloading, Source={x:Static vm:StatusBarViewModel.Current},
+                    <Grid HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsDownloading, Source={x:Static vm:StatusBarViewModel.Current},
 
                                 Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
 
                         <!-- 背景轨：半透明主题色，避免暗色下出现黑环 -->
 
-                        <Ellipse Width="34" Height="34" Stroke="{DynamicResource TitleBarOverlayForeground}" StrokeThickness="3" Fill="Transparent"/>
+                        <Ellipse Width="34" Height="34" Stroke="#55FFFFFF" StrokeThickness="3" Fill="Transparent"/>
 
                         <!-- 进度环：主题前景色，实时，以图标中心为圆心 -->
 
-                        <Ellipse Width="34" Height="34" Stroke="{DynamicResource TitleBarForeground}" StrokeThickness="3"
+                        <Ellipse Width="34" Height="34" Stroke="White" StrokeThickness="3"
 
                                  StrokeDashArray="{Binding DownloadProgress, Source={x:Static vm:StatusBarViewModel.Current},
 
@@ -154,7 +154,7 @@
 
                     </Grid>
 
-                    <theme:PngIcon Token="download" Size="14"/>
+                    <theme:PngIcon Token="download" Size="14" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
                     
 
@@ -923,36 +923,45 @@
                 <DataTemplate>
 
                     <Border Margin="0,6,0,0" CornerRadius="8" Padding="0"
-
-                            Background="{DynamicResource ControlBackground}"
-
-                            BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
-
-                        <Border.Effect>
-
-                            <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.45" Color="Black"/>
-
-                        </Border.Effect>
-
-                        <Border.Triggers>
-
-                            <EventTrigger RoutedEvent="Border.Loaded">
-
-                                <BeginStoryboard>
-
-                                    <Storyboard>
-
-                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-
-                                                         From="0" To="1" Duration="0:0:0.2"/>
-
-                                    </Storyboard>
-
-                                </BeginStoryboard>
-
-                            </EventTrigger>
-
-                        </Border.Triggers>
+                        Background="{DynamicResource ControlBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                        Opacity="0">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="Tt" X="340"/>
+                    </Border.RenderTransform>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.45" Color="Black"/>
+                    </Border.Effect>
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsLeaving}" Value="True">
+                                    <DataTrigger.EnterActions>
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
+                                                                 To="340" Duration="0:0:0.28"/>
+                                                <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                                 To="0" Duration="0:0:0.28"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </DataTrigger.EnterActions>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Border.Triggers>
+                        <EventTrigger RoutedEvent="Border.Loaded">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
+                                                     From="340" To="0" Duration="0:0:0.28"/>
+                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                     From="0" To="1" Duration="0:0:0.28"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+                    </Border.Triggers>
 
                         <Grid>
 

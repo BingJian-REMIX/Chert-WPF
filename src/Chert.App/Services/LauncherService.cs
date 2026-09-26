@@ -360,7 +360,15 @@ public class LauncherService : ILogger
         profile.LastVersionId = versionId;
         ProfileStore.Save(profile);
 
-        return await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, ct);
+        System.IProgress<double>? vanillaProgress = new System.Progress<double>(p =>
+        {
+            var svm = Chert.App.ViewModels.StatusBarViewModel.Current;
+            svm.DownloadProgress = Math.Clamp(p, 0, 1) * 100;
+            svm.DownloadText = $"补全前置原版：{p:P0}";
+        });
+        var launchResult = await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, ct, vanillaProgress);
+        Chert.App.ViewModels.StatusBarViewModel.Current.DownloadProgress = 0;
+        return launchResult;
     }
 
     /// <summary>

@@ -116,6 +116,8 @@ public partial class App : Application
             profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
             var lang = LocaleManager.NormalizeLocaleCode(profile.Language);
             LocaleManager.CurrentLocale = lang;
+            // Toast 停留时长跟随设置（默认 5 秒）
+            Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
         }
         catch
         {

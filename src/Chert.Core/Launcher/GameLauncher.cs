@@ -43,7 +43,7 @@ public static class GameLauncher
     /// 缺失会导致 ClasspathBuilder 静默跳过原版 jar，classpath 缺原版 → Java 启动退出码 1。
     /// 仅对缺失的父（前置）版本调用 VanillaInstaller 补全，已齐备则跳过。
     /// </summary>
-    private static async Task EnsureInheritedBaseAsync(string gameRoot, string versionId, ILogger? logger, CancellationToken ct)
+    private static async Task EnsureInheritedBaseAsync(string gameRoot, string versionId, ILogger? logger, CancellationToken ct, System.IProgress<double>? progress = null)
     {
         var current = versionId;
         var guard = 0;
@@ -62,7 +62,11 @@ public static class GameLauncher
                 LogLine(logger, gameRoot, $"前置原版 {parent} 缺失，自动下载补全 ...");
                 using var http = new HttpClient();
                 var dl = new HttpDownloader(http, logger: logger);
-                await new VanillaInstaller(gameRoot, http, dl, logger).InstallAsync(parent, null, ct);
+                System.IProgress<(int Done, int Total)>? vp = progress is null
+                    ? null
+                    : new System.Progress<(int Done, int Total)>(t => progress.Report(t.Total > 0 ? t.Done / (double)t.Total : 0));
+                await new VanillaInstaller(gameRoot, http, dl, logger).InstallAsync(parent, vp, ct);
+                progress?.Report(1.0);
                 LogLine(logger, gameRoot, $"前置原版 {parent} 补全完成");
             }
             catch (Exception ex)
@@ -165,11 +169,12 @@ public static class GameLauncher
         JavaInfo java,
         LaunchOptions options,
         ILogger? logger = null,
+        System.IProgress<double>? progress = null,
         CancellationToken ct = default)
     {
         // 启动前确保 inheritsFrom 链上的前置原版已安装（如 Forge 1.12.2 需原版 1.12.2 的 client jar）。
         // 缺失会导致 ClasspathBuilder 静默跳过原版 jar → classpath 缺原版 → Java 启动找不到原版类 → 退出码 1。
-        await EnsureInheritedBaseAsync(gameRoot, versionId, logger, ct);
+        await EnsureInheritedBaseAsync(gameRoot, versionId, logger, ct, progress);
 
         var merged = VersionMerger.Merge(gameRoot, versionId);
         var nativesDir = PathEx.NativesDir(gameRoot, versionId);

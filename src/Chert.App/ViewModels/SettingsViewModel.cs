@@ -108,6 +108,9 @@ public class SettingsViewModel : ObservableObject
     /// <summary>游戏目录输入框的水印提示，显示系统默认路径。</summary>
     public string DefaultGamePathHint => GameConstants.SystemGameRoot;
 
+    private int _toastDurationSeconds = 5;
+    public int ToastDurationSeconds { get => _toastDurationSeconds; set => SetField(ref _toastDurationSeconds, value); }
+
     public string JavaPath { get => _javaPath; set => SetField(ref _javaPath, value); }
     public ObservableCollection<string> DetectedJavas { get => _detectedJavas; set => SetField(ref _detectedJavas, value); }
     public int MaxMemoryMb { get => _maxMemoryMb; set => SetField(ref _maxMemoryMb, value); }
@@ -351,6 +354,7 @@ public class SettingsViewModel : ObservableObject
         MinimizeToTray = profile.MinimizeToTray;
         AnimationsEnabled = profile.AnimationsEnabled;
         FileWatchEnabled = profile.FileWatchEnabled;
+        ToastDurationSeconds = profile.ToastDurationSeconds;
         DefaultVersionIsolation = profile.DefaultVersionIsolation;
 
         // 启动补充
@@ -439,6 +443,7 @@ public class SettingsViewModel : ObservableObject
             MinimizeToTray = MinimizeToTray,
             AnimationsEnabled = AnimationsEnabled,
             FileWatchEnabled = FileWatchEnabled,
+            ToastDurationSeconds = ToastDurationSeconds,
             DefaultVersionIsolation = DefaultVersionIsolation,
 
             // 启动补充（规格 2.4）
@@ -468,6 +473,7 @@ public class SettingsViewModel : ObservableObject
         };
         _aiVm.ApplyTo(profile);
         ProfileStore.Save(profile);
+        Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
 
         // 即时生效
         ApplyTheme();

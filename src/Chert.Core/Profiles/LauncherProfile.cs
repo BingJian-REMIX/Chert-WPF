@@ -92,6 +92,10 @@ public class LauncherProfile
     [JsonPropertyName("animationsEnabled")]
     public bool AnimationsEnabled { get; set; } = true;
 
+    /// <summary>Toast 通知停留时长（秒）。0 表示不自动消失、需手动关闭；默认 5 秒。设置 → 通用。</summary>
+    [JsonPropertyName("toastDurationSeconds")]
+    public int ToastDurationSeconds { get; set; } = 5;
+
     /// <summary>文件变更检测（规格 2.3-16 / 3.13）：启动或焦点回归时检测手动丢入 mods/resourcepacks/shaderpacks 的新文件。</summary>
     [JsonPropertyName("fileWatchEnabled")]
     public bool FileWatchEnabled { get; set; } = true;

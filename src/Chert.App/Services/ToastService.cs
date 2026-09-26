@@ -44,6 +44,10 @@ public class ToastItem : ObservableObject
 
     internal DispatcherTimer? Timer { get; set; }
 
+    /// <summary>为 true 时正在播放「收回」动画，UI 据此向右滑出；ToastService 随后将其移除。</summary>
+    private bool _isLeaving;
+    public bool IsLeaving { get => _isLeaving; set => SetField(ref _isLeaving, value); }
+
     public ToastItem()
     {
         ActionCommand = new RelayCommand(_ =>
@@ -67,6 +71,12 @@ public static class ToastService
     /// <summary>默认停留秒数（规格要求 5 秒）。</summary>
     public const int DefaultSeconds = 5;
 
+    /// <summary>当前生效的停留秒数（可在设置中调整，默认 5）。</summary>
+    public static int DurationSeconds { get; set; } = DefaultSeconds;
+
+    /// <summary>「收回」动画时长（需与 MainWindow.xaml 中 Storyboard 的 Duration 保持一致）。</summary>
+    internal static readonly TimeSpan ExitAnimation = TimeSpan.FromSeconds(0.28);
+
     public static ObservableCollection<ToastItem> Items { get; } = new();
 
     /// <summary>
@@ -77,7 +87,7 @@ public static class ToastService
         string title, string message,
         ToastKind kind = ToastKind.Info,
         string? actionText = null, Action? action = null,
-        int seconds = DefaultSeconds)
+        int? seconds = null)
     {
         var item = new ToastItem
         {
@@ -93,9 +103,10 @@ public static class ToastService
             while (Items.Count >= MaxVisible) Dismiss(Items[0]);
             Items.Add(item);
 
-            if (seconds <= 0) return;
+            int effective = seconds ?? DurationSeconds;
+            if (effective <= 0) return;
 
-            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(seconds) };
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(effective) };
             timer.Tick += (_, _) => Dismiss(item);
             item.Timer = timer;
             timer.Start();
@@ -106,9 +117,17 @@ public static class ToastService
 
     public static void Dismiss(ToastItem item) => Invoke(() =>
     {
+        if (item.IsLeaving) return;
+        item.IsLeaving = true;
         item.Timer?.Stop();
         item.Timer = null;
-        Items.Remove(item);
+        var t = new DispatcherTimer { Interval = ExitAnimation };
+        t.Tick += (_, _) =>
+        {
+            t.Stop();
+            Items.Remove(item);
+        };
+        t.Start();
     });
 
     public static void ClearAll() => Invoke(() =>

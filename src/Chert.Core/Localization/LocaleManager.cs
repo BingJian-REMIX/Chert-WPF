@@ -249,6 +249,7 @@ public static class LocaleManager
   ""settings.autostart"": ""开机自启"",
   ""settings.minimize_tray"": ""最小化到托盘"",
   ""settings.animations"": ""动画效果"",
+  ""settings.toast_duration"": ""通知停留时长（秒）"",
   ""settings.filewatch"": ""文件变更检测"",
   ""settings.default_memory"": ""默认内存 (MB)"",
   ""settings.default_username"": ""默认用户名"",
@@ -1047,6 +1048,7 @@ public static class LocaleManager
   ""settings.autostart"": ""Auto-start on boot"",
   ""settings.minimize_tray"": ""Minimize to tray"",
   ""settings.animations"": ""Animations"",
+  ""settings.toast_duration"": ""Toast duration (seconds)"",
   ""settings.filewatch"": ""File change detection"",
   ""settings.default_memory"": ""Default Memory (MB)"",
   ""settings.default_username"": ""Default Username"",
@@ -1658,7 +1660,7 @@ public static class LocaleManager
   ""mods.col_loader"": ""Loader"",
   ""mods.col_latest"": ""Latest"",
   ""mods.uninstall"": ""Uninstall""
-}";
+}";
                     private static string BuiltInZhTW() => @"{
   ""app.title"": ""燧石啟動器"",
   ""app.launcher"": ""燧石啟動器"",
@@ -1844,6 +1846,7 @@ public static class LocaleManager
   ""settings.autostart"": ""開機自啟"",
   ""settings.minimize_tray"": ""最小化到托盤"",
   ""settings.animations"": ""動畫效果"",
+  ""settings.toast_duration"": ""通知停留時長（秒）"",
   ""settings.filewatch"": ""文件變更檢測"",
   ""settings.default_memory"": ""默認內存 (MB)"",
   ""settings.default_username"": ""默認用戶名"",
@@ -2455,5 +2458,5 @@ public static class LocaleManager
   ""mods.col_loader"": ""加載器"",
   ""mods.col_latest"": ""最新"",
   ""mods.uninstall"": ""卸載""
-}";
+}";
 }
