@@ -161,6 +161,7 @@ public partial class App : Application
             try { Chert.App.Views.HudOverlayWindow.TryShow(proc, maxMb); }
             catch { /* HUD 非关键，失败不影响游戏运行 */ }
         };
+        Chert.Core.Launcher.GameLauncher.GameOutputLine += Chert.App.Views.HudOverlayWindow.FeedGameLogLine;
 
         // 启动即加载已保存的主题偏好并应用（修复：默认亮色启动 + 外观未持久化恢复）
         ThemeManager.LoadPreference(GameConstants.DefaultGameRoot);

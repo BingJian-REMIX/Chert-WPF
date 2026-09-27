@@ -7,7 +7,7 @@
              xmlns:vm="clr-namespace:Chert.App.ViewModels"
 
              xmlns:local="clr-namespace:Chert.App.Views"
-             xmlns:theme="clr-namespace:Chert.App.Themes">
+             xmlns:theme="clr-namespace:Chert.App.Themes" Foreground="{DynamicResource PrimaryForeground}">
 
     <UserControl.DataContext>
 

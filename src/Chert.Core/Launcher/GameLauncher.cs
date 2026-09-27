@@ -37,6 +37,7 @@ public static class GameLauncher
     /// 参数为已注册到 InstanceTracker 的游戏进程。
     /// </summary>
     public static event Action<System.Diagnostics.Process, long>? GameProcessStarted;
+    public static Action<string>? GameOutputLine;
 
     /// <summary>
     /// 启动前补全 inheritsFrom 链上的前置原版（如 Forge 1.12.2 需要原版 1.12.2 的 client jar）。
@@ -221,6 +222,8 @@ public static class GameLauncher
             FileName = java.JavaExe,
             UseShellExecute = false,
             CreateNoWindow = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
             WorkingDirectory = gameDir
         };
 
@@ -241,6 +244,10 @@ public static class GameLauncher
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException("无法启动游戏进程");
 
+        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
         InstanceTracker.Register(proc.Id, versionId);
 
         // bug #28：进程已就绪，通知上层触发 HUD 叠加层（覆盖全部启动路径，无 1.5s 竞态）。

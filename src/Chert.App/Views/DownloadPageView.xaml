@@ -126,7 +126,7 @@
 
 
 
-                    <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="Bold"
+                    <TextBlock Grid.Row="1" Text="{Binding Title}" FontWeight="Bold" Foreground="{DynamicResource PrimaryForeground}"
 
                                Margin="10,8,10,2" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
 
@@ -448,7 +448,7 @@
 
                             <DataTemplate>
 
-                                <Expander Header="{Binding Header}" Margin="0,4,8,4">
+                                <Expander Header="{Binding Header}" Margin="0,4,8,4" Foreground="{DynamicResource PrimaryForeground}">
 
                                     <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource CardDataTemplate}">
 

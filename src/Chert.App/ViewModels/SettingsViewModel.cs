@@ -585,6 +585,20 @@ public class SettingsViewModel : ObservableObject
         }
     }
 
+    private void CopyMicrosoftDeviceCode(string msg)
+    {
+        try
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(msg, "输入代码：(\S+)");
+            if (m.Success)
+            {
+                var code = m.Groups[1].Value.Trim();
+                System.Windows.Application.Current.Dispatcher.Invoke(() => System.Windows.Clipboard.SetText(code));
+            }
+        }
+        catch { /* 剪贴板不可用时忽略 */ }
+    }
+
     private async Task LoginMicrosoftAsync()
     {
         try
@@ -594,7 +608,7 @@ public class SettingsViewModel : ObservableObject
             var clientId = MicrosoftOAuthClientId?.Trim();
             StatusMessage = "正在发起微软登录…请按弹窗提示在浏览器输入设备代码。";
             var auth = new MicrosoftAuthenticator(new HttpClient(), clientId,
-                msg => UIService.ShowMessage(msg, "微软登录"));
+                msg => { UIService.ShowMessage(msg, "微软登录"); CopyMicrosoftDeviceCode(msg); });
             var session = await auth.AuthenticateAsync(null);
             var entry = new AccountEntry
             {

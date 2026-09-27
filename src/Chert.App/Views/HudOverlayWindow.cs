@@ -18,6 +18,16 @@ namespace Chert.App.Views;
 public class HudOverlayWindow : Window
 {
     public static HudOverlayWindow? Instance { get; private set; }
+    /// <summary>由 GameLauncher 的游戏进程输出回调喂入 HUD 日志行（配套 Mod 输出 [MCLCS-HUD] 时回填 FPS/坐标等）。</summary>
+    public static void FeedGameLogLine(string line)
+    {
+        try { Instance?._provider.TryConsumeLogLine(line); } catch { }
+    }
+
+    private void OnGameExited(object? sender, EventArgs e)
+    {
+        try { Dispatcher.Invoke(() => Close()); } catch { }
+    }
     private readonly DispatcherTimer _timer;
     private readonly HudMetricsProvider _provider = new();
     private readonly TextBlock _text;
@@ -87,9 +97,18 @@ public class HudOverlayWindow : Window
 
     public void AttachGame(Process process, long maxMemoryMb)
     {
+        if (_gameProcess is { } oldProc)
+        {
+            oldProc.Exited -= OnGameExited;
+        }
         _gameProcess = process;
         _maxMemoryMb = maxMemoryMb;
         _provider.SessionStart = DateTime.Now;
+        if (_gameProcess is not null)
+        {
+            _gameProcess.EnableRaisingEvents = true;
+            _gameProcess.Exited += OnGameExited;
+        }
         _timer.Start();
         Show();
         Activate();

@@ -105,9 +105,19 @@ public static class SaveCorruptionDetector
         var levelDat = Path.Combine(savePath, "level.dat");
         if (!File.Exists(levelDat))
         {
-            report.IsCorrupt = true;
-            report.Severity = SaveCorruptionSeverity.Corrupt;
-            report.Issues.Add("缺少 level.dat，世界无法加载。");
+            // 仅缺失 level.dat 但存在 level.dat_old 备份时，视为可恢复（Warning）而非致命损坏，避免误报
+            if (File.Exists(Path.Combine(savePath, "level.dat_old")))
+            {
+                if (report.Severity < SaveCorruptionSeverity.Warning)
+                    report.Severity = SaveCorruptionSeverity.Warning;
+                report.Notes.Add("缺少 level.dat，但存在 level.dat_old 备份，可用其恢复。");
+            }
+            else
+            {
+                report.IsCorrupt = true;
+                report.Severity = SaveCorruptionSeverity.Corrupt;
+                report.Issues.Add("缺少 level.dat，世界无法加载。");
+            }
             return report;
         }
 
