@@ -44,6 +44,9 @@ public class CategoryPref : ObservableObject
 
 public class SettingsViewModel : ObservableObject
 {
+    /// <summary>外置登录常用公共服务器 —— LittleSkin 的 Yggdrasil API 地址。</summary>
+    public const string LittleSkinServerUrl = "https://littleskin.cn/api/yggdrasil";
+
     // ---- 启动 ----
     private string _gamePath = "";
     private string _javaPath = "";
@@ -305,6 +308,8 @@ public class SettingsViewModel : ObservableObject
     public ICommand RefreshAccountsCommand { get; }
     public ICommand SetActiveAccountCommand { get; }
     public ICommand AddOfflineAccountCommand { get; }
+    /// <summary>一键填入 LittleSkin 服务器地址（外置登录）。</summary>
+    public ICommand UseLittleSkinCommand { get; }
     public ICommand RemoveAccountCommand { get; }
     public ICommand BrowseBackgroundCommand { get; }
     public ICommand BrowseGameRootCommand { get; }
@@ -321,6 +326,7 @@ public class SettingsViewModel : ObservableObject
         RefreshAccountsCommand = new RelayCommand(_ => RefreshAccounts());
         SetActiveAccountCommand = new RelayCommand(_ => SetActiveAccount());
         AddOfflineAccountCommand = new RelayCommand(_ => AddOfflineAccount());
+        UseLittleSkinCommand = new RelayCommand(_ => UseLittleSkin());
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as AccountEntry));
         BrowseBackgroundCommand = new RelayCommand(_ => BrowseBackground());
         BrowseGameRootCommand = new RelayCommand(_ => BrowseGameRoot());
@@ -587,6 +593,13 @@ public class SettingsViewModel : ObservableObject
         NewOfflineName = "";
         RefreshAccounts();
         StatusMessage = $"已添加离线账号：{session.Username}";
+    }
+
+    /// <summary>填入 LittleSkin 公共服务器地址，省去手抄 URL。</summary>
+    private void UseLittleSkin()
+    {
+        AuthlibServerUrl = LittleSkinServerUrl;
+        StatusMessage = $"已填入 LittleSkin 服务器地址：{LittleSkinServerUrl}";
     }
 
     /// <summary>添加 Authlib-Injector 账号（由视图读取密码后调用）。</summary>

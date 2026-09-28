@@ -864,7 +864,11 @@ public static class LocaleManager
   ""seasonal.midautumn.greeting.title"": ""中秋快乐"",
   ""seasonal.midautumn.greeting.message"": ""愿你月圆人团圆，游戏顺利～（可在设置中关闭节日特效）"",
   ""settings.seasonal_effects"": ""节日特效"",
-  ""settings.java_path_hint"": ""此项仅作为首选 Java；启动器仍会按各版本要求自动避开其不支持的 Java 版本，无需手动切换。""
+  ""settings.java_path_hint"": ""此项仅作为首选 Java；启动器仍会按各版本要求自动避开其不支持的 Java 版本，无需手动切换。"",
+  ""settings.use_littleskin"": ""使用 LittleSkin"",
+  ""settings.use_littleskin_tip"": ""自动填入 LittleSkin 的外置登录服务器地址"",
+  ""settings.authlib_url_ph"": ""服务器地址，如 https://auth.example.com"",
+  ""settings.authlib_email_ph"": ""该服务器的账号邮箱""
 }";
 
                         private static string BuiltInEnUS() => @"{
@@ -1667,7 +1671,11 @@ public static class LocaleManager
   ""seasonal.midautumn.greeting.title"": ""Happy Mid-Autumn Festival"",
   ""seasonal.midautumn.greeting.message"": ""Wishing you a full moon and joyful moments. Seasonal effects can be turned off in Settings."",
   ""settings.seasonal_effects"": ""Seasonal effects"",
-  ""settings.java_path_hint"": ""This is only a preferred Java; the launcher still avoids Java versions unsupported by each Minecraft version automatically, so no manual switching is needed.""
+  ""settings.java_path_hint"": ""This is only a preferred Java; the launcher still avoids Java versions unsupported by each Minecraft version automatically, so no manual switching is needed."",
+  ""settings.use_littleskin"": ""Use LittleSkin"",
+  ""settings.use_littleskin_tip"": ""Fill in the LittleSkin external login server address automatically"",
+  ""settings.authlib_url_ph"": ""Server address, e.g. https://auth.example.com"",
+  ""settings.authlib_email_ph"": ""Account email on that server""
 }";
                     private static string BuiltInZhTW() => @"{
   ""app.title"": ""燧石啟動器"",
@@ -2469,6 +2477,10 @@ public static class LocaleManager
   ""seasonal.midautumn.greeting.title"": ""中秋快樂"",
   ""seasonal.midautumn.greeting.message"": ""願你月圓人團圓，遊戲順利～（可在設定中關閉節日特效）"",
   ""settings.seasonal_effects"": ""節日特效"",
-  ""settings.java_path_hint"": ""此項僅作為偏好 Java；啟動器仍會依各版本需求自動避開其不支援的 Java 版本，無須手動切換。""
+  ""settings.java_path_hint"": ""此項僅作為偏好 Java；啟動器仍會依各版本需求自動避開其不支援的 Java 版本，無須手動切換。"",
+  ""settings.use_littleskin"": ""使用 LittleSkin"",
+  ""settings.use_littleskin_tip"": ""自動填入 LittleSkin 的外置登入伺服器位址"",
+  ""settings.authlib_url_ph"": ""伺服器位址，如 https://auth.example.com"",
+  ""settings.authlib_email_ph"": ""該伺服器的帳號郵箱""
 }";
 }

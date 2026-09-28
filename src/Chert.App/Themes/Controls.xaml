@@ -490,6 +490,37 @@
         <Setter Property="BorderBrush" Value="{DynamicResource InputBorder}"/>
         <Setter Property="CaretBrush" Value="{DynamicResource PrimaryForeground}"/>
     </Style>
+    <!-- 带占位提示的文本框（清单 2.6）：Tag 作为占位文案，仅在内容为空且未聚焦时显示。
+         用法 Style="{StaticResource PlaceholderTextBoxStyle}" Tag="{theme:Loc xxx}" -->
+    <Style x:Key="PlaceholderTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            SnapsToDevicePixels="True">
+                        <Grid>
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="0"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                            <TextBlock x:Name="PART_Hint" Text="{TemplateBinding Tag}"
+                                       Foreground="{DynamicResource SecondaryForeground}" Opacity="0.6"
+                                       Margin="5,0,0,0" VerticalAlignment="Center"
+                                       IsHitTestVisible="False" Visibility="Collapsed"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="PART_Hint" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <Trigger Property="IsFocused" Value="True">
+                            <Setter TargetName="PART_Hint" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <Style TargetType="DataGrid">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>

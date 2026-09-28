@@ -616,31 +616,33 @@
 
                                    Text="{theme:Loc settings.authlib_desc}"/>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <!-- 竖排：服务器地址 / 邮箱 / 密码 各占一行；宽度约占整页一半，框内带占位提示 -->
+                        <StackPanel Margin="0,2">
 
-                            <TextBox Text="{Binding AuthlibServerUrl, UpdateSourceTrigger=PropertyChanged}" Width="220" Tag="{theme:Loc settings.authlib_url}"
+                            <StackPanel Orientation="Horizontal">
 
-                                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}" VerticalContentAlignment="Center"/>
+                                <TextBox Style="{StaticResource PlaceholderTextBoxStyle}"
+                                         Text="{Binding AuthlibServerUrl, UpdateSourceTrigger=PropertyChanged}" Width="420"
+                                         VerticalContentAlignment="Center"
+                                         Tag="{theme:Loc settings.authlib_url_ph}"/>
 
-                            <TextBox Text="{Binding AuthlibEmail, UpdateSourceTrigger=PropertyChanged}" Width="140" Margin="8,0,0,0"
+                                <Button Content="{theme:Loc settings.use_littleskin}" Command="{Binding UseLittleSkinCommand}"
+                                        Width="110" Margin="8,0,0,0" Padding="0,2"
+                                        ToolTip="{theme:Loc settings.use_littleskin_tip}"/>
 
-                                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}" VerticalContentAlignment="Center"/>
+                            </StackPanel>
 
-                            <PasswordBox x:Name="AuthlibPw" Width="120" Margin="8,0,0,0"/>
+                            <TextBox Style="{StaticResource PlaceholderTextBoxStyle}" Margin="0,4,0,0"
+                                     Text="{Binding AuthlibEmail, UpdateSourceTrigger=PropertyChanged}" Width="420"
+                                     VerticalContentAlignment="Center"
+                                     Tag="{theme:Loc settings.authlib_email_ph}"/>
 
-                            <Button Content="{theme:Loc btn.add}" Click="AddAuthlib_Click" Width="70" Margin="8,0,0,0" Padding="0,2"/>
+                            <PasswordBox x:Name="AuthlibPw" Width="420" Margin="0,4,0,0"/>
 
-                        </StackPanel>
+                            <Button Content="{theme:Loc btn.add}" Click="AddAuthlib_Click" Width="90"
+                                    HorizontalAlignment="Left" Margin="0,6,0,0" Padding="0,2"/>
 
-                        <StackPanel Orientation="Horizontal" Margin="0,2">
-
-                            <TextBlock Width="220" FontSize="11" Foreground="{DynamicResource SecondaryForeground}" Text="{theme:Loc settings.authlib_hint1}"/>
-
-                            <TextBlock Width="140" Margin="8,0,0,0" FontSize="11" Foreground="{DynamicResource SecondaryForeground}" Text="{theme:Loc settings.authlib_hint2}"/>
-
-                            <TextBlock Width="120" Margin="8,0,0,0" FontSize="11" Foreground="{DynamicResource SecondaryForeground}" Text="{theme:Loc settings.authlib_hint3}"/>
-
-                        </StackPanel>
+                    </StackPanel>
 
                     </StackPanel>
 
