@@ -1,0 +1,73 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+    =========================================================================
+      中秋节日特效叠加层（第一期）
+      —— 由 SeasonalThemeManager 挂载到 Application.Resources.MergedDictionaries 末尾，
+         作为「置顶半透明特效层」叠加于界面之上，不整体换肤、不切换主题。
+
+      设计原则：
+        1. 只覆盖「颜色级」资源，不碰任何控件 Style / Template / 布局；
+        2. 色值在 Light / Dark 两种底上都可读协调；
+        3. 选用半透明 alpha，保留底层主题纹理，营造「叠加」而非「替换」的观感。
+
+      注意：Application 顶层直接赋值的键（如 SetTabTheme 写的 TitleBarBrush）
+      会优先于本字典，因此此处给出的 TitleBarBrush 仅在未被标签主题覆盖时生效。
+      四色 Tab*Brush 走 FindResource 取值，能被本层正常覆盖生效。
+    =========================================================================
+    -->
+
+    <!-- ===== 中秋色板：夜幕蓝 / 月白 / 暖月金 / 桂橙 / 玉盘青 ===== -->
+    <Color x:Key="MidAutumnNight">#1B2A41</Color>
+    <Color x:Key="MidAutumnMoon">#FFF8E7</Color>
+    <Color x:Key="MidAutumnGold">#F6C445</Color>
+    <Color x:Key="MidAutumnOsmanthus">#E8944A</Color>
+    <Color x:Key="MidAutumnJade">#7FB3D5</Color>
+
+    <!-- ===== 强调色：暖月金 ===== -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#F6C445"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#E0AE33"/>
+    <SolidColorBrush x:Key="AccentForeground" Color="#20160A"/>
+    <SolidColorBrush x:Key="ProgressForeground" Color="#F6C445"/>
+
+    <!-- ===== 按钮：暖月金主调 ===== -->
+    <SolidColorBrush x:Key="ButtonBackground" Color="#F6C445"/>
+    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#E0AE33"/>
+
+    <!-- ===== 标题栏：夜幕蓝（可被标签主题覆盖，属预期行为） ===== -->
+    <SolidColorBrush x:Key="TitleBarBrush" Color="#1B2A41"/>
+
+    <!-- ===== 卡片交互描边：暖月金微光 ===== -->
+    <SolidColorBrush x:Key="CardBorderHover" Color="#CCF6C445"/>
+
+    <!-- ===== 四色索引贴：中秋配色 =====
+         Tab*Brush 经 Application.FindResource 取值后赋给 SolidColorBrush.Color，
+         因此支持 alpha，半透明可生效。 -->
+    <SolidColorBrush x:Key="TabGameBrush" Color="#CC4E8FA8"/>
+    <SolidColorBrush x:Key="TabGameDimBrush" Color="#A63A6B7E"/>
+    <SolidColorBrush x:Key="TabGameActiveBrush" Color="#CC5DA1BB"/>
+    <SolidColorBrush x:Key="TabGameUnderlineBrush" Color="#FFFFF8E7"/>
+
+    <SolidColorBrush x:Key="TabDownloadBrush" Color="#CC5C7FBF"/>
+    <SolidColorBrush x:Key="TabDownloadDimBrush" Color="#A6455F8F"/>
+    <SolidColorBrush x:Key="TabDownloadActiveBrush" Color="#CC6E8FD0"/>
+    <SolidColorBrush x:Key="TabDownloadUnderlineBrush" Color="#FFFFF8E7"/>
+
+    <SolidColorBrush x:Key="TabToolboxBrush" Color="#CCE8944A"/>
+    <SolidColorBrush x:Key="TabToolboxDimBrush" Color="#A6AE6F38"/>
+    <SolidColorBrush x:Key="TabToolboxActiveBrush" Color="#CCF2A866"/>
+    <SolidColorBrush x:Key="TabToolboxUnderlineBrush" Color="#FFFFF8E7"/>
+
+    <SolidColorBrush x:Key="TabSettingsBrush" Color="#CC4A5568"/>
+    <SolidColorBrush x:Key="TabSettingsDimBrush" Color="#A638414F"/>
+    <SolidColorBrush x:Key="TabSettingsActiveBrush" Color="#CC5A6678"/>
+    <SolidColorBrush x:Key="TabSettingsUnderlineBrush" Color="#FFFFF8E7"/>
+
+    <!-- ===== 装饰资源：供后续「节日置顶装饰 / 角标」直接使用 =====
+         首期仅落地颜色层，这些 brush 为第二步的可视装饰预留。 -->
+    <SolidColorBrush x:Key="SeasonalOverlayBrush" Color="#1F3B5C7B"/>
+    <SolidColorBrush x:Key="SeasonalCornerBadgeBrush" Color="#CCF6C445"/>
+    <SolidColorBrush x:Key="SeasonalCornerBadgeForeground" Color="#20160A"/>
+
+</ResourceDictionary>

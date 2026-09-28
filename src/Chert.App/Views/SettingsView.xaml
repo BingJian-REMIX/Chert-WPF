@@ -205,6 +205,13 @@
                         </ComboBox>
                     </StackPanel>
 
+                    <WrapPanel Grid.Row="10" Margin="0,3">
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                      IsChecked="{Binding SeasonalEffectsEnabled, Mode=TwoWay}"/>
+                        <TextBlock Text="{theme:Loc settings.seasonal_effects}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                    </WrapPanel>
+
                 </Grid>
 
 

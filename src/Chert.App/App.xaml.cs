@@ -173,6 +173,11 @@ public partial class App : Application
 
         // 应用背景图片（bug #20：路径此前已持久化，但从未真正渲染到窗口）
         ApplyBackgroundImage(profile.BackgroundImagePath);
+
+        // 节日特效（第一期）：半透明置顶叠加层。异步拉取远程配置并按档期挂载，
+        // 网络 / 解析 / 加载任一失败均静默回退默认外观，绝不阻塞启动。
+        Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
+        _ = Chert.App.Themes.SeasonalThemeManager.InitializeAsync(GameConstants.DefaultGameRoot);
     }
 
     private void ApplyTheme(ThemeType theme)

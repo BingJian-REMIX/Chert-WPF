@@ -860,7 +860,10 @@ public static class LocaleManager
   ""mods.col_version"": ""版本"",
   ""mods.col_loader"": ""加载器"",
   ""mods.col_latest"": ""最新"",
-  ""mods.uninstall"": ""卸载""
+  ""mods.uninstall"": ""卸载"",
+  ""seasonal.midautumn.greeting.title"": ""中秋快乐"",
+  ""seasonal.midautumn.greeting.message"": ""愿你月圆人团圆，游戏顺利～（可在设置中关闭节日特效）"",
+  ""settings.seasonal_effects"": ""节日特效""
 }";
 
                         private static string BuiltInEnUS() => @"{
@@ -1659,7 +1662,10 @@ public static class LocaleManager
   ""mods.col_version"": ""Version"",
   ""mods.col_loader"": ""Loader"",
   ""mods.col_latest"": ""Latest"",
-  ""mods.uninstall"": ""Uninstall""
+  ""mods.uninstall"": ""Uninstall"",
+  ""seasonal.midautumn.greeting.title"": ""Happy Mid-Autumn Festival"",
+  ""seasonal.midautumn.greeting.message"": ""Wishing you a full moon and joyful moments. Seasonal effects can be turned off in Settings."",
+  ""settings.seasonal_effects"": ""Seasonal effects""
 }";
                     private static string BuiltInZhTW() => @"{
   ""app.title"": ""燧石啟動器"",
@@ -2457,6 +2463,9 @@ public static class LocaleManager
   ""mods.col_version"": ""版本"",
   ""mods.col_loader"": ""加載器"",
   ""mods.col_latest"": ""最新"",
-  ""mods.uninstall"": ""卸載""
+  ""mods.uninstall"": ""卸載"",
+  ""seasonal.midautumn.greeting.title"": ""中秋快樂"",
+  ""seasonal.midautumn.greeting.message"": ""願你月圓人團圓，遊戲順利～（可在設定中關閉節日特效）"",
+  ""settings.seasonal_effects"": ""節日特效""
 }";
 }

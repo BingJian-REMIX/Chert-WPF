@@ -111,6 +111,10 @@ public class SettingsViewModel : ObservableObject
     private int _toastDurationSeconds = 5;
     public int ToastDurationSeconds { get => _toastDurationSeconds; set => SetField(ref _toastDurationSeconds, value); }
 
+    private bool _seasonalEffectsEnabled = true;
+    /// <summary>是否启用节日特效置顶叠加层（关闭后立即移除叠加层、恢复默认外观）。</summary>
+    public bool SeasonalEffectsEnabled { get => _seasonalEffectsEnabled; set => SetField(ref _seasonalEffectsEnabled, value); }
+
     public string JavaPath { get => _javaPath; set => SetField(ref _javaPath, value); }
     public ObservableCollection<string> DetectedJavas { get => _detectedJavas; set => SetField(ref _detectedJavas, value); }
     public int MaxMemoryMb { get => _maxMemoryMb; set => SetField(ref _maxMemoryMb, value); }
@@ -355,6 +359,7 @@ public class SettingsViewModel : ObservableObject
         AnimationsEnabled = profile.AnimationsEnabled;
         FileWatchEnabled = profile.FileWatchEnabled;
         ToastDurationSeconds = profile.ToastDurationSeconds;
+        SeasonalEffectsEnabled = profile.SeasonalEffectsEnabled;
         DefaultVersionIsolation = profile.DefaultVersionIsolation;
 
         // 启动补充
@@ -444,6 +449,7 @@ public class SettingsViewModel : ObservableObject
             AnimationsEnabled = AnimationsEnabled,
             FileWatchEnabled = FileWatchEnabled,
             ToastDurationSeconds = ToastDurationSeconds,
+            SeasonalEffectsEnabled = SeasonalEffectsEnabled,
             DefaultVersionIsolation = DefaultVersionIsolation,
 
             // 启动补充（规格 2.4）
@@ -474,6 +480,7 @@ public class SettingsViewModel : ObservableObject
         _aiVm.ApplyTo(profile);
         ProfileStore.Save(profile);
         Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
+        Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
 
         // 即时生效
         ApplyTheme();

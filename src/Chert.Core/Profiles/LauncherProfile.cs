@@ -96,6 +96,10 @@ public class LauncherProfile
     [JsonPropertyName("toastDurationSeconds")]
     public int ToastDurationSeconds { get; set; } = 5;
 
+    /// <summary>是否启用节日特效置顶叠加层（第一期）。关闭后立即恢复默认外观。</summary>
+    [JsonPropertyName("seasonalEffectsEnabled")]
+    public bool SeasonalEffectsEnabled { get; set; } = true;
+
     /// <summary>文件变更检测（规格 2.3-16 / 3.13）：启动或焦点回归时检测手动丢入 mods/resourcepacks/shaderpacks 的新文件。</summary>
     [JsonPropertyName("fileWatchEnabled")]
     public bool FileWatchEnabled { get; set; } = true;
