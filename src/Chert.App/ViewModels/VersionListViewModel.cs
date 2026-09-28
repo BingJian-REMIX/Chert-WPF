@@ -51,6 +51,30 @@ public class VersionEntry : ObservableObject
 
     public string IsolationText => IsIsolated ? "隔离" : "共享";
 
+    /// <summary>是否存在缺失的前置项（父版本 / 客户端 jar / Mod 强制依赖）。</summary>
+    public bool HasMissingPrerequisite { get; private set; }
+
+    /// <summary>列表徽章上的摘要文案（如「缺 3 项前置」），无缺失时为空。</summary>
+    public string MissingPrerequisiteText { get; private set; } = "";
+
+    /// <summary>悬停详情：逐行列出缺失项。</summary>
+    public string MissingPrerequisiteDetail { get; private set; } = "";
+
+    /// <summary>
+    /// 回填缺失前置结果。<see cref="VersionListViewModel"/> 在后台扫描完成后调用（已在 UI 线程）。
+    /// </summary>
+    public void SetMissingPrerequisites(IReadOnlyList<Chert.Core.Launcher.VersionPrerequisiteInfo> items)
+    {
+        HasMissingPrerequisite = items.Count > 0;
+        MissingPrerequisiteText = items.Count == 0 ? "" : $"缺 {items.Count} 项前置";
+        MissingPrerequisiteDetail = items.Count == 0
+            ? ""
+            : string.Join("\n", items.Select(i => "· " + i.Display));
+        OnPropertyChanged(nameof(HasMissingPrerequisite));
+        OnPropertyChanged(nameof(MissingPrerequisiteText));
+        OnPropertyChanged(nameof(MissingPrerequisiteDetail));
+    }
+
     public string DisplayName => string.IsNullOrEmpty(Type) ? Id : $"{Id} ({Type})";
 
     public override string ToString() => DisplayName;
@@ -157,6 +181,31 @@ public class VersionListViewModel : ObservableObject
         var lastId = "";
         try { lastId = ProfileStore.Load(LauncherService.Instance.GameRoot).LastVersionId ?? ""; } catch { }
         SelectedVersion = Versions.FirstOrDefault(v => v.Id == lastId) ?? Versions.FirstOrDefault();
+
+        // 缺失前置扫描要解析每个 Mod 的 jar 元数据，较慢；放后台逐个回填，
+        // 列表先出内容、徽章随后补上，避免刷新卡顿。
+        _ = ScanPrerequisitesAsync(list.ToList(), gameRoot);
+    }
+
+    /// <summary>后台逐个扫描版本的缺失前置，并切回 UI 线程回填到条目。</summary>
+    private async Task ScanPrerequisitesAsync(List<VersionEntry> entries, string gameRoot)
+    {
+        foreach (var entry in entries)
+        {
+            try
+            {
+                var missing = await Task.Run(() => VersionPrerequisiteScanner.Scan(
+                    gameRoot, entry.Id, entry.EffectiveDir));
+                if (missing.Count == 0) continue;
+
+                await System.Windows.Application.Current.Dispatcher
+                    .InvokeAsync(() => entry.SetMissingPrerequisites(missing));
+            }
+            catch
+            {
+                // 单个版本扫描失败不影响其余版本
+            }
+        }
     }
 
     private async Task LaunchAsync()

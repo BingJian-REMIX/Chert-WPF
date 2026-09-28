@@ -19,6 +19,20 @@ public class JavaInfo
 
     /// <summary>展示用版本串。</summary>
     public string RawVersion { get; set; } = "";
+    /// <summary>发行商（由 <see cref="JavaValidator"/> 校验后回填，未校验时为空）。</summary>
+    public string Vendor { get; set; } = "";
+
+    /// <summary>JVM 自述的安装目录（用于识别同一安装的不同入口）。</summary>
+    public string JavaHome { get; set; } = "";
+
+    /// <summary>CPU 架构（如 amd64 / aarch64）。</summary>
+    public string Arch { get; set; } = "";
+
+    /// <summary>是否为 64 位 JVM（未知时按常见的 64 位处理）。</summary>
+    public bool Is64Bit { get; set; } = true;
+
+    /// <summary>是否已通过 <see cref="JavaValidator"/> 的交叉校验。</summary>
+    public bool Verified { get; set; }
 
     public override string ToString() => $"Java {MajorVersion} ({JavaExe})";
 }

@@ -163,6 +163,8 @@ public partial class MainWindow : Window
         StateChanged += (_, _) => RefreshMaximizeIcon();
         // bug #10：窗口就绪后尝试断点续播（MediaElement 此时已可播放）
         Loaded += (_, _) => MusicPlayerViewModel.Instance.RestoreLastState();
+        // 窗口布局记忆：恢复上次的尺寸 / 位置 / 最大化状态
+        Loaded += (_, _) => RestoreWindowLayout();
 
         // 语言切换时刷新主标签与侧边栏标题
         LocaleManager.LocaleChanged += _ => Dispatcher.Invoke(() =>
@@ -221,6 +223,8 @@ public partial class MainWindow : Window
         _tray = new TrayIconService(this, RestoreFromTray, () => Application.Current.Shutdown());
         StateChanged += MainWindow_StateChanged;
         Closing += (_, _) => _tray?.Dispose();
+        // 布局保存到 Closing 而非 Closed：Closed 时窗口的部分度量信息已不可读
+        Closing += (_, _) => SaveWindowLayout();
 
         // 启动时自动检查更新（设置项 AutoUpdateCheck，默认开启）：发现新版本则拉取 tag 日志并弹窗。
         // 与「设置页-检查更新」共用 UpdateNotifier，失败静默忽略，不阻塞启动。
@@ -236,6 +240,75 @@ public partial class MainWindow : Window
                 // 自动检查失败不影响启动
             }
         };
+    }
+
+    // ===== 窗口布局记忆（清单 2.6 功能改进） =====
+
+    /// <summary>恢复上次的窗口尺寸 / 位置 / 最大化状态；任一环节失败都退回默认居中布局。</summary>
+    private void RestoreWindowLayout()
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+
+            if (profile.WindowWidth is > 0 && profile.WindowHeight is > 0)
+            {
+                Width = profile.WindowWidth.Value;
+                Height = profile.WindowHeight.Value;
+            }
+
+            // 坐标要做越界校验：换显示器 / 改分辨率后，旧坐标可能落在可见区之外
+            if (profile.WindowLeft is { } left && profile.WindowTop is { } top
+                && IsLocationOnScreen(left, top))
+            {
+                WindowStartupLocation = System.Windows.WindowStartupLocation.Manual;
+                Left = left;
+                Top = top;
+            }
+
+            if (profile.WindowMaximized)
+                WindowState = System.Windows.WindowState.Maximized;
+        }
+        catch
+        {
+            // 布局恢复失败不影响正常使用
+        }
+    }
+
+    /// <summary>把窗口当前尺寸 / 位置写入 profile。</summary>
+    private void SaveWindowLayout()
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            // 最大化时 Left/Top/Width/Height 是最大化后的实际值，恢复它会得到填满屏幕的窗口，
+            // 因此最大化状态下只记录标志，保留上一次的正常态几何。
+            profile.WindowMaximized = WindowState == System.Windows.WindowState.Maximized;
+            if (!profile.WindowMaximized)
+            {
+                profile.WindowLeft = Left;
+                profile.WindowTop = Top;
+                profile.WindowWidth = Width;
+                profile.WindowHeight = Height;
+            }
+            ProfileStore.Save(profile);
+        }
+        catch
+        {
+            // 保存失败忽略，下次启动用默认布局
+        }
+    }
+
+    /// <summary>判断左上角坐标是否落在虚拟屏幕内（留 40px 余量保证标题栏可拖回）。</summary>
+    private static bool IsLocationOnScreen(double left, double top)
+    {
+        var vsLeft = SystemParameters.VirtualScreenLeft;
+        var vsTop = SystemParameters.VirtualScreenTop;
+        var leftOk = left >= vsLeft - 40
+                     && left <= vsLeft + SystemParameters.VirtualScreenWidth - 120;
+        var topOk = top >= vsTop - 40
+                    && top <= vsTop + SystemParameters.VirtualScreenHeight - 80;
+        return leftOk && topOk;
     }
 
     private void MainWindow_StateChanged(object? sender, EventArgs e)

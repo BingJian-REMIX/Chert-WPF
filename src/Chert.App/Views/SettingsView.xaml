@@ -264,15 +264,25 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="2" Margin="0,3">
 
-                        <TextBlock Text="{theme:Loc settings.java_path}" VerticalAlignment="Center" Width="90"/>
+                        <StackPanel Orientation="Horizontal">
 
-                        <TextBox Text="{Binding JavaPath, UpdateSourceTrigger=PropertyChanged}" Width="300"
+                            <TextBlock Text="{theme:Loc settings.java_path}" VerticalAlignment="Center" Width="90"/>
 
-                                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+                            <!-- Java 下拉：清单来自已交叉校验的 JavaValidator.DetectValidatedAsync -->
+                            <ComboBox Width="300" VerticalContentAlignment="Center"
+                                      ItemsSource="{Binding DetectedJavas}"
+                                      DisplayMemberPath="Display" SelectedValuePath="Key"
+                                      SelectedValue="{Binding JavaPath, UpdateSourceTrigger=PropertyChanged}"
+                                      ToolTip="{Binding JavaPath}"/>
 
-                        <Button Content="{theme:Loc settings.auto_detect}" Command="{Binding AutoDetectJavaCommand}" Width="80" Margin="8,0,0,0" Padding="0,2"/>
+                            <Button Content="{theme:Loc settings.auto_detect}" Command="{Binding AutoDetectJavaCommand}" Width="80" Margin="8,0,0,0" Padding="0,2"/>
+
+                        </StackPanel>
+
+                        <TextBlock Text="{theme:Loc settings.java_path_hint}" Margin="90,4,0,0" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Opacity="0.85"/>
 
                     </StackPanel>
 

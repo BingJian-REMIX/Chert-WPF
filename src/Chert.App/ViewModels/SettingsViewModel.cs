@@ -20,6 +20,14 @@ using Chert.App.Themes;
 
 namespace Chert.App.ViewModels;
 
+/// <summary>Java 下拉框选项：<see cref="Key"/> 为 java(.exe) 完整路径，<see cref="Display"/> 为下拉展示文本。</summary>
+public sealed class JavaChoice
+{
+    public string Key { get; init; } = "";
+    public string Display { get; init; } = "";
+    public override string ToString() => Display;
+}
+
 /// <summary>玩法偏好勾选项。</summary>
 public class CategoryPref : ObservableObject
 {
@@ -39,7 +47,7 @@ public class SettingsViewModel : ObservableObject
     // ---- 启动 ----
     private string _gamePath = "";
     private string _javaPath = "";
-    private ObservableCollection<string> _detectedJavas = new();
+    private ObservableCollection<JavaChoice> _detectedJavas = new();
     private int _maxMemoryMb = 2048;
     private string _username = "Player";
     private string _extraJvmArgs = "";
@@ -116,7 +124,8 @@ public class SettingsViewModel : ObservableObject
     public bool SeasonalEffectsEnabled { get => _seasonalEffectsEnabled; set => SetField(ref _seasonalEffectsEnabled, value); }
 
     public string JavaPath { get => _javaPath; set => SetField(ref _javaPath, value); }
-    public ObservableCollection<string> DetectedJavas { get => _detectedJavas; set => SetField(ref _detectedJavas, value); }
+    /// <summary>本机可用 Java 下拉清单（已过 <see cref="JavaValidator"/> 交叉校验）。</summary>
+    public ObservableCollection<JavaChoice> DetectedJavas { get => _detectedJavas; set => SetField(ref _detectedJavas, value); }
     public int MaxMemoryMb { get => _maxMemoryMb; set => SetField(ref _maxMemoryMb, value); }
     public string Username { get => _username; set => SetField(ref _username, value); }
     public string ExtraJvmArgs { get => _extraJvmArgs; set => SetField(ref _extraJvmArgs, value); }
@@ -343,6 +352,8 @@ public class SettingsViewModel : ObservableObject
         // 游戏目录以启动器级配置为准（bug #26）：未自定义时留空，输入框显示水印默认路径
         GamePath = GameConstants.IsGameRootCustomized ? GameConstants.DefaultGameRoot : "";
         JavaPath = profile.JavaPath ?? "";
+        // 首次打开设置即把可用 Java 列进下拉：该操作较慢且失败无碍，故后台执行不阻塞界面
+        _ = LoadValidatedJavasAsync();
         MaxMemoryMb = profile.MaxMemoryMb;
         Username = profile.DefaultUsername;
         ExtraJvmArgs = string.Join(" ", profile.ExtraJvmArgs);
@@ -481,6 +492,8 @@ public class SettingsViewModel : ObservableObject
         ProfileStore.Save(profile);
         Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
         Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
+        // 开机自启：开关此前只落库未生效，这里同步 HKCU\\Run 注册表项
+        Chert.App.Services.AutoStartService.Apply(profile.AutoStartLauncher);
 
         // 即时生效
         ApplyTheme();
@@ -493,23 +506,49 @@ public class SettingsViewModel : ObservableObject
 
     private async Task AutoDetectJavaAsync()
     {
-        var all = await JavaDetector.DetectAsync();
-        var paths = all.OrderByDescending(j => j.MajorVersion)
-                       .Select(j => $"[Java {j.MajorVersion}] {j.JavaExe}")
-                       .Distinct()
-                       .ToList();
-        DetectedJavas = new ObservableCollection<string>(paths);
+        var javas = await LoadValidatedJavasAsync();
+        if (javas.Count == 0)
+        {
+            StatusMessage = "未检测到可用的 Java（不可用的安装已自动排除）";
+            return;
+        }
 
-        var best = await JavaDetector.FindBestAsync(GameConstants.MinimumJavaMajorVersion);
-        if (best is not null)
+        // 列表已按版本降序：优先满足启动器最低要求，其次退回最高可用版本
+        var required = GameConstants.MinimumJavaMajorVersion;
+        var best = javas.FirstOrDefault(j => j.MajorVersion >= required) ?? javas.FirstOrDefault();
+        if (best is null) return;
+
+        JavaPath = best.JavaExe;
+        StatusMessage = $"找到 {javas.Count} 个可用 Java，已选择 {JavaValidator.Describe(best)}";
+    }
+
+    /// <summary>
+    /// 扫描并交叉校验本机 Java，刷新下拉清单（不改动当前选择）。
+    /// 当前已保存的路径即便未被扫到也会补进清单，避免设置「显示不出来」。
+    /// </summary>
+    private async Task<List<JavaInfo>> LoadValidatedJavasAsync()
+    {
+        // 校验并发解析全部 java -version 输出，耗时较长，放在后台线程；不可用的候选在此被剔除
+        var javas = await Task.Run(() => JavaValidator.DetectValidatedAsync());
+
+        var choices = javas.Select(j => new JavaChoice
         {
-            JavaPath = best.JavaExe;
-            StatusMessage = $"找到 {all.Count} 个 Java，已选择 Java {best.MajorVersion}";
-        }
+            Key = j.JavaExe,
+            Display = JavaValidator.Describe(j)
+        }).ToList();
+
+        var current = JavaPath?.Trim();
+        if (!string.IsNullOrWhiteSpace(current)
+            && !choices.Any(c => string.Equals(c.Key, current, StringComparison.OrdinalIgnoreCase)))
+            choices.Insert(0, new JavaChoice { Key = current, Display = $"当前设置 · {current}" });
+
+        var view = new ObservableCollection<JavaChoice>(choices);
+        if (Application.Current is not null)
+            await Application.Current.Dispatcher.InvokeAsync(() => DetectedJavas = view);
         else
-        {
-            StatusMessage = "未检测到 Java 21，请安装 Java 21 或以上";
-        }
+            DetectedJavas = view;
+
+        return javas;
     }
 
     // ===== 账号 =====

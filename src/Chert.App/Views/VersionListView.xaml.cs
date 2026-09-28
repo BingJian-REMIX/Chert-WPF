@@ -16,6 +16,18 @@ public partial class VersionListView : UserControl
             vm.SettingsRequested += OnSettingsRequested;
     }
 
+
+    /// <summary>双击列表项直接进入该版本的版本设置（清单 2.6 功能改进）。</summary>
+    private void VersionsList_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is not ListBox list) return;
+        if (list.SelectedItem is not VersionEntry entry) return;
+
+        // 与工具栏「版本设置」按钮走同一路径，由 VM 触发大页导航
+        if (DataContext is VersionListViewModel vm && vm.OpenSettingsCommand.CanExecute(entry))
+            vm.OpenSettingsCommand.Execute(entry);
+        e.Handled = true;
+    }
     private void BackButton_Click(object sender, System.Windows.RoutedEventArgs e) =>
         (OnBack ?? BigPageNavigator.Close)();
 

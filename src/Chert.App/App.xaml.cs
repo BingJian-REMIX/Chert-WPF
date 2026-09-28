@@ -118,6 +118,8 @@ public partial class App : Application
             LocaleManager.CurrentLocale = lang;
             // Toast 停留时长跟随设置（默认 5 秒）
             Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
+        // 开机自启：以 profile 为准同步注册表，避免重装 / 移动目录后残留指向旧路径的启动项
+        Chert.App.Services.AutoStartService.Apply(profile.AutoStartLauncher);
         }
         catch
         {
@@ -133,7 +135,12 @@ public partial class App : Application
             {
                 try
                 {
-                    var best = await JavaDetector.FindBestAsync(GameConstants.MinimumJavaMajorVersion);
+                    // 走 JavaValidator 交叉校验后的清单，剔除「假 Java」/ 损坏安装
+                    var javas = await JavaValidator.DetectValidatedAsync();
+                    var required = GameConstants.MinimumJavaMajorVersion;
+                    var best = javas.Where(j => j.MajorVersion >= required)
+                                    .OrderByDescending(j => j.MajorVersion).FirstOrDefault()
+                                ?? javas.OrderByDescending(j => j.MajorVersion).FirstOrDefault();
                     if (best is not null)
                     {
                         profile.JavaPath = best.JavaExe;

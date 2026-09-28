@@ -863,7 +863,8 @@ public static class LocaleManager
   ""mods.uninstall"": ""卸载"",
   ""seasonal.midautumn.greeting.title"": ""中秋快乐"",
   ""seasonal.midautumn.greeting.message"": ""愿你月圆人团圆，游戏顺利～（可在设置中关闭节日特效）"",
-  ""settings.seasonal_effects"": ""节日特效""
+  ""settings.seasonal_effects"": ""节日特效"",
+  ""settings.java_path_hint"": ""此项仅作为首选 Java；启动器仍会按各版本要求自动避开其不支持的 Java 版本，无需手动切换。""
 }";
 
                         private static string BuiltInEnUS() => @"{
@@ -1665,7 +1666,8 @@ public static class LocaleManager
   ""mods.uninstall"": ""Uninstall"",
   ""seasonal.midautumn.greeting.title"": ""Happy Mid-Autumn Festival"",
   ""seasonal.midautumn.greeting.message"": ""Wishing you a full moon and joyful moments. Seasonal effects can be turned off in Settings."",
-  ""settings.seasonal_effects"": ""Seasonal effects""
+  ""settings.seasonal_effects"": ""Seasonal effects"",
+  ""settings.java_path_hint"": ""This is only a preferred Java; the launcher still avoids Java versions unsupported by each Minecraft version automatically, so no manual switching is needed.""
 }";
                     private static string BuiltInZhTW() => @"{
   ""app.title"": ""燧石啟動器"",
@@ -2466,6 +2468,7 @@ public static class LocaleManager
   ""mods.uninstall"": ""卸載"",
   ""seasonal.midautumn.greeting.title"": ""中秋快樂"",
   ""seasonal.midautumn.greeting.message"": ""願你月圓人團圓，遊戲順利～（可在設定中關閉節日特效）"",
-  ""settings.seasonal_effects"": ""節日特效""
+  ""settings.seasonal_effects"": ""節日特效"",
+  ""settings.java_path_hint"": ""此項僅作為偏好 Java；啟動器仍會依各版本需求自動避開其不支援的 Java 版本，無須手動切換。""
 }";
 }
