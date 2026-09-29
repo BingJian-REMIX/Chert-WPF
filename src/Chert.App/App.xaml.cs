@@ -174,6 +174,15 @@ public partial class App : Application
         ThemeManager.LoadPreference(GameConstants.DefaultGameRoot);
         ApplyTheme(ThemeManager.Current);
 
+        // 清单 #49：勋章接口预留 —— 记录启动次数并解锁「初次点亮」。
+        // 当前仅本地持久化，UserId 字段预留待账号系统接入后回填。
+        try
+        {
+            Chert.Core.Badges.BadgeService.Unlock(Chert.Core.Badges.BadgeIds.LauncherFirstStart);
+            Chert.Core.Badges.BadgeService.Increment(Chert.Core.Badges.BadgeIds.LauncherLaunchCount);
+        }
+        catch { /* 勋章属非关键功能，失败不影响启动 */ }
+
         // 应用外观偏好：主题色 + 字体缩放，确保重启后恢复（bug #5 外观未持久化 / #10 字体缩放 / #11 主题色）
         ApplyAccentColor(profile.ThemeColor);
         ApplyFontScale(profile.FontScale);
