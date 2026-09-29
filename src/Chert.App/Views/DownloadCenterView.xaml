@@ -25,6 +25,8 @@
 
             <RowDefinition Height="Auto"/>
 
+            <RowDefinition Height="Auto"/>
+
             <RowDefinition Height="160"/>
 
         </Grid.RowDefinitions>
@@ -103,7 +105,38 @@
 
 
 
-        <ListBox Grid.Row="4" ItemsSource="{Binding Queue}" Margin="0,8,0,0"
+        <!-- 清单 #67：下载队列管理（暂停 / 继续 / 限速 / 失败重试） -->
+        <WrapPanel Grid.Row="4" Orientation="Horizontal" Margin="0,6,0,0">
+
+            <Button Content="{theme:Loc dl.pause_all}" Command="{Binding PauseAllCommand}" Width="90" Padding="0,4"/>
+
+            <Button Content="{theme:Loc dl.resume_all}" Command="{Binding ResumeAllCommand}" Width="90" Margin="8,0,0,0" Padding="0,4"/>
+
+            <TextBlock Text="{theme:Loc dl.speed_limit}" VerticalAlignment="Center" Margin="16,0,6,0"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+            <ComboBox Width="110" ItemsSource="{Binding SpeedLimitChoices}" SelectedItem="{Binding SpeedLimitKbps, Mode=TwoWay}"
+                      ToolTip="{theme:Loc dl.speed_limit_tip}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding StringFormat={}{0} KB/s}"/>
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <TextBlock Text="{theme:Loc dl.auto_retry}" VerticalAlignment="Center" Margin="16,0,6,0"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+            <ComboBox Width="70" ItemsSource="{Binding RetryChoices}" SelectedItem="{Binding AutoRetryCount, Mode=TwoWay}"/>
+
+            <TextBlock Text="{Binding QueuePausedText}" VerticalAlignment="Center" Margin="12,0,0,0"
+                       Foreground="{DynamicResource AccentBrush}"/>
+
+        </WrapPanel>
+
+
+
+        <ListBox Grid.Row="5" ItemsSource="{Binding Queue}" Margin="0,8,0,0"
 
                  Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}">
 
@@ -119,11 +152,15 @@
 
                             <ColumnDefinition Width="120"/>
 
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="56"/>
 
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="56"/>
 
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="56"/>
+
+                            <ColumnDefinition Width="56"/>
+
+                            <ColumnDefinition Width="56"/>
 
                         </Grid.ColumnDefinitions>
 
@@ -179,17 +216,37 @@
 
                         </StackPanel>
 
-                        <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0" TextTrimming="CharacterEllipsis">
+
+                            <Run Text="{Binding Status, Mode=OneWay}"/>
+
+                            <Run Text="{Binding AttemptsText, Mode=OneWay}" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                        </TextBlock>
 
                         <Button Grid.Column="2" Content="{theme:Loc dl.pause}" Command="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
 
-                                CommandParameter="{Binding}" Padding="2" Margin="4,0"/>
+                                CommandParameter="{Binding}" Padding="2" Margin="4,0"
 
-                        <Button Grid.Column="3" Content="{theme:Loc btn.cancel}" Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                Visibility="{Binding CanPause, Converter={StaticResource BoolToVis}}"/>
+
+                        <Button Grid.Column="3" Content="{theme:Loc dl.resume}" Command="{Binding DataContext.ResumeItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+
+                                CommandParameter="{Binding}" Padding="2" Margin="4,0"
+
+                                Visibility="{Binding CanResume, Converter={StaticResource BoolToVis}}"/>
+
+                        <Button Grid.Column="4" Content="{theme:Loc dl.retry}" Command="{Binding DataContext.RetryItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+
+                                CommandParameter="{Binding}" Padding="2" Margin="4,0"
+
+                                Visibility="{Binding CanRetry, Converter={StaticResource BoolToVis}}"/>
+
+                        <Button Grid.Column="5" Content="{theme:Loc btn.cancel}" Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
 
                                 CommandParameter="{Binding}" Padding="2"/>
 
-                        <Button Grid.Column="4" Content="{theme:Loc mods.remove}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        <Button Grid.Column="6" Content="{theme:Loc mods.remove}" Command="{Binding DataContext.RemoveItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
 
                                 CommandParameter="{Binding}" Padding="2"/>
 

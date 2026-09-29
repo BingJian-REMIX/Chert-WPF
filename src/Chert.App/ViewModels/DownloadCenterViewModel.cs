@@ -8,6 +8,8 @@ using Chert.Core.Models;
 
 using Chert.Core.Mvvm;
 
+using Chert.Core.Profiles;
+
 using Chert.Core.Utils;
 
 using Chert.App.Services;
@@ -140,9 +142,55 @@ public class DownloadQueueItem : ObservableObject
 
         get => _status;
 
-        set => SetField(ref _status, value);
+        set
+
+        {
+
+            if (!SetField(ref _status, value)) return;
+
+            OnPropertyChanged(nameof(CanPause));
+
+            OnPropertyChanged(nameof(CanResume));
+
+            OnPropertyChanged(nameof(CanRetry));
+
+        }
 
     }
+
+    /// <summary>清单 #67：已尝试次数（首次为 1）。</summary>
+
+    public int Attempts
+
+    {
+
+        get => _attempts;
+
+        set
+
+        {
+
+            if (!SetField(ref _attempts, value)) return;
+
+            OnPropertyChanged(nameof(AttemptsText));
+
+        }
+
+    }
+
+    private int _attempts;
+
+    /// <summary>重试次数展示（&gt;1 时才显示）。</summary>
+
+    public string AttemptsText => _attempts > 1 ? $"（第 {_attempts} 次）" : "";
+
+    /// <summary>清单 #67：暂停 / 继续 / 重试按钮的可用性（随状态变化）。</summary>
+
+    public bool CanPause => _status is "排队中" or "下载中";
+
+    public bool CanResume => _status is "已暂停";
+
+    public bool CanRetry => _status is "失败" or "已取消";
 
 
 
@@ -187,6 +235,112 @@ public class DownloadCenterViewModel : ObservableObject
     private ObservableCollection<DownloadQueueItem> _queue = new();
 
 
+
+    // ===== 清单 #67：下载队列管理（暂停 / 继续 / 限速 / 失败重试）=====
+
+    /// <summary>限速档位（KB/s，0 = 不限速）。改动即写入全局 DownloadSpeedLimiter，对所有下载生效。</summary>
+
+    public static ObservableCollection<int> SpeedLimitChoices { get; } = new() { 0, 256, 512, 1024, 2048, 5120 };
+
+    /// <summary>自动重试次数档位（0 = 不重试）。</summary>
+
+    public static ObservableCollection<int> RetryChoices { get; } = new() { 0, 1, 2, 3, 5 };
+
+    private int _speedLimitKbps;
+
+    public int SpeedLimitKbps
+
+    {
+
+        get => _speedLimitKbps;
+
+        set
+
+        {
+
+            if (!SetField(ref _speedLimitKbps, Math.Max(0, value))) return;
+
+            DownloadSpeedLimiter.SetKilobytesPerSecond(_speedLimitKbps);
+
+            SaveDownloadPrefs();
+
+        }
+
+    }
+
+    private int _autoRetryCount = 2;
+
+    public int AutoRetryCount
+
+    {
+
+        get => _autoRetryCount;
+
+        set
+
+        {
+
+            if (!SetField(ref _autoRetryCount, Math.Clamp(value, 0, 10))) return;
+
+            SaveDownloadPrefs();
+
+        }
+
+    }
+
+    /// <summary>队列是否被整体暂停（继续队列时清除）。</summary>
+
+    public bool QueuePaused
+
+    {
+
+        get => _queuePaused;
+
+        set
+
+        {
+
+            if (!SetField(ref _queuePaused, value)) return;
+
+            OnPropertyChanged(nameof(QueuePausedText));
+
+        }
+
+    }
+
+    private bool _queuePaused;
+
+    public string QueuePausedText => _queuePaused ? "（队列已暂停）" : "";
+
+    public ICommand ResumeItemCommand { get; }
+
+    public ICommand RetryItemCommand { get; }
+
+    public ICommand PauseAllCommand { get; }
+
+    public ICommand ResumeAllCommand { get; }
+
+    private void SaveDownloadPrefs()
+
+    {
+
+        try
+
+        {
+
+            var p = ProfileStore.Load(GameConstants.DefaultGameRoot);
+
+            p.DownloadSpeedLimitKbps = _speedLimitKbps;
+
+            p.DownloadAutoRetryCount = _autoRetryCount;
+
+            ProfileStore.Save(p);
+
+        }
+
+        catch { /* 偏好保存失败不影响下载 */ }
+
+    }
 
     public ObservableCollection<string> Loaders { get; } = new() { "Any", "Fabric", "Forge", "Quilt" };
 
@@ -341,6 +495,28 @@ public class DownloadCenterViewModel : ObservableObject
         StartQueueCommand = new AsyncRelayCommand(_ => StartQueueAsync(), _ => !IsBusy);
 
         PauseItemCommand = new RelayCommand(p => PauseItem(p as DownloadQueueItem));
+
+        // 清单 #67：真正的「继续 / 重试」——此前暂停即取消，暂停后无法再继续
+
+        ResumeItemCommand = new RelayCommand(p => ResumeItem(p as DownloadQueueItem));
+
+        RetryItemCommand = new RelayCommand(p => ResumeItem(p as DownloadQueueItem));
+
+        PauseAllCommand = new RelayCommand(_ => PauseAll());
+
+        ResumeAllCommand = new RelayCommand(_ => ResumeAll());
+
+        var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+
+        _speedLimitKbps = profile.DownloadSpeedLimitKbps;
+
+        _autoRetryCount = profile.DownloadAutoRetryCount;
+
+        if (!SpeedLimitChoices.Contains(_speedLimitKbps)) SpeedLimitChoices.Add(_speedLimitKbps);
+
+        if (!RetryChoices.Contains(_autoRetryCount)) RetryChoices.Add(_autoRetryCount);
+
+        DownloadSpeedLimiter.SetKilobytesPerSecond(_speedLimitKbps);
 
         CancelItemCommand = new RelayCommand(p => CancelItem(p as DownloadQueueItem));
 
@@ -505,13 +681,21 @@ public class DownloadCenterViewModel : ObservableObject
 
         IsBusy = true;
 
+        QueuePaused = false;
+
         try
 
         {
 
-            foreach (var item in Queue.Where(q => q.Status is "排队中" or "已暂停").ToList())
+            // 清单 #67：只取「排队中」；已暂停的项需显式「继续」才会重新入队
+
+            foreach (var item in Queue.Where(q => q.Status == "排队中").ToList())
 
             {
+
+                // 整体暂停：当前项跑完即停，后续项保持排队中，可随时继续
+
+                if (_queuePaused) break;
 
                 item.Cts = new CancellationTokenSource();
 
@@ -519,55 +703,103 @@ public class DownloadCenterViewModel : ObservableObject
 
                 item.Progress = 0;
 
-                var ok = false;
+                var maxAttempts = Math.Max(1, _autoRetryCount + 1);
 
-                try
+                var attempt = 0;
+
+                while (attempt < maxAttempts)
 
                 {
 
-                    var local = item;
+                    attempt++;
 
-                    ok = await LauncherService.Instance.DownloadModAsync(
+                    item.Attempts = attempt;
 
-                        item.ProjectId, item.TargetDir, item.GameVersion, item.Loader,
+                    var last = attempt == maxAttempts;
 
-                        new Progress<double>(p =>
+                    try
+
+                    {
+
+                        var local = item;
+
+                        var ok = await LauncherService.Instance.DownloadModAsync(
+
+                            item.ProjectId, item.TargetDir, item.GameVersion, item.Loader,
+
+                            new Progress<double>(p =>
+
+                            {
+
+                                local.Progress = p * 100;
+
+                                StatusBarViewModel.Current.DownloadProgress = p * 100;
+
+                                StatusBarViewModel.Current.DownloadText = $"下载 {local.Title}：{p:P0}";
+
+                            }),
+
+                            item.Cts.Token);
+
+                        if (item.Cts.Token.IsCancellationRequested)
 
                         {
 
-                            local.Progress = p * 100;
+                            if (item.Status != "已暂停") item.Status = "已取消";
 
-                            StatusBarViewModel.Current.DownloadProgress = p * 100;
+                            break;
 
-                            StatusBarViewModel.Current.DownloadText = $"下载 {local.Title}：{p:P0}";
+                        }
 
-                        }),
+                        if (ok)
 
-                        item.Cts.Token);
+                        {
 
-                    if (item.Cts.Token.IsCancellationRequested && item.Status != "已暂停")
+                            item.Status = "已完成";
 
-                        item.Status = "已取消";
+                            break;
 
-                    else
+                        }
 
-                        item.Status = ok ? "已完成" : "失败";
+                        if (last) { item.Status = "失败"; break; }
 
-                }
+                    }
 
-                catch (OperationCanceledException)
+                    catch (OperationCanceledException)
 
-                {
+                    {
 
-                    item.Status = "已取消";
+                        if (item.Status != "已暂停") item.Status = "已取消";
 
-                }
+                        break;
 
-                catch
+                    }
 
-                {
+                    catch
 
-                    item.Status = "失败";
+                    {
+
+                        if (last) { item.Status = "失败"; break; }
+
+                    }
+
+                    // 清单 #67：失败自动重试（退避 2s × 次数），期间状态可见
+
+                    item.Status = $"失败，{2 * attempt} 秒后重试（{attempt}/{maxAttempts - 1}）";
+
+                    try { await Task.Delay(2000 * attempt, item.Cts.Token); }
+
+                    catch { /* 取消则直接进入下一轮判断 */ }
+
+                    if (item.Cts.Token.IsCancellationRequested)
+
+                    {
+
+                        if (item.Status != "已暂停") item.Status = "已取消";
+
+                        break;
+
+                    }
 
                 }
 
@@ -575,11 +807,17 @@ public class DownloadCenterViewModel : ObservableObject
 
             }
 
-            StatusBarViewModel.Current.DownloadText = "下载队列完成";
+            StatusBarViewModel.Current.DownloadText = _queuePaused ? "下载队列已暂停" : "下载队列完成";
 
-            StatusBarViewModel.Current.DownloadProgress = 0;
+            if (!_queuePaused)
 
-            ClearCompleted();
+            {
+
+                StatusBarViewModel.Current.DownloadProgress = 0;
+
+                ClearCompleted();
+
+            }
 
         }
 
@@ -595,15 +833,89 @@ public class DownloadCenterViewModel : ObservableObject
 
 
 
+    /// <summary>清单 #67：暂停单项。下载中的项取消当前请求并标记「已暂停」，排队中的项直接移出待取集合。</summary>
+
     private void PauseItem(DownloadQueueItem? item)
 
     {
 
         if (item is null) return;
 
-        item.Cts?.Cancel();
+        if (item.Status is "下载中" or "排队中")
 
-        if (item.Status == "下载中") item.Status = "已暂停";
+        {
+
+            item.Status = "已暂停";
+
+            item.Cts?.Cancel();
+
+        }
+
+    }
+
+    /// <summary>清单 #67：继续 / 重试单项——重新置为排队中并启动队列（空闲时）。</summary>
+
+    private void ResumeItem(DownloadQueueItem? item)
+
+    {
+
+        if (item is null) return;
+
+        if (item.Status is not ("已暂停" or "失败" or "已取消")) return;
+
+        item.Status = "排队中";
+
+        item.Progress = 0;
+
+        item.Attempts = 0;
+
+        if (!IsBusy) _ = StartQueueAsync();
+
+    }
+
+    /// <summary>清单 #67：继续队列——把暂停项重新置为排队中并启动（StartQueueAsync 会清除暂停标记）。</summary>
+
+    private void ResumeAll()
+
+    {
+
+        foreach (var it in Queue)
+
+            if (it.Status == "已暂停")
+
+            {
+
+                it.Status = "排队中";
+
+                it.Attempts = 0;
+
+            }
+
+        if (!IsBusy) _ = StartQueueAsync();
+
+    }
+
+    /// <summary>清单 #67：整体暂停——当前项取消，队列跑完当前项后停住。</summary>
+
+    private void PauseAll()
+
+    {
+
+        QueuePaused = true;
+
+        foreach (var it in Queue)
+
+            if (it.Status == "下载中")
+
+            {
+
+                it.Status = "已暂停";
+
+                it.Cts?.Cancel();
+
+            }
+
+        StatusMessage = "队列已暂停，可点击「继续队列」接着下载";
 
     }
 

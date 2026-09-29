@@ -137,6 +137,9 @@ public static class MirrorPolicy
                     await ms.WriteAsync(buffer.AsMemory(0, n), ct);
                     read += n;
                     if (total > 0) progress?.Report((double)read / total);
+
+                    // 清单 #67：全局限速（0 = 不限速），按读取量记账并在超限时让出时间片
+                    await DownloadSpeedLimiter.ThrottleAsync(n, ct);
                 }
                 return ms.ToArray();
             }

@@ -132,6 +132,14 @@ public class LauncherProfile
     [JsonPropertyName("maxConcurrentDownloads")]
     public int MaxConcurrentDownloads { get; set; } = 8;
 
+    /// <summary>清单 #67：全局下载限速（KB/s），0 表示不限速。</summary>
+    [JsonPropertyName("downloadSpeedLimitKbps")]
+    public int DownloadSpeedLimitKbps { get; set; }
+
+    /// <summary>清单 #67：单任务失败自动重试次数（0 = 不重试）。</summary>
+    [JsonPropertyName("downloadAutoRetryCount")]
+    public int DownloadAutoRetryCount { get; set; } = 2;
+
     // ---- 外观（设置 → 外观）----
 
     [JsonPropertyName("themeColor")]
