@@ -119,8 +119,71 @@ public class VersionSettingsViewModel : ObservableObject
     public int? MaxMemoryMb { get => _maxMemoryMb; set => SetField(ref _maxMemoryMb, value); }
     private int? _minMemoryMb;
     public int? MinMemoryMb { get => _minMemoryMb; set => SetField(ref _minMemoryMb, value); }
-    private string _extraJvmArgsText = "";
-    public string ExtraJvmArgsText { get => _extraJvmArgsText; set => SetField(ref _extraJvmArgsText, value); }
+    // ---- JVM 参数可视化编辑（清单 #68）----
+    // 内置预设（勾选 / 填值）+ 自定义行，三者拼成最终参数；ExtraJvmArgsText 为拼合结果。
+    public ObservableCollection<JvmPresetItem> JvmPresets { get; } = JvmArgsPresets.Create();
+
+    private string _jvmCustomText = "";
+
+    /// <summary>无法归入预设的自定义参数（每行一条）。</summary>
+    public string JvmCustomText
+    {
+        get => _jvmCustomText;
+        set
+        {
+            if (!SetField(ref _jvmCustomText, value)) return;
+            OnPropertyChanged(nameof(ExtraJvmArgsText));
+        }
+    }
+
+    /// <summary>
+    /// 最终生效的附加 JVM 参数（预设 + 自定义拼合）。
+    /// 读取用于预览与保存；赋值（加载历史配置时）则反向解析回预设勾选与自定义行。
+    /// </summary>
+    public string ExtraJvmArgsText
+    {
+        get
+        {
+            var lines = new List<string>();
+            foreach (var preset in JvmPresets)
+            {
+                var line = preset.Line;
+                if (!string.IsNullOrWhiteSpace(line)) lines.Add(line);
+            }
+            lines.AddRange(_jvmCustomText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            return string.Join("\n", lines);
+        }
+        set => ParseJvmArgs(value);
+    }
+
+    /// <summary>把整段参数文本反向解析为「预设勾选 + 自定义行」。</summary>
+    private void ParseJvmArgs(string? text)
+    {
+        foreach (var preset in JvmPresets) preset.Reset();
+
+        var custom = new List<string>();
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            foreach (var raw in text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var hit = JvmArgsPresets.Match(JvmPresets, raw);
+                if (hit is null)
+                {
+                    custom.Add(raw);
+                    continue;
+                }
+                hit.SetEnabledSilently(true);
+                if (!hit.IsFlag && raw.Length > hit.Prefix.Length)
+                    hit.SetValueSilently(raw[hit.Prefix.Length..]);
+            }
+        }
+
+        foreach (var preset in JvmPresets) preset.NotifyAll();
+
+        _jvmCustomText = string.Join("\n", custom);
+        OnPropertyChanged(nameof(JvmCustomText));
+        OnPropertyChanged(nameof(ExtraJvmArgsText));
+    }
 
     // ---- ⑥ 分辨率与窗口 ----
     private int? _resolutionWidth;
@@ -192,6 +255,14 @@ public class VersionSettingsViewModel : ObservableObject
         VersionType = versionType;
         _downloader = new HttpDownloader(_http, 8, null);
 
+        // 清单 #68：任一预设勾选 / 数值变化都要刷新拼合后的参数预览
+        foreach (var preset in JvmPresets)
+            preset.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName is nameof(JvmPresetItem.IsEnabled) or nameof(JvmPresetItem.Value) or nameof(JvmPresetItem.Line))
+                    OnPropertyChanged(nameof(ExtraJvmArgsText));
+            };
+
         var saved = VersionProfileStore.HasProfile(gameRoot, versionId);
         var p = VersionProfileStore.Load(gameRoot, versionId);
 
@@ -206,7 +277,7 @@ public class VersionSettingsViewModel : ObservableObject
         _javaPath = p.JavaPath;
         _maxMemoryMb = p.MaxMemoryMb;
         _minMemoryMb = p.MinMemoryMb;
-        _extraJvmArgsText = string.Join("\n", p.ExtraJvmArgs);
+        ExtraJvmArgsText = string.Join("\n", p.ExtraJvmArgs);
         _resolutionWidth = p.ResolutionWidth;
         _resolutionHeight = p.ResolutionHeight;
         _fullscreen = p.Fullscreen;

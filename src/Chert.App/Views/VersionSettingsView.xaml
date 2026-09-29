@@ -45,7 +45,7 @@
 
         </Style>
 
-        <Style x:Key="FieldBoxStyle" TargetType="TextBox">
+        <Style x:Key="FieldBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
 
             <Setter Property="Padding" Value="6,3"/>
 
@@ -345,11 +345,40 @@
 
                                    FontSize="11" Foreground="{DynamicResource SecondaryForeground}" Margin="0,0,0,3"/>
 
+                        <!-- 清单 #68：预设勾选（开关型）+ 填值（取值型） -->
+                        <TextBlock Text="{theme:Loc version.jvm_presets}"
+                                   Style="{StaticResource FieldLabelStyle}" Margin="0,4,0,3"/>
+
+                        <ItemsControl ItemsSource="{Binding JvmPresets}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                                        <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center"
+                                                  ToolTip="{Binding Tip}"/>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="6,0,0,0"
+                                                   Foreground="{DynamicResource PrimaryForeground}" ToolTip="{Binding Tip}"/>
+                                        <TextBox Width="92" Margin="8,0,0,0" Style="{StaticResource FieldBoxStyle}"
+                                                 Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
+                                                 Visibility="{Binding HasValue, Converter={StaticResource BoolToVisibility}}"
+                                                 ToolTip="{Binding Tip}"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{theme:Loc version.jvm_custom}"
+                                   Style="{StaticResource FieldLabelStyle}" Margin="0,6,0,3"/>
+
                         <TextBox Height="56" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-
                                  Style="{StaticResource FieldBoxStyle}" Margin="0,0,0,6"
+                                 Text="{Binding JvmCustomText, UpdateSourceTrigger=PropertyChanged}"/>
 
-                                 Text="{Binding ExtraJvmArgsText, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="{theme:Loc version.jvm_preview}"
+                                   Style="{StaticResource FieldLabelStyle}" Margin="0,4,0,3"/>
+
+                        <TextBox Height="56" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" IsReadOnly="True"
+                                 Style="{StaticResource FieldBoxStyle}" Margin="0,0,0,6"
+                                 Text="{Binding ExtraJvmArgsText, Mode=OneWay}"/>
 
                     </StackPanel>
 

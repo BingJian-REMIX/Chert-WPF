@@ -51,6 +51,10 @@
     -->
     <SolidColorBrush x:Key="TitleBarBrush"         Color="#4CAF50"/>
     <SolidColorBrush x:Key="SidebarIndicatorBrush" Color="#4CAF50"/>
+    <!-- 清单 #60：侧边栏右边线用「个性化主题色」（设置 → 外观 → 主题色），与随主标签变色的选中指示线（SidebarIndicatorBrush）区分。
+         默认值与 LauncherProfile.ThemeColor 默认 #3a7b4f 保持一致；运行时由 App.ApplyAccentColor 覆写。 -->
+    <SolidColorBrush x:Key="SidebarEdgeBrush" Color="#3a7b4f"/>
+
     <SolidColorBrush x:Key="TabForegroundBrush"    Color="#FFFFFF"/>
     <!-- 标题栏前景（窗口控制图标 / 标题文字）默认白，运行期随 Light/Dark 主题覆盖 -->
     <SolidColorBrush x:Key="TitleBarForeground"    Color="#FFFFFF"/>

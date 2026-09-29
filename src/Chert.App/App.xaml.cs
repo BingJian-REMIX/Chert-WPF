@@ -246,6 +246,8 @@ public partial class App : Application
         res["ProgressForeground"] = new SolidColorBrush(color);
         res["ButtonBackground"] = new SolidColorBrush(color);
         res["ButtonHoverBackground"] = new SolidColorBrush(Darken(color, 0.18));
+        // 清单 #60：侧边栏右边线跟随个性化主题色
+        res["SidebarEdgeBrush"] = new SolidColorBrush(color);
     }
 
     /// <summary>将字体缩放系数应用到全局字号（bug #10：字体缩放失效）。</summary>

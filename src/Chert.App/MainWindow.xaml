@@ -508,7 +508,7 @@
 
                     Background="{DynamicResource ControlBackground}"
 
-                    BorderThickness="0,0,1,0" BorderBrush="{DynamicResource SidebarIndicatorBrush}"
+                    BorderThickness="0,0,1,0" BorderBrush="{DynamicResource SidebarEdgeBrush}"
 
                     MouseEnter="Sidebar_MouseEnter" MouseLeave="Sidebar_MouseLeave">
 
