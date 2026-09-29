@@ -235,6 +235,25 @@ public class SettingsViewModel : ObservableObject
         set { if (SetField(ref _hudShowBackground, value)) ApplyHudLive(); }
     }
 
+    /// <summary>清单 #63：全局快捷键开关（Ctrl+Alt+Enter 快速启动 / Ctrl+Alt+M 呼出启动器）。</summary>
+    public bool GlobalHotkeysEnabled
+    {
+        get => _globalHotkeysEnabled;
+        set
+        {
+            if (!SetField(ref _globalHotkeysEnabled, value)) return;
+            try
+            {
+                Chert.App.Services.GlobalHotkeyService.Detach();
+                if (value && System.Windows.Application.Current.MainWindow is System.Windows.Window w)
+                    Chert.App.Services.GlobalHotkeyService.Attach(w);
+            }
+            catch { /* 热键注册失败不影响设置保存 */ }
+        }
+    }
+
+    private bool _globalHotkeysEnabled = true;
+
     /// <summary>恢复 HUD 默认配置。</summary>
     public ICommand ResetHudCommand { get; }
 
@@ -558,6 +577,10 @@ public class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(HudShowBackground));
         LaunchCompatCheckEnabled = profile.LaunchCompatCheckEnabled;
 
+        // 清单 #63：全局快捷键（加载时只赋值不触发重注册）
+        _globalHotkeysEnabled = profile.GlobalHotkeysEnabled;
+        OnPropertyChanged(nameof(GlobalHotkeysEnabled));
+
         // 下载
         SelectedDownloadSource = profile.DownloadSource.ToString();
         MaxConcurrentDownloads = profile.MaxConcurrentDownloads;
@@ -648,6 +671,9 @@ public class SettingsViewModel : ObservableObject
             // 清单 #54：保留完整 HUD 配置（此前会被 new HudConfig 覆盖掉除开关外的一切）
             Hud = BuildHudConfig(),
             LaunchCompatCheckEnabled = LaunchCompatCheckEnabled,
+
+            // 清单 #63
+            GlobalHotkeysEnabled = GlobalHotkeysEnabled,
 
             // 下载
             DownloadSource = Enum.TryParse<DownloadSourcePreference>(SelectedDownloadSource, out var ds) ? ds : DownloadSourcePreference.MirrorFirst,

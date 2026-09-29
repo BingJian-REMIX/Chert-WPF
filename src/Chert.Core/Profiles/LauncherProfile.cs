@@ -140,6 +140,10 @@ public class LauncherProfile
     [JsonPropertyName("downloadAutoRetryCount")]
     public int DownloadAutoRetryCount { get; set; } = 2;
 
+    /// <summary>清单 #63：是否启用全局快捷键（Ctrl+Alt+Enter 快速启动 / Ctrl+Alt+M 呼出启动器）。</summary>
+    [JsonPropertyName("globalHotkeysEnabled")]
+    public bool GlobalHotkeysEnabled { get; set; } = true;
+
     // ---- 外观（设置 → 外观）----
 
     [JsonPropertyName("themeColor")]

@@ -230,6 +230,7 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
@@ -492,6 +493,19 @@
                                        Foreground="{DynamicResource SecondaryForeground}"/>
                         </StackPanel>
                     </Border>
+
+                    <!-- 清单 #63：全局快捷键 -->
+                    <StackPanel Grid.Row="12" Margin="0,8,0,4">
+                        <WrapPanel>
+                            <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                          IsChecked="{Binding GlobalHotkeysEnabled, Mode=TwoWay}"/>
+                            <TextBlock Text="{theme:Loc settings.global_hotkeys}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+                        </WrapPanel>
+                        <TextBlock Text="{theme:Loc settings.global_hotkeys_tip}" Margin="0,4,0,0" FontSize="11"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+
 
 
                 </Grid>

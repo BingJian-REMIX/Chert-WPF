@@ -166,6 +166,9 @@ public partial class MainWindow : Window
         // 窗口布局记忆：恢复上次的尺寸 / 位置 / 最大化状态
         Loaded += (_, _) => RestoreWindowLayout();
 
+        // 清单 #63：全局快捷键（主窗口句柄就绪后注册系统级热键）
+        Loaded += (_, _) => Chert.App.Services.GlobalHotkeyService.Attach(this);
+
         // 语言切换时刷新主标签与侧边栏标题
         LocaleManager.LocaleChanged += _ => Dispatcher.Invoke(() =>
         {
@@ -225,6 +228,8 @@ public partial class MainWindow : Window
         Closing += (_, _) => _tray?.Dispose();
         // 布局保存到 Closing 而非 Closed：Closed 时窗口的部分度量信息已不可读
         Closing += (_, _) => SaveWindowLayout();
+
+        Closing += (_, _) => Chert.App.Services.GlobalHotkeyService.Detach();
 
         // 启动时自动检查更新（设置项 AutoUpdateCheck，默认开启）：发现新版本则拉取 tag 日志并弹窗。
         // 与「设置页-检查更新」共用 UpdateNotifier，失败静默忽略，不阻塞启动。
