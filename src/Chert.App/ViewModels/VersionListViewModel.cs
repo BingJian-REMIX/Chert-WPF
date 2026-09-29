@@ -75,6 +75,15 @@ public class VersionEntry : ObservableObject
         OnPropertyChanged(nameof(MissingPrerequisiteDetail));
     }
 
+    /// <summary>清单 #64：该版本工作目录下的 Mod / 材质 / 光影 / 数据包 / 存档 安装情况。</summary>
+    public VersionContentSnapshot Content { get; set; } = VersionContentSnapshot.Empty;
+
+    /// <summary>列表项上的内容摘要（如「Mod 12 · 光影 3」），无内容时为空。</summary>
+    public string ContentSummary => Content.Summary;
+
+    /// <summary>是否安装了指定类别的内容（类别键与 UI 的 Tag 一致）。</summary>
+    public bool HasContent(string? key) => Content.CountOf(key) > 0;
+
     public string DisplayName => string.IsNullOrEmpty(Type) ? Id : $"{Id} ({Type})";
 
     public override string ToString() => DisplayName;
@@ -92,6 +101,15 @@ public class VersionListViewModel : ObservableObject
     private VersionEntry? _selectedVersion;
     private string _statusMessage = "";
     private bool _isBusy;
+
+    // 清单 #64：多维度分类检索（全量条目 + 检索条件）
+    private readonly List<VersionEntry> _allVersions = new();
+    private ObservableCollection<VersionEntry> _filteredVersions = new();
+    private string _searchText = "";
+    private string _loaderFilter = "";
+    private string _isolationFilter = "";
+    private bool _missingPrerequisiteOnly;
+    private string _contentFilter = "";
 
     public ObservableCollection<VersionEntry> Versions
     {
@@ -141,6 +159,59 @@ public class VersionListViewModel : ObservableObject
     public ICommand RefreshCommand { get; }
     public ICommand LaunchCommand { get; }
     public ICommand OpenSettingsCommand { get; }
+    public ICommand ResetFiltersCommand { get; }
+
+    // ===== 清单 #64：多维度分类检索 =====
+
+    /// <summary>列表实际展示的条目（全量 <see cref="Versions"/> 经检索条件过滤后的结果）。</summary>
+    public ObservableCollection<VersionEntry> FilteredVersions
+    {
+        get => _filteredVersions;
+        set => SetField(ref _filteredVersions, value);
+    }
+
+    /// <summary>关键字检索：匹配版本 ID / 类型 / 加载器名。</summary>
+    public string SearchText
+    {
+        get => _searchText;
+        set { if (SetField(ref _searchText, value ?? "")) ApplyFilter(); }
+    }
+
+    /// <summary>模组加载器筛选：空=全部，否则为 ModLoaderKind 枚举名。</summary>
+    public string LoaderFilter
+    {
+        get => _loaderFilter;
+        set { if (SetField(ref _loaderFilter, value ?? "")) ApplyFilter(); }
+    }
+
+    /// <summary>工作目录形态：空=全部，iso=隔离，shared=共享。</summary>
+    public string IsolationFilter
+    {
+        get => _isolationFilter;
+        set { if (SetField(ref _isolationFilter, value ?? "")) ApplyFilter(); }
+    }
+
+    /// <summary>只看存在缺失前置的版本。</summary>
+    public bool MissingPrerequisiteOnly
+    {
+        get => _missingPrerequisiteOnly;
+        set { if (SetField(ref _missingPrerequisiteOnly, value)) ApplyFilter(); }
+    }
+
+    /// <summary>内容分类检索：空=全部，否则为 mods / resourcepacks / shaderpacks / datapacks / saves。</summary>
+    public string ContentFilter
+    {
+        get => _contentFilter;
+        set { if (SetField(ref _contentFilter, value ?? "")) ApplyFilter(); }
+    }
+
+    /// <summary>当前是否启用了任一检索条件（供「清空检索」按钮启用状态使用）。</summary>
+    public bool HasFilter =>
+        !string.IsNullOrWhiteSpace(SearchText)
+        || !string.IsNullOrEmpty(LoaderFilter)
+        || !string.IsNullOrEmpty(IsolationFilter)
+        || MissingPrerequisiteOnly
+        || !string.IsNullOrEmpty(ContentFilter);
 
     /// <summary>bug #10：请求以大页形式打开某版本的版本设置（由 VersionListView 订阅并导航）。</summary>
     public event Action<VersionEntry>? SettingsRequested;
@@ -150,6 +221,7 @@ public class VersionListViewModel : ObservableObject
         RefreshCommand = new RelayCommand(_ => Refresh());
         LaunchCommand = new AsyncRelayCommand(_ => LaunchAsync(), _ => CanLaunch);
         OpenSettingsCommand = new RelayCommand(OpenSettings);
+        ResetFiltersCommand = new RelayCommand(_ => ResetFilters());
         Refresh();
     }
 
@@ -172,10 +244,13 @@ public class VersionListViewModel : ObservableObject
             });
         }
 
+        _allVersions = list.ToList();
+        // 清单 #64：统计各版本工作目录里的内容安装情况，供「安装了 X 的版本」分类检索
+        foreach (var entry in _allVersions)
+            entry.Content = VersionContentScanner.Scan(entry.EffectiveDir);
+
         Versions = list;
-        StatusMessage = Versions.Count > 0
-            ? $"共发现 {Versions.Count} 个版本"
-            : "暂无已安装版本，请前往「安装新版本」";
+        ApplyFilter();
 
         // 恢复上次选中的版本（持久化在 profile.LastVersionId），使快速启动下拉在刷新后实时回显选中态
         var lastId = "";
@@ -185,6 +260,56 @@ public class VersionListViewModel : ObservableObject
         // 缺失前置扫描要解析每个 Mod 的 jar 元数据，较慢；放后台逐个回填，
         // 列表先出内容、徽章随后补上，避免刷新卡顿。
         _ = ScanPrerequisitesAsync(list.ToList(), gameRoot);
+    }
+
+    /// <summary>清单 #64：按当前检索条件重算 <see cref="FilteredVersions"/>。</summary>
+    private void ApplyFilter()
+    {
+        IEnumerable<VersionEntry> query = _allVersions;
+
+        var keyword = (_searchText ?? "").Trim();
+        if (keyword.Length > 0)
+            query = query.Where(v =>
+                v.Id.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || v.Type.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || v.LoaderText.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrEmpty(_loaderFilter))
+            query = query.Where(v => string.Equals(v.Loader.ToString(), _loaderFilter,
+                StringComparison.OrdinalIgnoreCase));
+
+        if (_isolationFilter == "iso") query = query.Where(v => v.IsIsolated);
+        else if (_isolationFilter == "shared") query = query.Where(v => !v.IsIsolated);
+
+        if (_missingPrerequisiteOnly) query = query.Where(v => v.HasMissingPrerequisite);
+
+        if (!string.IsNullOrEmpty(_contentFilter))
+            query = query.Where(v => v.HasContent(_contentFilter));
+
+        FilteredVersions = new ObservableCollection<VersionEntry>(query);
+        OnPropertyChanged(nameof(HasFilter));
+
+        StatusMessage = _allVersions.Count == 0
+            ? "暂无已安装版本，请前往「安装新版本」"
+            : HasFilter
+                ? $"共 {_allVersions.Count} 个版本，筛选出 {FilteredVersions.Count} 个"
+                : $"共发现 {_allVersions.Count} 个版本";
+    }
+
+    /// <summary>清单 #64：清空全部检索条件。</summary>
+    private void ResetFilters()
+    {
+        _searchText = "";
+        _loaderFilter = "";
+        _isolationFilter = "";
+        _missingPrerequisiteOnly = false;
+        _contentFilter = "";
+        OnPropertyChanged(nameof(SearchText));
+        OnPropertyChanged(nameof(LoaderFilter));
+        OnPropertyChanged(nameof(IsolationFilter));
+        OnPropertyChanged(nameof(MissingPrerequisiteOnly));
+        OnPropertyChanged(nameof(ContentFilter));
+        ApplyFilter();
     }
 
     /// <summary>后台逐个扫描版本的缺失前置，并切回 UI 线程回填到条目。</summary>
@@ -199,7 +324,12 @@ public class VersionListViewModel : ObservableObject
                 if (missing.Count == 0) continue;
 
                 await System.Windows.Application.Current.Dispatcher
-                    .InvokeAsync(() => entry.SetMissingPrerequisites(missing));
+                    .InvokeAsync(() =>
+                    {
+                        entry.SetMissingPrerequisites(missing);
+                        // 缺失前置可作为检索条件，回填后立即重算筛选结果
+                        ApplyFilter();
+                    });
             }
             catch
             {

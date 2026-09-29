@@ -21,6 +21,8 @@
 
             <RowDefinition Height="Auto"/>
 
+            <RowDefinition Height="Auto"/>
+
             <RowDefinition Height="*"/>
 
             <RowDefinition Height="Auto"/>
@@ -45,12 +47,93 @@
 
         </StackPanel>
 
+        <!-- 清单 #64：多维度分类检索 -->
+
+        <WrapPanel Grid.Row="1" Margin="0,0,0,8" VerticalAlignment="Center">
+
+            <TextBlock Text="{theme:Loc ver.search}" VerticalAlignment="Center" Margin="0,0,6,0"
+
+                       Foreground="{DynamicResource SecondaryForeground}"/>
+
+            <TextBox Width="140" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+
+                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                     BorderBrush="{DynamicResource InputBorder}"/>
+
+            <TextBlock Text="{theme:Loc ver.filter_loader}" VerticalAlignment="Center" Margin="12,0,4,0"
+
+                       Foreground="{DynamicResource SecondaryForeground}"/>
+
+            <ComboBox Width="100" SelectedValue="{Binding LoaderFilter}" SelectedValuePath="Tag">
+
+                <ComboBoxItem Content="{theme:Loc ver.filter_all}" Tag=""/>
+
+                <ComboBoxItem Content="{theme:Loc lbl.vanilla}" Tag="None"/>
+
+                <ComboBoxItem Content="{theme:Loc lbl.fabric}" Tag="Fabric"/>
+
+                <ComboBoxItem Content="{theme:Loc lbl.forge}" Tag="Forge"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.loader_quilt}" Tag="Quilt"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.loader_neoforge}" Tag="NeoForge"/>
+
+            </ComboBox>
+
+            <TextBlock Text="{theme:Loc ver.filter_dir}" VerticalAlignment="Center" Margin="12,0,4,0"
+
+                       Foreground="{DynamicResource SecondaryForeground}"/>
+
+            <ComboBox Width="84" SelectedValue="{Binding IsolationFilter}" SelectedValuePath="Tag">
+
+                <ComboBoxItem Content="{theme:Loc ver.filter_all}" Tag=""/>
+
+                <ComboBoxItem Content="{theme:Loc ver.iso}" Tag="iso"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.shared}" Tag="shared"/>
+
+            </ComboBox>
+
+            <TextBlock Text="{theme:Loc ver.filter_content}" VerticalAlignment="Center" Margin="12,0,4,0"
+
+                       Foreground="{DynamicResource SecondaryForeground}"/>
+
+            <ComboBox Width="104" SelectedValue="{Binding ContentFilter}" SelectedValuePath="Tag">
+
+                <ComboBoxItem Content="{theme:Loc ver.filter_all}" Tag=""/>
+
+                <ComboBoxItem Content="{theme:Loc ver.content_mods}" Tag="mods"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.content_rp}" Tag="resourcepacks"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.content_sp}" Tag="shaderpacks"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.content_dp}" Tag="datapacks"/>
+
+                <ComboBoxItem Content="{theme:Loc ver.content_saves}" Tag="saves"/>
+
+            </ComboBox>
+
+            <CheckBox Content="{theme:Loc ver.filter_missing}" IsChecked="{Binding MissingPrerequisiteOnly}"
+
+                      VerticalAlignment="Center" Margin="12,0,0,0"
+
+                      Foreground="{DynamicResource SecondaryForeground}"/>
+
+            <Button Content="{theme:Loc ver.filter_reset}" Command="{Binding ResetFiltersCommand}"
+
+                    Padding="8,2" Margin="12,0,0,0"/>
+
+        </WrapPanel>
 
 
-        <Border Grid.Row="1" BorderBrush="{DynamicResource ListViewBorder}" BorderThickness="1" CornerRadius="6">
+
+
+        <Border Grid.Row="2" BorderBrush="{DynamicResource ListViewBorder}" BorderThickness="1" CornerRadius="6">
 
             <ListBox x:Name="VersionsList" MouseDoubleClick="VersionsList_MouseDoubleClick"
-                     ItemsSource="{Binding Versions}"
+                     ItemsSource="{Binding FilteredVersions}"
 
                      SelectedItem="{Binding SelectedVersion}"
 
@@ -150,13 +233,19 @@
 
 
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Margin="0,2,0,0"
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,2,0,0">
 
-                                       Text="{Binding EffectiveDir}" FontSize="11"
+                                <TextBlock Text="{Binding EffectiveDir}" FontSize="11"
 
-                                       Foreground="{DynamicResource SecondaryForeground}"
+                                           Foreground="{DynamicResource SecondaryForeground}"
 
-                                       TextTrimming="CharacterEllipsis" Opacity="0.9"/>
+                                           TextTrimming="CharacterEllipsis" Opacity="0.9"/>
+
+                                <TextBlock Text="{Binding ContentSummary}" FontSize="11" Margin="10,0,0,0"
+
+                                           Foreground="{DynamicResource AccentBrush}"/>
+
+                            </StackPanel>
 
                         </Grid>
 
@@ -170,7 +259,7 @@
 
 
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
 
             <Button Content="{theme:Loc btn.launch}" Command="{Binding LaunchCommand}" Width="120" Padding="0,5"
 
