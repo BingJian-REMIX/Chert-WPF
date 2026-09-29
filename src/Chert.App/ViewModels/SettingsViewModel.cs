@@ -415,7 +415,26 @@ public class SettingsViewModel : ObservableObject
     public string ThemeColor
     {
         get => _themeColor;
-        set { if (SetField(ref _themeColor, value)) Chert.App.App.ApplyAccentColor(value); }
+        set
+        {
+            if (SetField(ref _themeColor, value))
+            {
+                Chert.App.App.ApplyAccentColor(value);
+                OnPropertyChanged(nameof(ThemeColorValue));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 清单 #59：主题色的 Color 形态。让主题色选择与皮肤编辑器共用同一个
+    /// 全色域取色器控件（ColorPicker），两者 UI 与交互完全一致。
+    /// </summary>
+    public System.Windows.Media.Color ThemeColorValue
+    {
+        get => Chert.App.Controls.ColorMath.TryParseHex(_themeColor, out var c)
+            ? c
+            : System.Windows.Media.Colors.Black;
+        set => ThemeColor = Chert.App.Controls.ColorMath.ToHex(value);
     }
     public string BackgroundImagePath
     {
