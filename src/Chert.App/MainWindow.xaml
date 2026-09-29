@@ -939,7 +939,7 @@
                                     <DataTrigger.EnterActions>
                                         <BeginStoryboard>
                                             <Storyboard>
-                                                <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
+                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
                                                                  To="340" Duration="0:0:0.28"/>
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity"
                                                                  To="0" Duration="0:0:0.28"/>

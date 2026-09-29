@@ -63,7 +63,7 @@
 
                     <TextBox.Resources>
 
-                        <Style TargetType="TextBox">
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
 
                             <Style.Triggers>
 

@@ -91,6 +91,26 @@ public class HudConfig
     [JsonPropertyName("clickThrough")]
     public bool ClickThrough { get; set; } = true;
 
+    /// <summary>是否绘制半透明背板（关闭后只显示文字，遮挡更少；清单 #54）。</summary>
+    [JsonPropertyName("showBackground")]
+    public bool ShowBackground { get; set; } = true;
+
+    /// <summary>停靠位置的中文名（清单 #54：设置页下拉展示用）。</summary>
+    public static string AnchorName(HudAnchor anchor) => anchor switch
+    {
+        HudAnchor.TopLeft => "左上",
+        HudAnchor.TopRight => "右上",
+        HudAnchor.BottomLeft => "左下",
+        HudAnchor.BottomRight => "右下",
+        _ => "自定义"
+    };
+
+    /// <summary>可供界面选择的停靠位置（Custom 由拖动产生，不在下拉中给出）。</summary>
+    public static IReadOnlyList<HudAnchor> SelectableAnchors { get; } = new[]
+    {
+        HudAnchor.TopLeft, HudAnchor.TopRight, HudAnchor.BottomLeft, HudAnchor.BottomRight
+    };
+
     public bool Has(HudField field) => (Fields & field) == field && field != HudField.None;
 
     /// <summary>切换某个字段的显示状态，返回切换后的状态。</summary>

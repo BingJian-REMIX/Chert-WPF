@@ -198,7 +198,7 @@
 
                             <Button.Style>
 
-                                <Style TargetType="Button">
+                                <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
 
                                     <Setter Property="Content" Value="详情"/>
 
@@ -1120,7 +1120,7 @@
 
                             <TextBlock.Style>
 
-                                <Style TargetType="TextBlock">
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
 
                                     <Setter Property="Visibility" Value="Collapsed"/>
 

@@ -147,8 +147,157 @@ public class SettingsViewModel : ObservableObject
     public bool HudEnabled
     {
         get => _hudEnabled;
-        set => SetField(ref _hudEnabled, value);
+        set { if (SetField(ref _hudEnabled, value)) ApplyHudLive(); }
     }
+
+    // ===== HUD 可配置化（清单 #54）=====
+    // 此前 HUD 只有「开 / 关」一个开关，HudConfig 里的字段、锚点、字号、不透明度、刷新间隔
+    // 全部无法编辑，且保存设置时会被 new HudConfig { Enabled = ... } 整体覆盖掉——
+    // 现在全部暴露到设置页，并即时套用到已打开的 HUD 窗口。
+
+    /// <summary>HUD 字段勾选项（勾选变化直接回调 VM，触发即时套用）。</summary>
+    public class HudFieldOption
+    {
+        public HudField Field { get; init; }
+        public string Name { get; init; } = "";
+        public Action? OnChanged { get; init; }
+        private bool _isChecked;
+        public bool IsChecked
+        {
+            get => _isChecked;
+            set
+            {
+                if (_isChecked == value) return;
+                _isChecked = value;
+                OnChanged?.Invoke();
+            }
+        }
+    }
+
+    public ObservableCollection<HudFieldOption> HudFields { get; } = new();
+
+    private string _hudAnchorKey = "TopLeft";
+    private int _hudX, _hudY;
+    private int _hudFontSize = 12;
+    private double _hudOpacity = 0.75;
+    private int _hudRefreshMs = 1000;
+    private int _hudMargin = 12;
+    private bool _hudClickThrough = true;
+    private bool _hudOnlyWhenForeground;
+    private bool _hudShowBackground = true;
+
+    /// <summary>HUD 停靠位置（字符串键，界面下拉用；Custom 由拖动 HUD 产生）。</summary>
+    public string HudAnchorKey
+    {
+        get => _hudAnchorKey;
+        set { if (SetField(ref _hudAnchorKey, value)) ApplyHudLive(); }
+    }
+
+    public int HudFontSize
+    {
+        get => _hudFontSize;
+        set { if (SetField(ref _hudFontSize, Math.Clamp(value, 8, 32))) ApplyHudLive(); }
+    }
+
+    public double HudOpacity
+    {
+        get => _hudOpacity;
+        set { if (SetField(ref _hudOpacity, Math.Clamp(value, 0.1, 1.0))) ApplyHudLive(); }
+    }
+
+    public int HudRefreshMs
+    {
+        get => _hudRefreshMs;
+        set { if (SetField(ref _hudRefreshMs, Math.Clamp(value, 200, 5000))) ApplyHudLive(); }
+    }
+
+    public int HudMargin
+    {
+        get => _hudMargin;
+        set { if (SetField(ref _hudMargin, Math.Clamp(value, 0, 64))) ApplyHudLive(); }
+    }
+
+    public bool HudClickThrough
+    {
+        get => _hudClickThrough;
+        set { if (SetField(ref _hudClickThrough, value)) ApplyHudLive(); }
+    }
+
+    public bool HudOnlyWhenForeground
+    {
+        get => _hudOnlyWhenForeground;
+        set { if (SetField(ref _hudOnlyWhenForeground, value)) ApplyHudLive(); }
+    }
+
+    public bool HudShowBackground
+    {
+        get => _hudShowBackground;
+        set { if (SetField(ref _hudShowBackground, value)) ApplyHudLive(); }
+    }
+
+    /// <summary>恢复 HUD 默认配置。</summary>
+    public ICommand ResetHudCommand { get; }
+
+    private void ResetHud()
+    {
+        var d = new HudConfig();
+        HudAnchorKey = d.Anchor.ToString();
+        HudFontSize = d.FontSize;
+        HudOpacity = d.Opacity;
+        HudRefreshMs = d.RefreshMs;
+        HudMargin = d.Margin;
+        HudClickThrough = d.ClickThrough;
+        HudOnlyWhenForeground = d.OnlyWhenGameForeground;
+        HudShowBackground = d.ShowBackground;
+        foreach (var f in HudFields) f.IsChecked = d.Has(f.Field);
+        ApplyHudLive();
+        StatusMessage = "已恢复 HUD 默认配置";
+    }
+
+    /// <summary>按当前设置项构造 HUD 配置（保留上次拖动得到的自定义坐标）。</summary>
+    private HudConfig BuildHudConfig()
+    {
+        var fields = HudField.None;
+        foreach (var o in HudFields)
+            if (o.IsChecked) fields |= o.Field;
+
+        return new HudConfig
+        {
+            Enabled = HudEnabled,
+            Anchor = Enum.TryParse<HudAnchor>(HudAnchorKey, out var a) ? a : HudAnchor.TopLeft,
+            X = _hudX,
+            Y = _hudY,
+            Margin = HudMargin,
+            Opacity = HudOpacity,
+            FontSize = HudFontSize,
+            // 一个字段都不勾时至少显示帧率，避免 HUD 空白
+            Fields = fields == HudField.None ? HudField.Fps : fields,
+            RefreshMs = HudRefreshMs,
+            OnlyWhenGameForeground = HudOnlyWhenForeground,
+            ClickThrough = HudClickThrough,
+            ShowBackground = HudShowBackground
+        };
+    }
+
+    /// <summary>即时套用到已打开的 HUD（不落盘；落盘在保存设置时进行）。</summary>
+    private void ApplyHudLive()
+    {
+        try { Chert.App.Views.HudOverlayWindow.Instance?.ApplyConfig(BuildHudConfig()); }
+        catch { /* HUD 未打开或出错时忽略 */ }
+    }
+
+    private static string HudFieldKey(HudField f) => f switch
+    {
+        HudField.Fps => "settings.hud_field_fps",
+        HudField.Memory => "settings.hud_field_memory",
+        HudField.Cpu => "settings.hud_field_cpu",
+        HudField.Ping => "settings.hud_field_ping",
+        HudField.Coordinates => "settings.hud_field_coords",
+        HudField.Biome => "settings.hud_field_biome",
+        HudField.GameTime => "settings.hud_field_gametime",
+        HudField.SessionTime => "settings.hud_field_session",
+        _ => "settings.hud_field_fps"
+    };
 
     /// <summary>启动前存档兼容性检测（规格 2.4 — 启动）。</summary>
     public bool LaunchCompatCheckEnabled
@@ -327,6 +476,7 @@ public class SettingsViewModel : ObservableObject
         SetActiveAccountCommand = new RelayCommand(_ => SetActiveAccount());
         AddOfflineAccountCommand = new RelayCommand(_ => AddOfflineAccount());
         UseLittleSkinCommand = new RelayCommand(_ => UseLittleSkin());
+        ResetHudCommand = new RelayCommand(_ => ResetHud());
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as AccountEntry));
         BrowseBackgroundCommand = new RelayCommand(_ => BrowseBackground());
         BrowseGameRootCommand = new RelayCommand(_ => BrowseGameRoot());
@@ -382,6 +532,30 @@ public class SettingsViewModel : ObservableObject
         // 启动补充
         PrewarmEnabled = profile.Prewarm.Mode != PrewarmMode.Off;
         HudEnabled = profile.Hud.Enabled;
+
+        // HUD 可配置化（清单 #54）
+        var hud = profile.Hud ?? new HudConfig();
+        HudFields.Clear();
+        foreach (var f in HudConfig.SelectableFields)
+            HudFields.Add(new HudFieldOption { Field = f, Name = LocaleManager.T(HudFieldKey(f)), IsChecked = hud.Has(f), OnChanged = ApplyHudLive });
+        _hudX = hud.X;
+        _hudY = hud.Y;
+        _hudAnchorKey = hud.Anchor.ToString();
+        _hudFontSize = hud.FontSize;
+        _hudOpacity = hud.Opacity;
+        _hudRefreshMs = hud.RefreshMs;
+        _hudMargin = hud.Margin;
+        _hudClickThrough = hud.ClickThrough;
+        _hudOnlyWhenForeground = hud.OnlyWhenGameForeground;
+        _hudShowBackground = hud.ShowBackground;
+        OnPropertyChanged(nameof(HudAnchorKey));
+        OnPropertyChanged(nameof(HudFontSize));
+        OnPropertyChanged(nameof(HudOpacity));
+        OnPropertyChanged(nameof(HudRefreshMs));
+        OnPropertyChanged(nameof(HudMargin));
+        OnPropertyChanged(nameof(HudClickThrough));
+        OnPropertyChanged(nameof(HudOnlyWhenForeground));
+        OnPropertyChanged(nameof(HudShowBackground));
         LaunchCompatCheckEnabled = profile.LaunchCompatCheckEnabled;
 
         // 下载
@@ -471,7 +645,8 @@ public class SettingsViewModel : ObservableObject
 
             // 启动补充（规格 2.4）
             Prewarm = new PrewarmConfig { Mode = PrewarmEnabled ? PrewarmMode.Light : PrewarmMode.Off },
-            Hud = new HudConfig { Enabled = HudEnabled },
+            // 清单 #54：保留完整 HUD 配置（此前会被 new HudConfig 覆盖掉除开关外的一切）
+            Hud = BuildHudConfig(),
             LaunchCompatCheckEnabled = LaunchCompatCheckEnabled,
 
             // 下载
@@ -648,7 +823,7 @@ public class SettingsViewModel : ObservableObject
     {
         try
         {
-            var m = System.Text.RegularExpressions.Regex.Match(msg, "输入代码：(\S+)");
+            var m = System.Text.RegularExpressions.Regex.Match(msg, @"输入代码：(\S+)");
             if (m.Success)
             {
                 var code = m.Groups[1].Value.Trim();

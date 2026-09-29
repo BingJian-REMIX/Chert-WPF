@@ -43,9 +43,7 @@
 
                     Padding="10,4" Margin="0,0,6,0"/>
 
-            <Button Content="{theme:Loc music.m183}" Command="{Binding SetSourceCommand}" CommandParameter="Online"
-
-                    Padding="10,4" Margin="0,0,6,0"/>
+            <!-- 流媒体音源入口本期屏蔽（清单 #70，待评估后再启用） -->
 
             <Button Content="{theme:Loc music.m184}" Command="{Binding SetSourceCommand}" CommandParameter="McOst"
 
@@ -181,25 +179,7 @@
 
             </StackPanel>
 
-            <!-- 在线流媒体 -->
-
-            <StackPanel Orientation="Horizontal" Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibility}}">
-
-                <TextBox Text="{Binding OnlineUrl, UpdateSourceTrigger=PropertyChanged}" Width="320"
-
-                         Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
-
-                         BorderBrush="{DynamicResource InputBorder}" ToolTip="{theme:Loc music.m186}"/>
-
-                <Button Content="{theme:Loc mods.add}" Command="{Binding AddOnlineCommand}" Margin="8,0,0,0" Padding="10,4"/>
-
-                <TextBlock Text="{theme:Loc music.m187}" VerticalAlignment="Center" Margin="12,0,4,0" Opacity="0.7"/>
-
-                <ComboBox Width="220" ItemsSource="{Binding OnlinePresets}" SelectedItem="{Binding OnlineUrl, Mode=TwoWay}"
-
-                          Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"/>
-
-            </StackPanel>
+            <!-- 在线流媒体（清单 #70）：本期屏蔽，相关逻辑保留在 MusicPlayerViewModel 内待评估后启用 -->
 
             <!-- MC 原声 -->
 

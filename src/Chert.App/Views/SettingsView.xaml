@@ -229,6 +229,7 @@
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
@@ -395,6 +396,103 @@
                                    Foreground="{DynamicResource PrimaryForeground}"/>
 
                     </WrapPanel>
+
+                    <!-- HUD 可配置化（清单 #54） -->
+                    <Border Grid.Row="11" Margin="0,8,0,4" Padding="10" CornerRadius="8"
+                            Background="{DynamicResource ControlBackground}"
+                            BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                            Visibility="{Binding HudEnabled, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
+                        <StackPanel>
+                            <TextBlock Text="{theme:Loc settings.hud_config}" FontWeight="Bold" Margin="0,0,0,6"
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <TextBlock Text="{theme:Loc settings.hud_fields}" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <ItemsControl ItemsSource="{Binding HudFields}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Margin="0,0,14,4" MinWidth="88"
+                                                  Foreground="{DynamicResource PrimaryForeground}"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,4">
+                                <TextBlock Text="{theme:Loc settings.hud_anchor}" VerticalAlignment="Center" Width="90"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <ComboBox Width="120" SelectedValue="{Binding HudAnchorKey}" SelectedValuePath="Tag">
+                                    <ComboBoxItem Content="{theme:Loc settings.hud_anchor_tl}" Tag="TopLeft"/>
+                                    <ComboBoxItem Content="{theme:Loc settings.hud_anchor_tr}" Tag="TopRight"/>
+                                    <ComboBoxItem Content="{theme:Loc settings.hud_anchor_bl}" Tag="BottomLeft"/>
+                                    <ComboBoxItem Content="{theme:Loc settings.hud_anchor_br}" Tag="BottomRight"/>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4">
+                                <TextBlock Text="{theme:Loc settings.hud_font_size}" VerticalAlignment="Center" Width="90"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <Slider Width="160" Minimum="8" Maximum="32" TickFrequency="1" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" Value="{Binding HudFontSize, Mode=TwoWay}"/>
+                                <TextBlock Text="{Binding HudFontSize}" VerticalAlignment="Center" Margin="10,0,0,0" Width="32"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4">
+                                <TextBlock Text="{theme:Loc settings.hud_opacity}" VerticalAlignment="Center" Width="90"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <Slider Width="160" Minimum="0.1" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" Value="{Binding HudOpacity, Mode=TwoWay}"/>
+                                <TextBlock Text="{Binding HudOpacity, StringFormat={}{0:P0}}" VerticalAlignment="Center"
+                                           Margin="10,0,0,0" Width="40" Foreground="{DynamicResource PrimaryForeground}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4">
+                                <TextBlock Text="{theme:Loc settings.hud_refresh}" VerticalAlignment="Center" Width="90"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <Slider Width="160" Minimum="200" Maximum="5000" TickFrequency="100" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" Value="{Binding HudRefreshMs, Mode=TwoWay}"/>
+                                <TextBlock Text="{Binding HudRefreshMs, StringFormat={}{0} ms}" VerticalAlignment="Center"
+                                           Margin="10,0,0,0" Width="60" Foreground="{DynamicResource PrimaryForeground}"/>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,4">
+                                <TextBlock Text="{theme:Loc settings.hud_margin}" VerticalAlignment="Center" Width="90"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <Slider Width="160" Minimum="0" Maximum="64" TickFrequency="2" IsSnapToTickEnabled="True"
+                                        VerticalAlignment="Center" Value="{Binding HudMargin, Mode=TwoWay}"/>
+                                <TextBlock Text="{Binding HudMargin}" VerticalAlignment="Center" Margin="10,0,0,0" Width="32"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                            </StackPanel>
+
+                            <WrapPanel Margin="0,8,0,2">
+                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudShowBackground, Mode=TwoWay}"/>
+                                <TextBlock Text="{theme:Loc settings.hud_background}" VerticalAlignment="Center" Margin="8,0,18,0"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudClickThrough, Mode=TwoWay}"/>
+                                <TextBlock Text="{theme:Loc settings.hud_click_through}" VerticalAlignment="Center" Margin="8,0,18,0"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudOnlyWhenForeground, Mode=TwoWay}"/>
+                                <TextBlock Text="{theme:Loc settings.hud_foreground_only}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                            </WrapPanel>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Content="{theme:Loc settings.hud_reset}" Command="{Binding ResetHudCommand}" Padding="10,4"/>
+                            </StackPanel>
+
+                            <TextBlock Text="{theme:Loc settings.hud_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                        </StackPanel>
+                    </Border>
+
 
                 </Grid>
 

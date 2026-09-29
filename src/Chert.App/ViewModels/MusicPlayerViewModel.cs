@@ -60,11 +60,15 @@ public class MusicPlayerViewModel : ObservableObject
     /// <summary>实际解码宿主（MediaElement），由主窗口注入。</summary>
     public IMediaPlayer? Host { get; set; }
 
+    // 清单 #70：在线流媒体本期屏蔽，预设列表保留以便后续评估后直接启用。
     public ObservableCollection<string> OnlinePresets { get; } = new()
     {
         "https://stream.example.com/minecraft-radio",
         "https://radio.example.org/ambient"
     };
+
+    /// <summary>在线流媒体是否启用（清单 #70：本期关闭，后续研究后决定）。</summary>
+    public const bool StreamingEnabled = false;
 
     /// <summary>MC 原声按分类分组（扫描后填充）。</summary>
     public ObservableCollection<McOstGroup> McOstGroups { get; } = new();
@@ -390,6 +394,12 @@ public class MusicPlayerViewModel : ObservableObject
 
     private void SetSource(string? kind)
     {
+        if (kind == "Online" && !StreamingEnabled)
+        {
+            StatusText = "在线流媒体功能本期暂未启用";
+            return;
+        }
+
         if (kind is "Local" or "Online" or "McOst")
         {
             SourceKind = kind!;
@@ -564,6 +574,7 @@ public class MusicPlayerViewModel : ObservableObject
 
     private void AddOnline()
     {
+        if (!StreamingEnabled) { StatusText = "在线流媒体功能本期暂未启用"; return; }
         if (string.IsNullOrWhiteSpace(OnlineUrl)) { StatusText = "请填写在线流媒体地址"; return; }
         var track = new Track
         {

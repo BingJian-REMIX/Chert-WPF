@@ -35,6 +35,7 @@ public class HudOverlayWindow : Window
     private long _maxMemoryMb;
     private HudConfig _config = new();
     private bool _isDragging;
+    private bool _dragMoved;
     private Point _dragStart;
 
     public HudOverlayWindow()
@@ -42,17 +43,23 @@ public class HudOverlayWindow : Window
         _config = ProfileStore.Load(GameConstants.DefaultGameRoot).Hud;
 
         Title = "MCLCS HUD";
-        Width = 240;
-        Height = 180;
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
-        Background = new SolidColorBrush(Color.FromArgb(0x80, 0x10, 0x10, 0x10));
+        // 清单 #54：窗口随内容自适应（此前固定 240×180：字段多选会被裁切、少选则留大片空白）
+        SizeToContent = SizeToContent.WidthAndHeight;
+        MinWidth = 96;
+        MinHeight = 24;
+        Background = _config.ShowBackground
+            ? new SolidColorBrush(Color.FromArgb(0x80, 0x10, 0x10, 0x10))
+            : new SolidColorBrush(Colors.Transparent);
         Foreground = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE0));
         Topmost = true;
         ShowInTaskbar = false;
         ResizeMode = ResizeMode.NoResize;
         FontFamily = new FontFamily("Consolas");
         FontSize = _config.FontSize;
+        // 清单 #54：不透明度此前只存不用，这里落到窗口
+        Opacity = _config.Opacity;
 
         _text = new TextBlock
         {
@@ -73,8 +80,22 @@ public class HudOverlayWindow : Window
             var pos = e.GetPosition(this);
             Left += (pos.X - _dragStart.X);
             Top += (pos.Y - _dragStart.Y);
+            _dragMoved = true;
         };
-        MouseLeftButtonUp += (_, _) => { _isDragging = false; ReleaseMouseCapture(); };
+        MouseLeftButtonUp += (_, _) =>
+        {
+            _isDragging = false;
+            ReleaseMouseCapture();
+            // 清单 #54：手动拖过之后记为「自定义位置」并落盘，下次启动保持玩家摆好的位置
+            if (_dragMoved)
+            {
+                _dragMoved = false;
+                _config.Anchor = HudAnchor.Custom;
+                _config.X = (int)Left;
+                _config.Y = (int)Top;
+                SavePosition();
+            }
+        };
 
         Loaded += OnLoaded;
         Closing += (_, _) => SavePosition();
@@ -85,8 +106,8 @@ public class HudOverlayWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        // 应用点击穿透（WS_EX_TRANSPARENT + WS_EX_LAYERED）
-        ApplyClickThrough();
+        // 应用点击穿透（WS_EX_TRANSPARENT + WS_EX_LAYERED）：清单 #54 起受配置开关控制
+        ApplyClickThrough(_config.ClickThrough);
 
         // 恢复上次位置
         var hwnd = new WindowInteropHelper(this).Handle;
@@ -170,13 +191,63 @@ public class HudOverlayWindow : Window
     {
         try
         {
-            if (_config.X > 0 || _config.Y > 0)
+            if (_config.Anchor == HudAnchor.Custom)
             {
-                Left = _config.X;
-                Top = _config.Y;
+                if (_config.X > 0 || _config.Y > 0)
+                {
+                    Left = _config.X;
+                    Top = _config.Y;
+                }
+                return;
             }
+
+            // 清单 #54：按锚点计算（此前 ComputePosition 已有但从未被调用，拖动之外的位置设置完全没生效）
+            var (x, y) = _config.ComputePosition(
+                (int)SystemParameters.PrimaryScreenWidth, (int)SystemParameters.PrimaryScreenHeight,
+                (int)ActualWidth, (int)ActualHeight);
+            Left = x;
+            Top = y;
         }
         catch { /* ignore */ }
+    }
+
+    /// <summary>清单 #54：设置页改动后即时套用到已打开的 HUD。</summary>
+    public void ApplyConfig(HudConfig cfg)
+    {
+        if (cfg is not null) _config = cfg;
+        try
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // 总开关关闭时立即隐藏；重新打开且已挂接到游戏进程时再显示
+                if (!_config.Enabled) { Hide(); return; }
+                if (_gameProcess is not null && !IsVisible) Show();
+
+                FontSize = _config.FontSize;
+                Opacity = _config.Opacity;
+                Background = _config.ShowBackground
+                    ? new SolidColorBrush(Color.FromArgb(0x80, 0x10, 0x10, 0x10))
+                    : new SolidColorBrush(Colors.Transparent);
+                _timer.Interval = TimeSpan.FromMilliseconds(_config.RefreshMs);
+                ApplyClickThrough(_config.ClickThrough);
+                LoadPosition();
+                _text.Text = HudMetricsProvider.Render(_provider.Sample(_gameProcess, _maxMemoryMb), _config);
+            });
+        }
+        catch { /* 非关键 */ }
+    }
+
+    /// <summary>清单 #54：设置页保存 HUD 配置后调用；未打开 HUD 时也会写回配置档，下次启动生效。</summary>
+    public static void ApplyConfigFromSettings(HudConfig cfg)
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            profile.Hud = cfg;
+            ProfileStore.Save(profile);
+            Instance?.ApplyConfig(cfg);
+        }
+        catch { /* 非关键 */ }
     }
 
     private void SavePosition()
@@ -192,17 +263,20 @@ public class HudOverlayWindow : Window
         catch { /* ignore */ }
     }
 
-    private void ApplyClickThrough()
+    /// <summary>清单 #54：点击穿透可开关（关闭时移除 WS_EX_TRANSPARENT，保留 WS_EX_LAYERED 以维持透明窗口）。</summary>
+    private void ApplyClickThrough(bool enable)
     {
         try
         {
             var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
             const int WS_EX_TRANSPARENT = 0x00000020;
             const int WS_EX_LAYERED = 0x00080000;
             const int GWL_EXSTYLE = -20;
 
             var exStyle = NativeMethods.GetWindowLong(hwnd, GWL_EXSTYLE);
-            NativeMethods.SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED);
+            exStyle = enable ? exStyle | WS_EX_TRANSPARENT | WS_EX_LAYERED : exStyle & ~WS_EX_TRANSPARENT;
+            NativeMethods.SetWindowLong(hwnd, GWL_EXSTYLE, exStyle);
         }
         catch { /* non-critical */ }
     }
