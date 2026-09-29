@@ -301,7 +301,7 @@
 
 
 
-        <!-- ==== 右：预览 + 调色板 ==== -->
+        <!-- ==== 右：整体预览 + 取色器（清单 #50：全色域取色器 + 完整色板）==== -->
 
         <Grid Grid.Column="2">
 
@@ -311,12 +311,9 @@
 
                 <RowDefinition Height="Auto"/>
 
-                <RowDefinition Height="Auto"/>
-
                 <RowDefinition Height="*"/>
 
             </Grid.RowDefinitions>
-
 
 
             <!-- 64x64 整体预览 -->
@@ -332,42 +329,49 @@
                    Stretch="Uniform"/>
 
 
+            <ScrollViewer Grid.Row="2" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
 
-            <!-- 当前颜色 -->
-
-            <StackPanel Grid.Row="2" Margin="0,8,0,0">
-
-                <TextBlock Text="{theme:Loc skin.m272}" FontWeight="Bold" Margin="0,0,0,4"
-
-                           Foreground="{DynamicResource PrimaryForeground}"/>
-
-                <Grid>
-
-                    <Border x:Name="PrimaryColorPreview" Width="40" Height="40" CornerRadius="4"
-
-                            HorizontalAlignment="Left"/>
-
-                    <Border x:Name="SecondaryColorPreview" Width="20" Height="20" CornerRadius="2"
-
-                            HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,-2"/>
-
-                </Grid>
-
-            </StackPanel>
+                <StackPanel>
 
 
+                    <!-- 当前颜色 -->
 
-            <!-- 调色板 -->
+                    <TextBlock Text="{theme:Loc skin.m272}" FontWeight="Bold" Margin="0,0,0,4"
 
-            <StackPanel Grid.Row="3" Margin="0,8,0,0">
+                               Foreground="{DynamicResource PrimaryForeground}"/>
 
-                <TextBlock Text="{theme:Loc skin.m273}" FontWeight="Bold" Margin="0,0,0,4"
+                    <Grid Width="180" HorizontalAlignment="Left">
 
-                           Foreground="{DynamicResource PrimaryForeground}"/>
+                        <Border x:Name="PrimaryColorPreview" Width="40" Height="40" CornerRadius="4"
 
-                <WrapPanel x:Name="PalettePanel" Width="180"/>
+                                HorizontalAlignment="Left"/>
 
-            </StackPanel>
+                        <Border x:Name="SecondaryColorPreview" Width="20" Height="20" CornerRadius="2"
+
+                                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="22,0,0,-2"/>
+
+                        <Button Content="{theme:Loc skin.m305}" FontSize="11" Padding="0,3"
+
+                                Width="112" HorizontalAlignment="Right"
+
+                                Click="SecondaryFromPrimary_Click"/>
+
+                    </Grid>
+
+
+                    <!-- 清单 #50：全色域取色器 + 完整色板 -->
+
+                    <TextBlock Text="{theme:Loc skin.m304}" FontWeight="Bold" Margin="0,10,0,4"
+
+                               Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    <ctrl:ColorPicker SelectedColor="{Binding PrimaryColor, Mode=TwoWay}"
+
+                                      HorizontalAlignment="Left"/>
+
+                </StackPanel>
+
+            </ScrollViewer>
 
         </Grid>
 

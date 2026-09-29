@@ -18,7 +18,6 @@ public partial class SkinEditorView : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        BuildPalette();
         UpdateColorPreviews();
         VM.PropertyChanged += (_, args) =>
         {
@@ -30,27 +29,15 @@ public partial class SkinEditorView : UserControl
         };
     }
 
-    private void BuildPalette()
-    {
-        foreach (var c in VM.Palette)
-        {
-            var rect = new Border
-            {
-                Width = 24, Height = 24, Margin = new Thickness(1),
-                Background = new SolidColorBrush(c),
-                Cursor = Cursors.Hand
-            };
-            rect.MouseLeftButtonDown += (_, __) => VM.PrimaryColor = c;
-            rect.MouseRightButtonDown += (_, e2) => { VM.SecondaryColor = c; e2.Handled = true; };
-            PalettePanel.Children.Add(rect);
-        }
-    }
-
     private void UpdateColorPreviews()
     {
         PrimaryColorPreview.Background = new SolidColorBrush(VM.PrimaryColor);
         SecondaryColorPreview.Background = new SolidColorBrush(VM.SecondaryColor);
     }
+
+    /// <summary>清单 #50：把取色器当前主色设为副色（取代原先调色板的右键设定）。</summary>
+    private void SecondaryFromPrimary_Click(object sender, RoutedEventArgs e)
+        => VM.SecondaryColor = VM.PrimaryColor;
 
     private void Face_Click(object sender, MouseButtonEventArgs e)
     {

@@ -1,0 +1,65 @@
+<UserControl x:Class="Chert.App.Controls.ColorPicker"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:theme="clr-namespace:Chert.App.Themes"
+             Foreground="{DynamicResource SecondaryForeground}">
+
+    <StackPanel>
+        <!-- 清单 #50：色域平面 —— 横向拖动选色相，纵向拖动选饱和度 -->
+        <TextBlock Text="{theme:Loc color.plane}" FontSize="11" Margin="0,0,0,3"
+                   Foreground="{DynamicResource SecondaryForeground}"/>
+        <Border x:Name="PlaneBorder" Width="180" Height="132" CornerRadius="4"
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                Background="{DynamicResource ControlBackground}"
+                Cursor="Cross" SnapsToDevicePixels="True"
+                MouseLeftButtonDown="Plane_MouseDown"
+                MouseLeftButtonUp="Plane_MouseUp"
+                MouseMove="Plane_MouseMove">
+            <Grid>
+                <Image x:Name="PlaneImage" Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                <Rectangle x:Name="Pointer" Width="12" Height="12" RadiusX="6" RadiusY="6"
+                           HorizontalAlignment="Left" VerticalAlignment="Top"
+                           Stroke="#FFFFFFFF" StrokeThickness="2"
+                           Fill="Transparent" IsHitTestVisible="False"/>
+            </Grid>
+        </Border>
+
+        <!-- 清单 #50：下方独立滑块拖选亮度 -->
+        <TextBlock Text="{theme:Loc color.lightness}" FontSize="11" Margin="0,8,0,3"
+                   Foreground="{DynamicResource SecondaryForeground}"/>
+        <Border x:Name="LightnessBar" Width="180" Height="16" CornerRadius="3"
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                Cursor="Cross" SnapsToDevicePixels="True"
+                MouseLeftButtonDown="Lightness_MouseDown"
+                MouseLeftButtonUp="Lightness_MouseUp"
+                MouseMove="Lightness_MouseMove">
+            <Grid>
+                <Rectangle x:Name="LightnessFill" RadiusX="2" RadiusY="2"/>
+                <Rectangle x:Name="LightnessMarker" Width="3" Height="14"
+                           Stroke="#FF000000" StrokeThickness="1" Fill="White"
+                           IsHitTestVisible="False" HorizontalAlignment="Left"/>
+            </Grid>
+        </Border>
+
+        <!-- 预览 + HEX -->
+        <Grid Margin="0,8,0,0" Width="180" HorizontalAlignment="Left">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" x:Name="PreviewBorder" Width="34" Height="22" CornerRadius="3"
+                    BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"/>
+            <TextBox Grid.Column="2" x:Name="HexBox" Width="86" Height="22" FontSize="11"
+                     VerticalContentAlignment="Center"
+                     LostFocus="HexBox_LostFocus" KeyDown="HexBox_KeyDown"/>
+        </Grid>
+
+        <!-- 清单 #50：完整色板 -->
+        <TextBlock Text="{theme:Loc color.palette}" FontSize="11" Margin="0,8,0,3"
+                   Foreground="{DynamicResource SecondaryForeground}"/>
+        <UniformGrid x:Name="PaletteHost" Width="180" Columns="10" HorizontalAlignment="Left"/>
+    </StackPanel>
+
+</UserControl>
