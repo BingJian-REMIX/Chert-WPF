@@ -172,7 +172,10 @@ public partial class App : Application
 
         // 启动即加载已保存的主题偏好并应用（修复：默认亮色启动 + 外观未持久化恢复）
         ThemeManager.LoadPreference(GameConstants.DefaultGameRoot);
+        // 清单 #18：跟随系统主题——开启时先按系统值校正一次，再应用
+        Chert.App.Services.SystemThemeWatcher.ApplyFromSystem();
         ApplyTheme(ThemeManager.Current);
+        Chert.App.Services.SystemThemeWatcher.Start();
 
         // 清单 #49：勋章接口预留 —— 记录启动次数并解锁「初次点亮」。
         // 当前仅本地持久化，UserId 字段预留待账号系统接入后回填。

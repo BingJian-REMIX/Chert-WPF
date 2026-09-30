@@ -532,6 +532,11 @@ public class SettingsViewModel : ObservableObject
         // 主题/语言偏好
         ThemeManager.LoadPreference(GameConstants.DefaultGameRoot);
         _selectedTheme = ThemeManager.Current.ToString();
+        // 清单 #18：跟随系统主题
+        _followSystemTheme = ThemeManager.FollowSystem;
+        _manualThemeEnabled = !_followSystemTheme;
+        OnPropertyChanged(nameof(FollowSystemTheme));
+        OnPropertyChanged(nameof(ManualThemeEnabled));
         _selectedLanguage = LocaleManager.CurrentLocale;
 
         // 同步运行时 AI 配置
@@ -636,6 +641,29 @@ public class SettingsViewModel : ObservableObject
         CategoryPreferences = prefs;
     }
 
+    private bool _followSystemTheme;
+    private bool _manualThemeEnabled = true;
+
+    /// <summary>清单 #18：跟随操作系统的亮 / 暗自动切换。</summary>
+    public bool FollowSystemTheme
+    {
+        get => _followSystemTheme;
+        set
+        {
+            if (!SetField(ref _followSystemTheme, value)) return;
+            ManualThemeEnabled = !value;
+            ThemeManager.FollowSystem = value;
+            if (value) Chert.App.Services.SystemThemeWatcher.ApplyFromSystem();
+        }
+    }
+
+    /// <summary>开启跟随系统后，手动主题下拉框变为只读。</summary>
+    public bool ManualThemeEnabled
+    {
+        get => _manualThemeEnabled;
+        set => SetField(ref _manualThemeEnabled, value);
+    }
+
     // ===== 主题 / 语言 即时生效 =====
 
     public void ApplyTheme()
@@ -643,6 +671,8 @@ public class SettingsViewModel : ObservableObject
         if (Enum.TryParse<ThemeType>(SelectedTheme, out var t))
         {
             ThemeManager.Current = t;
+            // 清单 #18：FollowSystem 与当前主题一起落盘
+            ThemeManager.FollowSystem = FollowSystemTheme;
             ThemeManager.SavePreference(GameConstants.DefaultGameRoot);
         }
     }

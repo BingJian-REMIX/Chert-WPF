@@ -780,7 +780,7 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
@@ -790,7 +790,9 @@
 
                         <TextBlock Text="{theme:Loc settings.theme}" VerticalAlignment="Center" Width="90"/>
 
-                        <ComboBox Width="120" SelectedValue="{Binding SelectedTheme}" SelectedValuePath="Tag">
+                        <ComboBox Width="120" SelectedValue="{Binding SelectedTheme}" SelectedValuePath="Tag"
+
+                                  IsEnabled="{Binding ManualThemeEnabled}">
 
                             <ComboBoxItem Content="{theme:Loc lbl.dark}" Tag="Dark"/>
 
@@ -877,6 +879,20 @@
                         <TextBlock Text="{theme:Loc settings.show_borders}" VerticalAlignment="Center" Margin="8,0,0,0"
 
                                    Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    </WrapPanel>
+
+                    <WrapPanel Grid.Row="7" Margin="0,3">
+
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                      IsChecked="{Binding FollowSystemTheme, Mode=TwoWay}"/>
+
+                        <TextBlock Text="{theme:Loc settings.follow_system_theme}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"
+
+                                   ToolTip="{theme:Loc settings.follow_system_theme_tip}"/>
 
                     </WrapPanel>
 
