@@ -7,6 +7,7 @@ using System.Windows.Input;
 using Chert.Core.Ai;
 using Chert.Core.Auth;
 using Chert.Core.Hud;
+using Chert.Core.Input;
 using Chert.Core.Launcher;
 using Chert.Core.Localization;
 using Chert.Core.Mvvm;
@@ -516,6 +517,8 @@ public class SettingsViewModel : ObservableObject
         AddOfflineAccountCommand = new RelayCommand(_ => AddOfflineAccount());
         UseLittleSkinCommand = new RelayCommand(_ => UseLittleSkin());
         ResetHudCommand = new RelayCommand(_ => ResetHud());
+        EditTouchLayoutCommand = new RelayCommand(_ => EditTouchLayout());
+        ResetTouchLayoutCommand = new RelayCommand(_ => ResetTouchLayout());
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as AccountEntry));
         BrowseBackgroundCommand = new RelayCommand(_ => BrowseBackground());
         BrowseGameRootCommand = new RelayCommand(_ => BrowseGameRoot());
@@ -573,6 +576,11 @@ public class SettingsViewModel : ObservableObject
         FileWatchEnabled = profile.FileWatchEnabled;
         ToastDurationSeconds = profile.ToastDurationSeconds;
         SeasonalEffectsEnabled = profile.SeasonalEffectsEnabled;
+        // 清单 #11：触屏模式
+        _touch = profile.Touch ?? TouchControlConfig.CreateDefault();
+        _touchEnabled = _touch.Enabled;
+        OnPropertyChanged(nameof(TouchModeEnabled));
+        OnPropertyChanged(nameof(TouchButtonCount));
         DefaultVersionIsolation = profile.DefaultVersionIsolation;
 
         // 启动补充
@@ -684,6 +692,63 @@ public class SettingsViewModel : ObservableObject
         }
     }
 
+    // ===== 清单 #11：触屏模式 =====
+
+    private bool _touchEnabled;
+    private TouchControlConfig _touch = TouchControlConfig.CreateDefault();
+
+    /// <summary>触屏模式总开关：开启后随游戏进程显示虚拟按键面板。</summary>
+    public bool TouchModeEnabled
+    {
+        get => _touchEnabled;
+        set
+        {
+            if (!SetField(ref _touchEnabled, value)) return;
+            _touch.Enabled = value;
+            OnPropertyChanged(nameof(TouchButtonCount));
+            try { Chert.App.Views.TouchOverlayWindow.ApplyConfig(_touch); } catch { }
+        }
+    }
+
+    /// <summary>当前布局中的虚拟按键数量（展示用）。</summary>
+    public int TouchButtonCount => _touch.Buttons.Count;
+
+    /// <summary>打开触屏按键布局编辑器。</summary>
+    public ICommand EditTouchLayoutCommand { get; }
+    /// <summary>恢复触屏按键默认布局。</summary>
+    public ICommand ResetTouchLayoutCommand { get; }
+
+    private void EditTouchLayout()
+    {
+        try
+        {
+            var win = new Chert.App.Views.TouchLayoutEditorWindow
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            win.ShowDialog();
+            // 编辑器内已保存并 ApplyConfig，这里同步回 VM 状态
+            var cfg = Chert.Core.Profiles.ProfileStore.Load(Chert.Core.Utils.GameConstants.DefaultGameRoot).Touch;
+            if (cfg is not null)
+            {
+                _touch = cfg;
+                _touchEnabled = cfg.Enabled;
+                OnPropertyChanged(nameof(TouchModeEnabled));
+                OnPropertyChanged(nameof(TouchButtonCount));
+            }
+        }
+        catch { /* 非关键 */ }
+    }
+
+    private void ResetTouchLayout()
+    {
+        var d = TouchControlConfig.CreateDefault();
+        d.Enabled = _touchEnabled;
+        _touch = d;
+        OnPropertyChanged(nameof(TouchButtonCount));
+        try { Chert.App.Views.TouchOverlayWindow.ApplyConfig(d); } catch { }
+    }
+
     // ===== 主题 / 语言 即时生效 =====
 
     public void ApplyTheme()
@@ -739,6 +804,8 @@ public class SettingsViewModel : ObservableObject
             Prewarm = new PrewarmConfig { Mode = PrewarmEnabled ? PrewarmMode.Light : PrewarmMode.Off },
             // 清单 #54：保留完整 HUD 配置（此前会被 new HudConfig 覆盖掉除开关外的一切）
             Hud = BuildHudConfig(),
+            // 清单 #11：保留完整触屏按键布局（含坐标 / 大小 / 键码）
+            Touch = _touch,
             LaunchCompatCheckEnabled = LaunchCompatCheckEnabled,
 
             // 清单 #63
