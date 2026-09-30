@@ -1,0 +1,150 @@
+<UserControl x:Class="Chert.App.Views.SeasonalHubView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+        <vm:SeasonalHubViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 标题栏 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{theme:Loc seasonal.hub_title}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+            <Button Content="{theme:Loc btn.refresh}"
+                    Command="{Binding RefreshCommand}"
+                    Width="60" Margin="16,0,0,0" Padding="0,2"/>
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,8">
+            <TextBlock Text="{Binding SeasonText}" Foreground="{DynamicResource StatusForeground}" Margin="0,0,0,2"/>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource SecondaryForeground}" FontSize="12"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+
+                <!-- 清单 #42：限时活动倒计时 -->
+                <TextBlock Text="{theme:Loc seasonal.events_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                <ItemsControl ItemsSource="{Binding Events}" Margin="0,0,0,14">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                                    CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Note}" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryForeground}"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   Visibility="{Binding Note, Converter={StaticResource NonEmptyToVis}}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding CountdownText}"
+                                               VerticalAlignment="Center" Margin="12,0,12,0"
+                                               Foreground="{DynamicResource AccentBrush}"/>
+                                    <Button Grid.Column="2" Content="{theme:Loc seasonal.open_link}"
+                                            VerticalAlignment="Center" Padding="6,2"
+                                            Visibility="{Binding Url, Converter={StaticResource NonEmptyToVis}}"
+                                            Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Url}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 清单 #43：节日服务器推荐 -->
+                <TextBlock Text="{theme:Loc seasonal.servers_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                <ItemsControl ItemsSource="{Binding Servers}" Margin="0,0,0,14">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                                    CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Address}" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryForeground}" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding Note}" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryForeground}"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   Visibility="{Binding Note, Converter={StaticResource NonEmptyToVis}}"/>
+                                        <TextBlock Text="{Binding Version}" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryForeground}" Margin="0,2,0,0"
+                                                   Visibility="{Binding Version, Converter={StaticResource NonEmptyToVis}}"/>
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Content="{theme:Loc seasonal.copy_address}"
+                                            VerticalAlignment="Center" Padding="6,2" Margin="0,0,6,0"
+                                            Command="{Binding DataContext.CopyAddressCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Address}"/>
+                                    <Button Grid.Column="2" Content="{theme:Loc seasonal.open_link}"
+                                            VerticalAlignment="Center" Padding="6,2"
+                                            Visibility="{Binding Url, Converter={StaticResource NonEmptyToVis}}"
+                                            Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Url}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 清单 #44：节日内容推荐 -->
+                <TextBlock Text="{theme:Loc seasonal.picks_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
+                <ItemsControl ItemsSource="{Binding Picks}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                                    CornerRadius="6" Padding="10" Margin="0,0,0,6">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Note}" FontSize="12"
+                                                   Foreground="{DynamicResource SecondaryForeground}"
+                                                   TextWrapping="Wrap" Margin="0,2,0,0"
+                                                   Visibility="{Binding Note, Converter={StaticResource NonEmptyToVis}}"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" VerticalAlignment="Center" Margin="12,0,12,0"
+                                            Padding="6,2" CornerRadius="4"
+                                            Background="{DynamicResource ControlHoverBackground}">
+                                        <TextBlock Text="{Binding KindText}" FontSize="12"/>
+                                    </Border>
+                                    <Button Grid.Column="2" Content="{theme:Loc seasonal.open_link}"
+                                            VerticalAlignment="Center" Padding="6,2"
+                                            Visibility="{Binding Url, Converter={StaticResource NonEmptyToVis}}"
+                                            Command="{Binding DataContext.OpenUrlCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Url}"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <TextBlock Text="{theme:Loc seasonal.effects_hint}" FontSize="12" Margin="0,14,0,0"
+                           Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

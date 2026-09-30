@@ -61,6 +61,26 @@ public sealed class HolidayConfig
     [JsonPropertyName("active_override")]
     public string? ActiveOverride { get; set; }
 
+    /// <summary>清单 #42：限时活动（倒计时卡片数据源）。</summary>
+    [JsonPropertyName("events")]
+    public List<SeasonalEventEntry> Events { get; set; } = new();
+
+    /// <summary>清单 #43：节日服务器推荐。</summary>
+    [JsonPropertyName("servers")]
+    public List<SeasonalServerEntry> Servers { get; set; } = new();
+
+    /// <summary>清单 #44：按节日主题整理的版本 / Mod / 材质包推荐。</summary>
+    [JsonPropertyName("recommended")]
+    public List<SeasonalPickEntry> Recommended { get; set; } = new();
+
+    /// <summary>清单 #31：节日公告（纯静态 JSON）。</summary>
+    [JsonPropertyName("announcement")]
+    public SeasonalAnnouncement? Announcement { get; set; }
+
+    /// <summary>清单 #28：节日音频（BGM / 点击音效），均为可选。</summary>
+    [JsonPropertyName("audio")]
+    public SeasonalAudioConfig? Audio { get; set; }
+
     /// <summary>本地缓存文件路径（游戏目录下）。</summary>
     public static string CachePath(string gameRoot) => Path.Combine(gameRoot, "seasonal_config_cache.json");
 

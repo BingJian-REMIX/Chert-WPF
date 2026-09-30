@@ -33,9 +33,22 @@ public static class SeasonalThemeManager
     private static string _greetedKey = "";
     private static bool _subscribed;
     private static bool _enabled = true;
+    private static HolidayConfig? _config;
+    private static SeasonEntry? _season;
+    private static bool _splashShown;
+    private static bool _announced;
 
     /// <summary>当前生效的节日 key；未生效时为空。</summary>
     public static string CurrentSeasonKey => _activeKey;
+
+    /// <summary>
+    /// 最近一次成功载入的节日配置（含活动 / 服务器 / 推荐 / 公告）。
+    /// 未初始化、或远程与缓存都不可用时可能为 null；调用方需自行判空。
+    /// </summary>
+    public static HolidayConfig? CurrentConfig => _config;
+
+    /// <summary>当前生效的节日档期；不在任何档期内为 null。</summary>
+    public static SeasonEntry? CurrentSeason => _season;
 
     /// <summary>
     /// 是否启用节日特效（对应设置项「关闭节日特效」）。置为 false 时立即移除叠加层。
@@ -46,7 +59,14 @@ public static class SeasonalThemeManager
         set
         {
             _enabled = value;
-            if (!value) Clear();
+            // 清单 #28：关闭节日特效时同步停掉节日 BGM 与音效
+            SeasonalAudioService.Enabled = value;
+            if (!value)
+            {
+                Clear();
+                _config = null;
+                _season = null;
+            }
         }
     }
 
@@ -59,6 +79,8 @@ public static class SeasonalThemeManager
         try
         {
             EnsureSubscribed();
+            // 清单 #28：注册按钮点击音效的类级处理器（幂等）
+            SeasonalAudioService.Install();
 
             if (!_enabled)
             {
@@ -67,22 +89,32 @@ public static class SeasonalThemeManager
             }
 
             var config = await HolidayConfig.LoadAsync(gameRoot).ConfigureAwait(false);
+            // 即便不在档期内也保留配置：全局（未绑定 season）的活动 / 推荐仍可展示
+            _config = config;
+
             var season = config.PickActive(DateTimeOffset.Now);
             if (season is null || string.IsNullOrWhiteSpace(season.Key))
             {
                 // 不在任何节日档期内 → 确保没有残留叠加层
+                _season = null;
                 Clear();
                 return;
             }
 
+            _season = season;
             _activeKey = season.Key;
 
             if (!TryLoadOverlay(season.Key, out var dict) || dict is null)
+            {
+                // 特效层缺失不影响内容类功能（活动 / 公告 / 音频）
+                ApplySeasonContent(config, season.Key, gameRoot);
                 return;
+            }
 
             _overlay = dict;
             Reapply();
             GreetOnce(season.Key);
+            ApplySeasonContent(config, season.Key, gameRoot);
         }
         catch
         {
@@ -170,6 +202,85 @@ public static class SeasonalThemeManager
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 清单 #27 / #28 / #31：挂载节日音频、展示开屏画面、弹一次节日公告。
+    /// 三者都是「有则锦上添花、无则静默」的非关键功能。
+    /// </summary>
+    private static void ApplySeasonContent(HolidayConfig config, string key, string gameRoot)
+    {
+        try { SeasonalAudioService.Apply(config, gameRoot); } catch { /* 非关键 */ }
+        try { ShowSplash(key); } catch { /* 非关键 */ }
+        try { AnnounceOnce(config, key); } catch { /* 非关键 */ }
+    }
+
+    /// <summary>清单 #27：节日开屏画面。未配置 <c>seasonal.{key}.splash.*</c> 词条时不展示。</summary>
+    private static void ShowSplash(string key)
+    {
+        if (_splashShown) return;
+        _splashShown = true;
+
+        var titleKey = $"seasonal.{key}.splash.title";
+        var title = LocaleManager.T(titleKey);
+        if (string.Equals(title, titleKey, StringComparison.Ordinal)) return;
+
+        var app = Application.Current;
+        if (app is null) return;
+
+        app.Dispatcher.Invoke(() =>
+        {
+            try
+            {
+                var greeting = LocaleManager.T($"seasonal.{key}.splash.message");
+                new SeasonalSplashWindow(title, greeting).Show();
+            }
+            catch
+            {
+                // 开屏失败不打扰用户
+            }
+        });
+    }
+
+    /// <summary>清单 #31：节日公告（纯静态 JSON），每次运行最多弹一次。</summary>
+    private static void AnnounceOnce(HolidayConfig config, string key)
+    {
+        if (_announced) return;
+        _announced = true;
+
+        var a = SeasonalContentService.BuildAnnouncement(config, key);
+        if (a is null) return;
+
+        var title = string.IsNullOrWhiteSpace(a.Title)
+            ? LocaleManager.T("seasonal.announcement.title")
+            : a.Title!;
+        var message = a.Message ?? "";
+
+        if (!string.IsNullOrWhiteSpace(a.Url))
+        {
+            var url = a.Url!;
+            Chert.App.Services.ToastService.Show(title, message,
+                Chert.App.Services.ToastKind.Info, "打开", () => OpenUrl(url));
+        }
+        else
+        {
+            Chert.App.Services.ToastService.Show(title, message);
+        }
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url)
+            {
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // 打不开就算了
         }
     }
 
