@@ -122,6 +122,12 @@ public partial class MainWindow : Window
     private readonly Dictionary<MainTabKind, TabParts> _tabs = new();
     // 清单 #15：沉底导航可视部件（简约安卓式风格启用）
     private readonly Dictionary<MainTabKind, BottomNavParts> _bottomNav = new();
+    // 清单 #34：彩蛋触发序列（↑↑↓↓←→←→BA）匹配进度
+    private static readonly Key[] KonamiSequence =
+    {
+        Key.Up, Key.Up, Key.Down, Key.Down, Key.Left, Key.Right, Key.Left, Key.Right, Key.B, Key.A
+    };
+    private int _konamiIndex;
     // 侧边栏可视部件
     private readonly Dictionary<string, SidebarParts> _sidebarItems = new();
     private readonly SidebarState _sidebarState = new();
@@ -167,6 +173,8 @@ public partial class MainWindow : Window
         Loaded += (_, _) => RefreshMaximizeIcon();
         // 窗口尺寸变化时（侧边栏可视高度改变）→ 重新把当前选中项居中
         SizeChanged += (_, _) => RequestSidebarCenter();
+        // 清单 #34：隐藏彩蛋——按 ↑↑↓↓←→←→BA 打开愚人节小游戏
+        PreviewKeyDown += OnPreviewKeyDown;
         StateChanged += (_, _) => RefreshMaximizeIcon();
         // bug #10：窗口就绪后尝试断点续播（MediaElement 此时已可播放）
         Loaded += (_, _) => MusicPlayerViewModel.Instance.RestoreLastState();
@@ -978,6 +986,32 @@ public partial class MainWindow : Window
             BigPageHost.Visibility = Visibility.Collapsed;
 
         if (AnimationsEnabled) PlayPageTransition();
+    }
+
+    // ===== 彩蛋（清单 #34）=====
+
+    private void OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == KonamiSequence[_konamiIndex])
+        {
+            _konamiIndex++;
+            if (_konamiIndex < KonamiSequence.Length) return;
+            _konamiIndex = 0;
+            OpenEasterEgg();
+            return;
+        }
+        // 断链时允许以序列首键重新起头
+        _konamiIndex = e.Key == KonamiSequence[0] ? 1 : 0;
+    }
+
+    private void OpenEasterEgg()
+    {
+        try
+        {
+            var win = new EasterEggGameWindow { Owner = this };
+            win.Show();
+        }
+        catch { /* 彩蛋非关键 */ }
     }
 
     // ===== 界面风格（清单 #15：沉底导航）=====

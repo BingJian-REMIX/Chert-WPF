@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using Chert.App.Themes;
+using Chert.App.Views;
 using Chert.Core.Localization;
 using Chert.Core.Mvvm;
 
@@ -71,11 +72,18 @@ public class SeasonalHubViewModel : ObservableObject
     public ICommand CopyAddressCommand { get; }
     public ICommand OpenUrlCommand { get; }
 
+    /// <summary>清单 #34：彩蛋小游戏入口（愚人节期间在节日中心露出）。</summary>
+    public ICommand PlayEasterEggCommand { get; }
+
+    /// <summary>当前节日为愚人节时显示彩蛋入口。</summary>
+    public bool EasterEggVisible { get; private set; }
+
     public SeasonalHubViewModel()
     {
         RefreshCommand = new RelayCommand(_ => Refresh());
         CopyAddressCommand = new RelayCommand(p => CopyAddress(p as string));
         OpenUrlCommand = new RelayCommand(p => OpenUrl(p as string));
+        PlayEasterEggCommand = new RelayCommand(_ => PlayEasterEgg());
         Refresh();
     }
 
@@ -83,6 +91,12 @@ public class SeasonalHubViewModel : ObservableObject
     {
         var config = SeasonalThemeManager.CurrentConfig;
         var key = SeasonalThemeManager.CurrentSeasonKey;
+
+        // 清单 #34：愚人节期间露出彩蛋入口
+        EasterEggVisible = !string.IsNullOrWhiteSpace(key) &&
+                           (key.Contains("april", System.StringComparison.OrdinalIgnoreCase) ||
+                            key.Contains("fool", System.StringComparison.OrdinalIgnoreCase));
+        OnPropertyChanged(nameof(EasterEggVisible));
 
         HasSeason = !string.IsNullOrWhiteSpace(key);
 
@@ -124,6 +138,19 @@ public class SeasonalHubViewModel : ObservableObject
         StatusMessage = total == 0
             ? LocaleManager.T("seasonal.hub_empty")
             : string.Format(LocaleManager.T("seasonal.hub_summary"), Events.Count, Servers.Count, Picks.Count);
+    }
+
+    private static void PlayEasterEgg()
+    {
+        try
+        {
+            var win = new EasterEggGameWindow
+            {
+                Owner = System.Windows.Application.Current?.MainWindow
+            };
+            win.Show();
+        }
+        catch { /* 彩蛋非关键 */ }
     }
 
     private static string KindText(SeasonalPickKind kind) => kind switch

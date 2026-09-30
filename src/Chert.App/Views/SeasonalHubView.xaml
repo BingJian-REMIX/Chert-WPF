@@ -21,6 +21,12 @@
             <Button Content="{theme:Loc btn.refresh}"
                     Command="{Binding RefreshCommand}"
                     Width="60" Margin="16,0,0,0" Padding="0,2"/>
+            <!-- 清单 #34：愚人节彩蛋小游戏（仅愚人节期间显示） -->
+            <Button Content="{theme:Loc seasonal.easter_egg}"
+                    Command="{Binding PlayEasterEggCommand}"
+                    Margin="8,0,0,0" Padding="10,2"
+                    ToolTip="{theme:Loc seasonal.easter_egg_tip}"
+                    Visibility="{Binding EasterEggVisible, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
 
         <StackPanel Grid.Row="1" Margin="0,0,0,8">
