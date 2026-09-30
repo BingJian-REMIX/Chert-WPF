@@ -44,4 +44,8 @@ public class ModEntry
     /// <summary>元数据是否成功解析。</summary>
     [JsonIgnore]
     public bool MetadataParsed => ModId is not null;
+
+    /// <summary>是否处于启用状态。禁用时磁盘上的文件名为 &lt;原名&gt;.disabled。</summary>
+    [JsonIgnore]
+    public bool Enabled { get; set; } = true;
 }

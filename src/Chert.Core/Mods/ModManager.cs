@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
 using Chert.Core.Download;
 using Chert.Core.Models;
 using Chert.Core.Utils;
@@ -22,7 +24,8 @@ public class ModManager
     }
 
     /// <summary>扫描 mods/ 目录，返回已安装 Mod 列表（含元数据）。</summary>
-    public List<ModEntry> ListInstalledMods()
+    /// <param name="includeDisabled">是否一并列出被禁用的 Mod（*.jar.disabled）。</param>
+    public List<ModEntry> ListInstalledMods(bool includeDisabled = false)
     {
         var modsDir = PathEx.ModsDir(_gameRoot);
         if (!Directory.Exists(modsDir)) return new List<ModEntry>();
@@ -31,9 +34,21 @@ public class ModManager
         foreach (var file in Directory.EnumerateFiles(modsDir, "*.jar"))
         {
             var entry = BuildEntry(file);
+            entry.Enabled = true;
             result.Add(entry);
         }
-        return result;
+
+        if (includeDisabled)
+        {
+            foreach (var file in Directory.EnumerateFiles(modsDir, "*.jar.disabled"))
+            {
+                var entry = BuildEntry(file);
+                entry.Enabled = false;
+                result.Add(entry);
+            }
+        }
+
+        return result.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>
@@ -208,5 +223,187 @@ public class ModManager
         if (!File.Exists(path)) return false;
         File.Delete(path);
         return true;
+    }
+
+    /// <summary>清单 #66：核验单个 Mod 文件——存在性、体积、Jar 完整性、元数据与 SHA-1。</summary>
+    public ModVerifyResult VerifyMod(string fileName)
+    {
+        var result = new ModVerifyResult { FileName = fileName };
+        var path = System.IO.Path.Combine(PathEx.ModsDir(_gameRoot), fileName);
+        if (!File.Exists(path))
+        {
+            result.Message = "文件不存在";
+            return result;
+        }
+
+        var info = new FileInfo(path);
+        result.Exists = true;
+        result.SizeBytes = info.Length;
+        if (info.Length == 0)
+        {
+            result.Message = "文件为空（0 字节），多半是下载不完整";
+            return result;
+        }
+
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            result.IsValidJar = archive.Entries.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            result.Message = "Jar 损坏，无法读取：" + ex.Message;
+            return result;
+        }
+
+        if (!result.IsValidJar)
+        {
+            result.Message = "Jar 内没有任何条目";
+            return result;
+        }
+
+        var entry = BuildEntry(path);
+        result.HasMetadata = entry.MetadataParsed;
+        if (!result.HasMetadata)
+        {
+            result.Message = "未找到 fabric.mod.json / mods.toml，无法核验依赖与更新";
+            return result;
+        }
+
+        try
+        {
+            using var sha1 = SHA1.Create();
+            using var stream = File.OpenRead(path);
+            result.Sha1 = Convert.ToHexString(sha1.ComputeHash(stream)).ToLowerInvariant();
+        }
+        catch
+        {
+            // 哈希计算失败不影响其它结论
+        }
+
+        result.Message = $"正常 · {result.SizeBytes / 1024.0:F1} KB · {entry.ModId} {entry.InstalledVersion}";
+        return result;
+    }
+
+    /// <summary>清单 #66：批量核验所有已安装 Mod（含被禁用的）。</summary>
+    public List<ModVerifyResult> VerifyAllMods()
+        => ListInstalledMods(includeDisabled: true)
+           .Select(m => VerifyMod(m.FileName))
+           .ToList();
+
+    /// <summary>清单 #66：启用 / 禁用 Mod（*.jar.disabled 重命名）。返回操作后的新文件名，失败返回 null。</summary>
+    public string? SetModEnabled(string fileName, bool enabled)
+    {
+        var dir = PathEx.ModsDir(_gameRoot);
+        var path = System.IO.Path.Combine(dir, fileName);
+        if (!File.Exists(path)) return null;
+
+        var isDisabled = fileName.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase);
+        if (enabled != isDisabled) return fileName; // 已经处于目标状态
+
+        var target = enabled ? fileName[..^".disabled".Length] : fileName + ".disabled";
+        var targetPath = System.IO.Path.Combine(dir, target);
+        if (File.Exists(targetPath)) return null; // 目标文件名已存在，避免覆盖其它 Mod
+
+        File.Move(path, targetPath);
+        return target;
+    }
+
+    /// <summary>清单 #66：一键更新单个 Mod——在 Modrinth 定位项目、取最新版本并下载覆盖。</summary>
+    public async Task<ModUpdateOutcome> UpdateModAsync(ModEntry mod,
+        IProgress<double>? progress = null,
+        CancellationToken ct = default)
+    {
+        var outcome = new ModUpdateOutcome();
+        try
+        {
+            var query = string.IsNullOrWhiteSpace(mod.ModId)
+                ? System.IO.Path.GetFileNameWithoutExtension(mod.FileName)
+                : mod.ModId;
+            if (query.EndsWith(".disabled", StringComparison.OrdinalIgnoreCase))
+                query = query[..^".disabled".Length];
+            if (string.IsNullOrWhiteSpace(query) || query.Length < 3)
+            {
+                outcome.Message = "无法定位项目（缺少 Mod ID）";
+                return outcome;
+            }
+
+            var search = await _modrinth.SearchAsync(query, type: ModrinthProjectType.Mod, limit: 3, ct: ct);
+            var hit = search.Hits.FirstOrDefault();
+            if (hit is null)
+            {
+                outcome.Message = "Modrinth 上未找到该项目";
+                return outcome;
+            }
+
+            var versions = await _modrinth.GetVersionsAsync(hit.ProjectId, ct);
+            var latest = versions.FirstOrDefault();
+            if (latest is null)
+            {
+                outcome.Message = "该项目没有可下载的版本";
+                return outcome;
+            }
+
+            var file = _modrinth.SelectBestFile(latest, null, LoaderType.Any) ?? latest.Files.FirstOrDefault();
+            if (file is null)
+            {
+                outcome.Message = "最新版本没有可下载的文件";
+                return outcome;
+            }
+
+            var dir = PathEx.ModsDir(_gameRoot);
+            Directory.CreateDirectory(dir);
+            var targetName = string.IsNullOrWhiteSpace(file.FileName)
+                ? hit.Slug + "-" + latest.VersionNumber + ".jar"
+                : file.FileName;
+            var targetPath = System.IO.Path.Combine(dir, targetName);
+            var tmpPath = targetPath + ".chert-tmp";
+
+            try
+            {
+                using var client = new HttpClient();
+                await using var http = await client.GetStreamAsync(file.Url, ct);
+                await using var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None);
+                var buffer = new byte[81920];
+                long read = 0;
+                int n;
+                while ((n = await http.ReadAsync(buffer.AsMemory(0, buffer.Length), ct)) > 0)
+                {
+                    await fs.WriteAsync(buffer.AsMemory(0, n), ct);
+                    read += n;
+                    if (file.Size > 0) progress?.Report((double)read / file.Size);
+                }
+            }
+            catch
+            {
+                TryDelete(tmpPath); // 中断或失败时不要留下半截文件
+                throw;
+            }
+
+            File.Move(tmpPath, targetPath, overwrite: true);
+
+            // 旧文件若不同名则删除，避免同一 Mod 多版本共存引发冲突
+            var oldPath = System.IO.Path.Combine(dir, mod.FileName);
+            if (!string.Equals(oldPath, targetPath, StringComparison.OrdinalIgnoreCase) && File.Exists(oldPath))
+                File.Delete(oldPath);
+
+            outcome.Success = true;
+            outcome.NewFileName = targetName;
+            outcome.Message = "已更新到 " + latest.VersionNumber;
+        }
+        catch (OperationCanceledException)
+        {
+            outcome.Message = "已取消";
+        }
+        catch (Exception ex)
+        {
+            outcome.Message = "更新失败：" + ex.Message;
+        }
+        return outcome;
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { /* 忽略 */ }
     }
 }

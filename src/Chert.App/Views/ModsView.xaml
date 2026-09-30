@@ -5,7 +5,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
 
              xmlns:vm="clr-namespace:Chert.App.ViewModels"
+
              xmlns:theme="clr-namespace:Chert.App.Themes">
+
+
 
     <UserControl.DataContext>
 
@@ -13,9 +16,13 @@
 
     </UserControl.DataContext>
 
+
+
     <Grid Margin="12">
 
         <Grid.RowDefinitions>
+
+            <RowDefinition Height="Auto"/>
 
             <RowDefinition Height="Auto"/>
 
@@ -43,7 +50,21 @@
 
 
 
-        <TextBlock Grid.Row="1" Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,0,0,4"/>
+        <!-- 状态与下载进度 -->
+
+        <StackPanel Grid.Row="1" Margin="0,0,0,4">
+
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,0,0,4"/>
+
+            <StackPanel Orientation="Horizontal" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+
+                <TextBlock Text="{Binding CurrentTaskName}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+
+                <ProgressBar Width="220" Height="8" Minimum="0" Maximum="1" Value="{Binding UpdateProgress}" VerticalAlignment="Center"/>
+
+            </StackPanel>
+
+        </StackPanel>
 
 
 
@@ -71,7 +92,7 @@
 
                             </TextBlock>
 
-                            <TextBlock Text="{theme:Loc mods.missing_dep_label}" Foreground="#FF6B6B" Margin="0,4,0,0" Visibility="{Binding Missing.Count, Converter={x:Null}}" />
+                            <TextBlock Text="{theme:Loc mods.missing_dep_label}" Foreground="#FF6B6B" Margin="0,4,0,0"/>
 
                             <ItemsControl ItemsSource="{Binding Missing}" Margin="16,0,0,0">
 
@@ -88,6 +109,7 @@
                                             <Run Text="{Binding VersionRange}"/>
 
                                             <Run Text=" "/>
+
                                             <Run Text="{theme:Loc mods.required_tag}" Foreground="#E74C3C"/>
 
                                         </TextBlock>
@@ -98,7 +120,7 @@
 
                             </ItemsControl>
 
-                            <TextBlock Text="{theme:Loc mods.conflict_label}" Foreground="#FFB86C" Margin="0,4,0,0" Visibility="{Binding Conflicts.Count, Converter={x:Null}}" />
+                            <TextBlock Text="{theme:Loc mods.conflict_label}" Foreground="#FFB86C" Margin="0,4,0,0"/>
 
                             <ItemsControl ItemsSource="{Binding Conflicts}" Margin="16,0,0,0">
 
@@ -138,31 +160,119 @@
 
 
 
+        <!-- 清单 #66：核验 / 一键更新 / 批量处理 -->
+
+        <WrapPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
+
+            <TextBlock Text="{theme:Loc mods.select_label}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+            <Button Content="{theme:Loc mods.select_all}" Command="{Binding SelectAllCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+            <Button Content="{theme:Loc mods.select_none}" Command="{Binding SelectNoneCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+            <Button Content="{theme:Loc mods.select_outdated}" Command="{Binding SelectOutdatedCommand}" Padding="6,2" Margin="0,0,10,0"/>
+
+            <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">
+
+                <Run Text="{theme:Loc mods.selected_count}"/>
+
+                <Run Text="{Binding SelectedCount}"/>
+
+            </TextBlock>
+
+            <Button Content="{theme:Loc mods.verify_selected}" Command="{Binding VerifySelectedCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+            <Button Content="{theme:Loc mods.verify_all}" Command="{Binding VerifyAllCommand}" Padding="6,2" Margin="0,0,10,0"/>
+
+            <Button Content="{theme:Loc mods.update_selected}" Command="{Binding UpdateSelectedCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+            <Button Content="{theme:Loc mods.update_all}" Command="{Binding UpdateAllCommand}" Padding="6,2" Margin="0,0,10,0"/>
+
+            <Button Content="{theme:Loc mods.enable}" Command="{Binding EnableSelectedCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+            <Button Content="{theme:Loc mods.disable}" Command="{Binding DisableSelectedCommand}" Padding="6,2" Margin="0,0,10,0"/>
+
+            <Button Content="{theme:Loc mods.uninstall_selected}" Command="{Binding UninstallSelectedCommand}" Padding="6,2" Margin="0,0,4,0"/>
+
+        </WrapPanel>
+
+
+
         <!-- Mod 列表 -->
 
-        <ListView Grid.Row="3" ItemsSource="{Binding Mods}">
+        <ListView Grid.Row="4" ItemsSource="{Binding Items}">
 
             <ListView.View>
 
                 <GridView>
 
-                    <GridViewColumn Header="{theme:Loc mods.col_name}" Width="240" DisplayMemberBinding="{Binding Name}"/>
-
-                    <GridViewColumn Header="{theme:Loc mods.col_modid}" Width="180" DisplayMemberBinding="{Binding ModId}"/>
-
-                    <GridViewColumn Header="{theme:Loc mods.col_version}" Width="100" DisplayMemberBinding="{Binding InstalledVersion}"/>
-
-                    <GridViewColumn Header="{theme:Loc mods.col_loader}" Width="80" DisplayMemberBinding="{Binding Loader}"/>
-
-                    <GridViewColumn Header="{theme:Loc mods.col_latest}" Width="100" DisplayMemberBinding="{Binding LatestVersion}"/>
-
-                    <GridViewColumn Header="操作" Width="80">
+                    <GridViewColumn Header="" Width="34">
 
                         <GridViewColumn.CellTemplate>
 
                             <DataTemplate>
 
-                                <Button Content="{theme:Loc mods.uninstall}" Command="{Binding DataContext.UninstallModCommand, RelativeSource={RelativeSource AncestorType=ListView}}" CommandParameter="{Binding FileName}" Padding="4,1"/>
+                                <CheckBox IsChecked="{Binding IsSelected}" HorizontalAlignment="Center"/>
+
+                            </DataTemplate>
+
+                        </GridViewColumn.CellTemplate>
+
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_name}" Width="190" DisplayMemberBinding="{Binding Name}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_modid}" Width="140" DisplayMemberBinding="{Binding ModId}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_version}" Width="90" DisplayMemberBinding="{Binding InstalledVersion}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_loader}" Width="70" DisplayMemberBinding="{Binding Loader}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_latest}" Width="90" DisplayMemberBinding="{Binding LatestVersion}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_state}" Width="70" DisplayMemberBinding="{Binding StateText}"/>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_verify}" Width="280">
+
+                        <GridViewColumn.CellTemplate>
+
+                            <DataTemplate>
+
+                                <TextBlock Text="{Binding VerifyText}" Foreground="{Binding VerifyBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding VerifyText}"/>
+
+                            </DataTemplate>
+
+                        </GridViewColumn.CellTemplate>
+
+                    </GridViewColumn>
+
+                    <GridViewColumn Header="{theme:Loc mods.col_action}" Width="190">
+
+                        <GridViewColumn.CellTemplate>
+
+                            <DataTemplate>
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <Button Content="{theme:Loc mods.update_one}"
+
+                                            Command="{Binding DataContext.UpdateModCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+
+                                            CommandParameter="{Binding}" Padding="4,1" Margin="0,0,4,0"/>
+
+                                    <Button Content="{theme:Loc mods.toggle}"
+
+                                            Command="{Binding DataContext.ToggleModCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+
+                                            CommandParameter="{Binding}" Padding="4,1" Margin="0,0,4,0"/>
+
+                                    <Button Content="{theme:Loc mods.uninstall}"
+
+                                            Command="{Binding DataContext.UninstallModCommand, RelativeSource={RelativeSource AncestorType=ListView}}"
+
+                                            CommandParameter="{Binding}" Padding="4,1"/>
+
+                                </StackPanel>
 
                             </DataTemplate>
 
@@ -179,4 +289,3 @@
     </Grid>
 
 </UserControl>
-
