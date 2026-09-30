@@ -177,7 +177,8 @@ public static class Sidebar
         // 其他
         new("afk",        "tool.afk",        "flowchart",18, "tool.group.other"),
         new("aichat",     "tool.aichat",     "ai",       19, "tool.group.other"),
-        new("seasonal",   "tool.seasonal",   "recommend", 20, "tool.group.other")
+        new("seasonal",   "tool.seasonal",   "recommend", 20, "tool.group.other"),
+        new("lanlink",    "tool.lanlink",    "link",      21, "tool.group.other")
     };
 
     /// <summary>设置页副标签（规格 2.4）。</summary>

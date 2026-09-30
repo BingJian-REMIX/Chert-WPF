@@ -173,11 +173,23 @@ public partial class App : Application
             // 清单 #11：触屏模式虚拟按键面板（与 HUD 同一时机；未开启时内部直接返回）
             try { Chert.App.Views.TouchOverlayWindow.TryShow(proc); }
             catch { /* 触屏面板非关键，失败不影响游戏运行 */ }
+            // 清单 #35：登记游戏进程，供局域网联动投递 /publish 等指令
+            Chert.App.Services.GameProcessRegistry.Set(proc);
+            try
+            {
+                proc.EnableRaisingEvents = true;
+                proc.Exited += (_, _) => Chert.App.Services.GameProcessRegistry.ClearIfSame(proc);
+            }
+            catch { /* 进程已退出 */ }
         };
         Chert.Core.Launcher.GameLauncher.GameOutputLine += Chert.App.Views.HudOverlayWindow.FeedGameLogLine;
 
         // 启动即加载已保存的主题偏好并应用（修复：默认亮色启动 + 外观未持久化恢复）
         ThemeManager.LoadPreference(GameConstants.DefaultGameRoot);
+        // 清单 #35：局域网联动（默认关闭；开启后才监听发现 / 指令端口）
+        try { Chert.App.Services.LanLinkService.Instance.ApplyConfig(profile.LanLink); }
+        catch { /* 联动服务非关键，失败不影响启动 */ }
+
         // 清单 #18：跟随系统主题——开启时先按系统值校正一次，再应用
         Chert.App.Services.SystemThemeWatcher.ApplyFromSystem();
         ApplyTheme(ThemeManager.Current);

@@ -14,6 +14,10 @@ public static class GameKeySender
 {
     private const int WM_KEYDOWN = 0x0100;
     private const int WM_KEYUP = 0x0101;
+    private const int WM_CHAR = 0x0102;
+
+    private const int VK_T = 0x54;
+    private const int VK_RETURN = 0x0D;
 
     [DllImport("user32.dll")]
     private static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -84,5 +88,32 @@ public static class GameKeySender
         KeyDown(hwnd, vk);
         Thread.Sleep(30);
         KeyUp(hwnd, vk);
+    }
+
+    /// <summary>
+    /// 逐字符投递 WM_CHAR 输入文本。
+    /// <para>只处理 ASCII：游戏内命令（<c>/publish</c> 之类）用不到非 ASCII，
+    /// 而 WM_CHAR 对非 ASCII 在不同输入法状态下的表现不可靠，直接跳过更安全。</para>
+    /// </summary>
+    public static void SendText(IntPtr hwnd, string text)
+    {
+        if (hwnd == IntPtr.Zero || string.IsNullOrEmpty(text)) return;
+        foreach (var ch in text)
+        {
+            if (ch > 0x7F) continue;
+            PostMessage(hwnd, WM_CHAR, (IntPtr)ch, IntPtr.Zero);
+            Thread.Sleep(8);
+        }
+    }
+
+    /// <summary>打开聊天框 → 输入命令 → 回车（用于 /publish 等）。</summary>
+    public static void SendChatCommand(IntPtr hwnd, string command)
+    {
+        if (hwnd == IntPtr.Zero || string.IsNullOrWhiteSpace(command)) return;
+        Tap(hwnd, VK_T);
+        Thread.Sleep(180);
+        SendText(hwnd, command);
+        Thread.Sleep(80);
+        Tap(hwnd, VK_RETURN);
     }
 }

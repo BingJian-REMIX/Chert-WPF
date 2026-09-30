@@ -1,0 +1,155 @@
+<UserControl x:Class="Chert.App.Views.LanLinkView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:Chert.App.ViewModels"
+             xmlns:theme="clr-namespace:Chert.App.Themes">
+
+    <UserControl.DataContext>
+        <vm:LanLinkViewModel/>
+    </UserControl.DataContext>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- 标题栏 -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+            <TextBlock Text="{theme:Loc lan.title}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+            <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                          IsChecked="{Binding Enabled, Mode=TwoWay}"
+                          VerticalAlignment="Center" Margin="16,0,0,0"
+                          ToolTip="{theme:Loc lan.enable_tip}"/>
+            <TextBlock Text="{theme:Loc lan.enable}" VerticalAlignment="Center" Margin="8,0,0,0"
+                       Foreground="{DynamicResource PrimaryForeground}"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+
+                <!-- 服务状态 -->
+                <Border Padding="10" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource ControlBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="{Binding ServiceStatus}" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                        <TextBlock Text="{theme:Loc lan.service_tip}" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 本机世界 -->
+                <TextBlock Text="{theme:Loc lan.my_world}" FontWeight="Bold" Margin="0,0,0,4"
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+                <Border Padding="10" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{theme:Loc lan.publish}" Command="{Binding PublishCommand}" Padding="10,4"
+                                    ToolTip="{theme:Loc lan.publish_tip}"/>
+                            <Button Content="{theme:Loc lan.detect}" Command="{Binding DetectCommand}" Padding="10,4" Margin="8,0,0,0"
+                                    ToolTip="{theme:Loc lan.detect_tip}"/>
+                            <Button Content="{theme:Loc lan.copy_share}" Command="{Binding CopyShareCommand}" Padding="10,4" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding LocalEndpoint}" Margin="0,6,0,0" FontSize="13"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                        <TextBlock Text="{Binding ShareText}" Margin="0,2,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 设备列表 -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="{theme:Loc lan.devices}" FontWeight="Bold" VerticalAlignment="Center"
+                               Foreground="{DynamicResource PrimaryForeground}"/>
+                    <Button Content="{theme:Loc btn.refresh}" Command="{Binding RefreshCommand}"
+                            Width="60" Margin="16,0,0,0" Padding="0,2"/>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock Text="{theme:Loc lan.manual_ip}" VerticalAlignment="Center" Width="70"
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+                    <TextBox Text="{Binding ManualIp, UpdateSourceTrigger=PropertyChanged}" Width="140"
+                             ToolTip="{theme:Loc lan.manual_ip_tip}"/>
+                    <Button Content="{theme:Loc lan.probe}" Command="{Binding ProbeIpCommand}" Padding="10,2" Margin="8,0,0,0"/>
+                </StackPanel>
+
+                <Border Height="150" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <ListBox ItemsSource="{Binding Peers}" SelectedItem="{Binding Selected, Mode=TwoWay}"
+                             Background="Transparent" BorderThickness="0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="4,2">
+                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                    <TextBlock Text="{Binding StateText}" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                    <TextBlock Text="{Binding PairText}" FontSize="11"
+                                               Foreground="{DynamicResource StatusForeground}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Border>
+
+                <!-- 配对 -->
+                <TextBlock Text="{theme:Loc lan.pair}" FontWeight="Bold" Margin="0,0,0,4"
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+                <Border Padding="10" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{theme:Loc lan.gen_code}" Command="{Binding GeneratePairCodeCommand}" Padding="10,4"/>
+                            <TextBlock Text="{Binding PairCode}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc lan.input_code}" VerticalAlignment="Center" Width="70"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBox Text="{Binding InputPairCode, UpdateSourceTrigger=PropertyChanged}" Width="100"/>
+                            <Button Content="{theme:Loc lan.do_pair}" Command="{Binding PairCommand}" Padding="10,2" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{theme:Loc lan.pair_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 联动指令 -->
+                <TextBlock Text="{theme:Loc lan.actions}" FontWeight="Bold" Margin="0,0,0,4"
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+                <Border Padding="10" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="{theme:Loc lan.invite}" Command="{Binding InviteCommand}" Padding="10,4"
+                                    ToolTip="{theme:Loc lan.invite_tip}"/>
+                            <Button Content="{theme:Loc lan.request_open}" Command="{Binding RequestOpenCommand}"
+                                    Padding="10,4" Margin="8,0,0,0"
+                                    ToolTip="{theme:Loc lan.request_open_tip}"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc lan.join_addr}" VerticalAlignment="Center" Width="70"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBox Text="{Binding JoinEndpoint, UpdateSourceTrigger=PropertyChanged}" Width="160"/>
+                            <Button Content="{theme:Loc lan.join}" Command="{Binding JoinCommand}" Padding="10,2" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="{theme:Loc lan.join_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- 状态 -->
+                <TextBlock Text="{Binding StatusText}" Margin="0,4,0,0" TextWrapping="Wrap"
+                           Foreground="{DynamicResource StatusForeground}"/>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

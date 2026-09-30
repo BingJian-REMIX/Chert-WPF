@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Chert.Core.Ai;
 using Chert.Core.Hud;
 using Chert.Core.Input;
+using Chert.Core.Lan;
 using Chert.Core.Launcher;
 using Chert.Core.Recommend;
 using Chert.Core.Resources;
@@ -197,6 +198,10 @@ public class LauncherProfile
     /// <summary>清单 #11：触屏模式虚拟按键面板（默认关闭）。</summary>
     [JsonPropertyName("touch")]
     public TouchControlConfig Touch { get; set; } = TouchControlConfig.CreateDefault();
+
+    /// <summary>清单 #35：局域网联动（默认关闭，需用户显式开启）。</summary>
+    [JsonPropertyName("lanLink")]
+    public LanLinkConfig LanLink { get; set; } = LanLinkConfig.CreateDefault();
 
     /// <summary>启动预热。</summary>
     [JsonPropertyName("prewarm")]

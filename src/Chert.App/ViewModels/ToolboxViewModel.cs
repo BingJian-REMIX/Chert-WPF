@@ -122,6 +122,7 @@ public class ToolboxViewModel : ObservableObject
             ("moddev",     "\U0001F9F1", "Mod 开发",     () => new ModDevView()),
             ("map",        "\U0001F5FA", "地图安装",     () => new MapView()),
             ("seasonal",   "\U0001F389", "节日中心",     () => new SeasonalHubView()),
+            ("lanlink",    "\U0001F517", "局域网联动",   () => new LanLinkView()),
         };
 
         foreach (var (id, icon, title, factory) in items)
