@@ -13,6 +13,7 @@ using Chert.Core.Mvvm;
 using Chert.Core.Profiles;
 using Chert.Core.Recommend;
 using Chert.Core.Theme;
+using Chert.Core.UI;
 using Chert.Core.Update;
 using Chert.Core.Utils;
 using Chert.App.Services;
@@ -538,6 +539,8 @@ public class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(FollowSystemTheme));
         OnPropertyChanged(nameof(ManualThemeEnabled));
         _selectedLanguage = LocaleManager.CurrentLocale;
+        // 清单 #12：界面风格（standard / android / glass）
+        _uiStyle = UiStyles.ToId(UiStyles.Parse(ThemeManager.UiStyle));
 
         // 同步运行时 AI 配置
         Assistant.Config = profile.Ai ?? new AiConfig();
@@ -662,6 +665,23 @@ public class SettingsViewModel : ObservableObject
     {
         get => _manualThemeEnabled;
         set => SetField(ref _manualThemeEnabled, value);
+    }
+
+    private string _uiStyle = "standard";
+
+    /// <summary>
+    /// 清单 #12 / #15 / #16：界面风格 Id（standard / android / glass）。
+    /// 赋值即切换：App 层叠加对应风格资源字典，主窗口按风格切换沉底导航。
+    /// </summary>
+    public string SelectedUiStyle
+    {
+        get => _uiStyle;
+        set
+        {
+            var v = value ?? "standard";
+            if (!SetField(ref _uiStyle, v)) return;
+            Chert.App.App.ApplyUiStyle(UiStyles.Parse(v));
+        }
     }
 
     // ===== 主题 / 语言 即时生效 =====

@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Chert.Core.Localization;
 using Chert.Core.Profiles;
+using Chert.Core.Theme;
 using Chert.Core.UI;
 using Chert.Core.Utils;
 using Chert.App.Services;
@@ -119,6 +120,8 @@ public partial class MainWindow : Window
 
     // 索引贴可视部件
     private readonly Dictionary<MainTabKind, TabParts> _tabs = new();
+    // 清单 #15：沉底导航可视部件（简约安卓式风格启用）
+    private readonly Dictionary<MainTabKind, BottomNavParts> _bottomNav = new();
     // 侧边栏可视部件
     private readonly Dictionary<string, SidebarParts> _sidebarItems = new();
     private readonly SidebarState _sidebarState = new();
@@ -147,6 +150,10 @@ public partial class MainWindow : Window
         BuildTabs();
         ApplyTabLayout(MainTabKind.Game);
         SetTabTheme(MainTabKind.Game);
+
+        // 清单 #15：界面风格（安卓式 → 沉底导航）。风格字典由 App 层叠加，这里只管导航形态。
+        ThemeManager.OnUiStyleChanged += _ => Dispatcher.Invoke(ApplyUiStyle);
+        ApplyUiStyle();
 
         _sidebarState.SwitchOwner(MainTabKind.Game);
         BuildSidebar(MainTabKind.Game);
@@ -362,6 +369,8 @@ public partial class MainWindow : Window
     {
         TabPanel.Children.Clear();
         _tabs.Clear();
+        BottomNavPanel.Children.Clear();
+        _bottomNav.Clear();
 
         var last = MainTabs.All.Count - 1;
         for (var i = 0; i < MainTabs.All.Count; i++)
@@ -442,6 +451,46 @@ public partial class MainWindow : Window
             Panel.SetZIndex(grid, def.ZIndex);
 
             _tabs[def.Kind] = new TabParts(grid, bg, title, underline, scale, lift);
+
+            // 清单 #15：沉底导航项（与顶部索引贴同源，安卓式风格时取代顶部索引贴）
+            var navRoot = new Grid
+            {
+                Width = 92,
+                Margin = new Thickness(2, 0, 2, 0),
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent
+            };
+            var navInner = new StackPanel
+            {
+                Orientation = Orientation.Vertical,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var navIcon = new PngIcon { Token = def.Icon, Size = 20 };
+            var navTitle = new TextBlock
+            {
+                Text = LocaleManager.T(def.Title),
+                FontSize = 11,
+                Margin = new Thickness(0, 2, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            navInner.Children.Add(navIcon);
+            navInner.Children.Add(navTitle);
+            // 选中指示：Material 式的「胶囊高亮底」
+            var navPill = new Border
+            {
+                CornerRadius = new CornerRadius(12),
+                Height = 32,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = Brushes.Transparent
+            };
+            navRoot.Children.Add(navPill);
+            navRoot.Children.Add(navInner);
+            navRoot.MouseLeftButtonUp += (_, _) => SelectTab(def.Kind);
+
+            BottomNavPanel.Children.Add(navRoot);
+            _bottomNav[def.Kind] = new BottomNavParts(navRoot, navPill, navTitle, navIcon);
         }
     }
 
@@ -912,6 +961,7 @@ public partial class MainWindow : Window
 
         SetTabTheme(kind);
         ApplyTabLayout(kind);
+        ApplyBottomNavSelection(kind);
 
         _sidebarState.SwitchOwner(kind);
         BuildSidebar(kind);
@@ -928,6 +978,37 @@ public partial class MainWindow : Window
             BigPageHost.Visibility = Visibility.Collapsed;
 
         if (AnimationsEnabled) PlayPageTransition();
+    }
+
+    // ===== 界面风格（清单 #15：沉底导航）=====
+
+    /// <summary>
+    /// 按当前界面风格调整导航形态：安卓式 → 隐藏顶部四色索引贴、显示沉底导航；
+    /// 其它风格 → 恢复顶部索引贴、隐藏沉底导航。
+    /// </summary>
+    private void ApplyUiStyle()
+    {
+        var android = UiStyles.UsesBottomNav(UiStyles.Parse(ThemeManager.UiStyle));
+        TabPanel.Visibility = android ? Visibility.Collapsed : Visibility.Visible;
+        BottomNavBar.Visibility = android ? Visibility.Visible : Visibility.Collapsed;
+        ApplyBottomNavSelection(_currentKind);
+    }
+
+    /// <summary>刷新沉底导航项的选中态（图标 / 文字取强调色，选中项加胶囊高亮底）。</summary>
+    private void ApplyBottomNavSelection(MainTabKind selected)
+    {
+        foreach (var kv in _bottomNav)
+        {
+            var active = kv.Key == selected;
+            // 强调色 / 次要前景色可能为渐变等非纯色画刷，这里只取纯色形态用于胶囊底色
+            var accent = TryFindResource("AccentBrush") as SolidColorBrush ?? new SolidColorBrush(Colors.DodgerBlue);
+            var dim = TryFindResource("SecondaryForeground") as SolidColorBrush ?? new SolidColorBrush(Colors.Gray);
+            kv.Value.Title.Foreground = active ? accent : dim;
+            kv.Value.Pill.Background = active
+                ? new SolidColorBrush(Color.FromArgb(0x22, accent.Color.R, accent.Color.G, accent.Color.B))
+                : Brushes.Transparent;
+            kv.Value.Icon.Opacity = active ? 1.0 : 0.65;
+        }
     }
 
     // ===== 版本库大页（bug #10，bug3.txt #3 绑定游戏页）=====
@@ -1158,4 +1239,7 @@ public partial class MainWindow : Window
     }
 
     private sealed record SidebarParts(Grid Row, Rectangle Indicator, TextBlock Title, FrameworkElement Icon);
+
+    /// <summary>清单 #15：沉底导航项的可视部件。</summary>
+    private sealed record BottomNavParts(Grid Root, Border Pill, TextBlock Title, FrameworkElement Icon);
 }

@@ -782,6 +782,8 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
+                        <RowDefinition Height="Auto"/>
+
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="{theme:Loc settings.appearance}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
@@ -895,6 +897,17 @@
                                    ToolTip="{theme:Loc settings.follow_system_theme_tip}"/>
 
                     </WrapPanel>
+
+                    <!-- 清单 #12 / #15 / #16：界面风格 -->
+                    <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="{theme:Loc settings.ui_style}" VerticalAlignment="Center" Width="90"/>
+                        <ComboBox Width="150" SelectedValue="{Binding SelectedUiStyle, Mode=TwoWay}" SelectedValuePath="Tag"
+                                  ToolTip="{theme:Loc settings.ui_style_tip}">
+                            <ComboBoxItem Content="{theme:Loc settings.ui_style_standard}" Tag="standard"/>
+                            <ComboBoxItem Content="{theme:Loc settings.ui_style_android}" Tag="android"/>
+                            <ComboBoxItem Content="{theme:Loc settings.ui_style_glass}" Tag="glass"/>
+                        </ComboBox>
+                    </StackPanel>
 
                 </Grid>
 

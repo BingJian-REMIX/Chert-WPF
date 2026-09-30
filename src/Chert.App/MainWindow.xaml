@@ -54,6 +54,8 @@
 
             <RowDefinition Height="*"/>      <!-- 主体：侧边栏 + 内容 -->
 
+            <RowDefinition x:Name="BottomNavRow" Height="Auto"/>  <!-- 沉底导航（清单 #15：仅简约安卓式显示） -->
+
             <RowDefinition Height="30"/>     <!-- 状态栏 -->
 
         </Grid.RowDefinitions>
@@ -568,9 +570,25 @@
 
 
 
+        <!-- ===== 沉底导航（清单 #15：简约安卓式风格专用，默认隐藏）===== -->
+
+        <Border x:Name="BottomNavBar" Grid.Row="2" Visibility="Collapsed"
+
+                Background="{DynamicResource CardBackground}"
+
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,1,0,0">
+
+            <StackPanel x:Name="BottomNavPanel" Orientation="Horizontal"
+
+                        HorizontalAlignment="Center" Margin="4,2"/>
+
+        </Border>
+
+
+
         <!-- ===== 状态栏 ===== -->
 
-        <StatusBar Grid.Row="2" Background="{DynamicResource ControlBackground}"
+        <StatusBar Grid.Row="3" Background="{DynamicResource ControlBackground}"
 
                    Foreground="{DynamicResource StatusForeground}">
 
@@ -900,7 +918,7 @@
 
              覆盖全部三行，但只在卡片本身处可点击，空白区域不拦截下层交互。 -->
 
-        <ItemsControl Grid.Row="0" Grid.RowSpan="3"
+        <ItemsControl Grid.Row="0" Grid.RowSpan="4"
 
                       ItemsSource="{Binding Source={x:Static svc:ToastService.Items}}"
 

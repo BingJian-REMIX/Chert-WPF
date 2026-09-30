@@ -1,0 +1,57 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 清单 #15：简约安卓式（Material 配色，暗色版）。 -->
+
+    <!-- 背景：Material 的深色底 -->
+    <SolidColorBrush x:Key="WindowBackground" Color="#FF1D1B20"/>
+    <SolidColorBrush x:Key="CardBackground" Color="#FF2B2930"/>
+    <SolidColorBrush x:Key="ControlBackground" Color="#FF2B2930"/>
+    <SolidColorBrush x:Key="ListViewBackground" Color="#FF2B2930"/>
+
+    <!-- 分割线 -->
+    <SolidColorBrush x:Key="ControlBorder" Color="#FF48454F"/>
+    <SolidColorBrush x:Key="ListViewBorder" Color="#FF48454F"/>
+    <SolidColorBrush x:Key="InputBorder" Color="#FF625B71"/>
+    <SolidColorBrush x:Key="InputFocusBorder" Color="#FFD0BCFF"/>
+
+    <!-- 交互态 -->
+    <SolidColorBrush x:Key="ControlHoverBackground" Color="#FF36343B"/>
+    <SolidColorBrush x:Key="CardBorderHover" Color="#FFD0BCFF"/>
+    <SolidColorBrush x:Key="ButtonBackground" Color="#FF4A4458"/>
+    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#FF564F68"/>
+    <SolidColorBrush x:Key="ButtonForeground" Color="#FFE6E0E9"/>
+    <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#FF322F38"/>
+
+    <!-- 强调色：Material You 淡紫 -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#FFD0BCFF"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#FFDCCFFF"/>
+    <SolidColorBrush x:Key="AccentForeground" Color="#FF381E72"/>
+
+    <!-- 前景 -->
+    <SolidColorBrush x:Key="PrimaryForeground" Color="#FFE6E0E9"/>
+    <SolidColorBrush x:Key="SecondaryForeground" Color="#FFCAC4D0"/>
+    <SolidColorBrush x:Key="StatusForeground" Color="#FFCAC4D0"/>
+
+    <!-- 输入控件 -->
+    <SolidColorBrush x:Key="InputBackground" Color="#FF322F38"/>
+    <SolidColorBrush x:Key="InputForeground" Color="#FFE6E0E9"/>
+
+    <!-- 进度条 / 开关 -->
+    <SolidColorBrush x:Key="ProgressBackground" Color="#FF322F38"/>
+    <SolidColorBrush x:Key="ProgressForeground" Color="#FFD0BCFF"/>
+    <SolidColorBrush x:Key="ToggleOffBrush" Color="#FF625B71"/>
+
+    <!-- 标签页 / 标题栏 -->
+    <SolidColorBrush x:Key="TabBackground" Color="#FF1D1B20"/>
+    <SolidColorBrush x:Key="TabItemBackground" Color="#FF1D1B20"/>
+    <SolidColorBrush x:Key="TabItemHoverBackground" Color="#FF36343B"/>
+    <SolidColorBrush x:Key="TabItemSelectedBackground" Color="#FF4A4458"/>
+    <SolidColorBrush x:Key="ListViewHeaderBackground" Color="#FF2B2930"/>
+    <SolidColorBrush x:Key="TitleBarForeground" Color="#FFE6E0E9"/>
+    <SolidColorBrush x:Key="TitleBarOverlayForeground" Color="#FF1D1B20"/>
+
+    <!-- 危险色 -->
+    <SolidColorBrush x:Key="DangerBrush" Color="#FFF2B8B5"/>
+
+</ResourceDictionary>

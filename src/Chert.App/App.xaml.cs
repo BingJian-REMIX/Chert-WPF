@@ -8,6 +8,7 @@ using Chert.Core.Localization;
 using Chert.Core.Launcher;
 using Chert.Core.Profiles;
 using Chert.Core.Theme;
+using Chert.Core.UI;
 using Chert.Core.Utils;
 
 namespace Chert.App;
@@ -159,6 +160,8 @@ public partial class App : Application
 
         // 订阅主题变更事件
         ThemeManager.OnThemeChanged += ApplyTheme;
+        // 清单 #12：界面风格变更 —— 叠加 / 移除风格资源字典（沉底导航由 MainWindow 另行订阅）
+        ThemeManager.OnUiStyleChanged += _ => ApplyStyleDictionary();
 
         // bug #28：HUD 叠加层应在所有启动路径（首页/版本列表/游戏详情/崩溃恢复）启动游戏后触发。
         // 统一订阅 Core 的游戏进程启动事件（GameLauncher.GameProcessStarted），覆盖全部入口；
@@ -224,6 +227,51 @@ public partial class App : Application
         if (newDict.Contains("InputBorder") && newDict["InputBorder"] is SolidColorBrush ib)
             _realInputBorderColor = ib.Color;
         ApplyControlBorders(_controlBordersEnabled);
+
+        // 清单 #12：风格字典必须排在主题字典之后（MergedDictionaries 越靠后优先级越高），
+        // 否则切换主题时新主题字典会被插到风格字典后面，把风格覆盖掉。
+        ApplyStyleDictionary();
+    }
+
+    // ===== 界面风格（清单 #12 / #15 / #16）=====
+
+    /// <summary>供设置页调用：切换界面风格并即时应用。</summary>
+    public static void ApplyUiStyle(UiStyleKind kind)
+    {
+        ThemeManager.SetUiStyle(UiStyles.ToId(kind));
+        try { ThemeManager.SavePreference(GameConstants.DefaultGameRoot); } catch { /* 持久化失败不影响当前会话 */ }
+        if (Application.Current is App app) app.ApplyStyleDictionary();
+    }
+
+    /// <summary>
+    /// 叠加当前界面风格对应的资源字典（AndroidStyle/GlassStyle 的亮 / 暗版）。
+    /// standard 风格不叠加任何字典，完全沿用 LightTheme / DarkTheme。
+    /// </summary>
+    private void ApplyStyleDictionary()
+    {
+        var md = Resources.MergedDictionaries;
+        for (var i = md.Count - 1; i >= 0; i--)
+        {
+            var src = md[i].Source?.ToString() ?? "";
+            if (src.Contains("Style.Light.xaml") || src.Contains("Style.Dark.xaml"))
+                md.RemoveAt(i);
+        }
+
+        var kind = UiStyles.Parse(ThemeManager.UiStyle);
+        if (kind == UiStyleKind.Standard) return;
+
+        var prefix = kind == UiStyleKind.Android ? "AndroidStyle" : "GlassStyle";
+        var name = ThemeManager.Current == ThemeType.Light ? "Light" : "Dark";
+        var asm = typeof(App).Assembly.GetName().Name;
+        var uri = new Uri($"pack://application:,,,/{asm};component/Themes/Styles/{prefix}.{name}.xaml", UriKind.Absolute);
+        try
+        {
+            md.Add(new ResourceDictionary { Source = uri });
+        }
+        catch
+        {
+            // 资源缺失时回退标准风格，绝不让外观问题阻断启动
+        }
     }
 
     // ===== 控件边框开关 =====

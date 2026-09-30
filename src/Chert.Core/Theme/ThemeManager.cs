@@ -36,6 +36,25 @@ public static class ThemeManager
     /// </summary>
     public static bool FollowSystem { get; set; }
 
+    /// <summary>
+    /// 清单 #12 / #15 / #16：界面风格（standard / android / glass）。
+    /// 与 <see cref="Current"/>（亮 / 暗）正交，由 App 层叠加对应风格资源字典。
+    /// </summary>
+    public static string UiStyle { get; private set; } = "standard";
+
+    /// <summary>界面风格变更事件（App 层订阅以叠加 / 移除风格资源字典与沉底导航）。</summary>
+    public static event Action<string>? OnUiStyleChanged;
+
+    /// <summary>设置界面风格并通知界面层（值未变化时不重复触发）。</summary>
+    public static void SetUiStyle(string id)
+    {
+        var v = (id ?? "standard").Trim().ToLowerInvariant();
+        if (v != "android" && v != "glass") v = "standard";
+        if (UiStyle == v) return;
+        UiStyle = v;
+        OnUiStyleChanged?.Invoke(v);
+    }
+
     /// <summary>从配置文件加载主题偏好。</summary>
     public static void LoadPreference(string gameRoot)
     {
@@ -48,6 +67,7 @@ public static class ThemeManager
             if (pref is not null)
             {
                 FollowSystem = pref.FollowSystem;
+                UiStyle = string.IsNullOrWhiteSpace(pref.UiStyle) ? "standard" : pref.UiStyle.Trim().ToLowerInvariant();
                 if (Enum.TryParse<ThemeType>(pref.Theme, true, out var t)) _current = t;
             }
         }
@@ -58,7 +78,7 @@ public static class ThemeManager
     public static void SavePreference(string gameRoot)
     {
         var path = System.IO.Path.Combine(gameRoot, "mclcs_theme.json");
-        var pref = new ThemePreference { Theme = _current.ToString(), FollowSystem = FollowSystem };
+        var pref = new ThemePreference { Theme = _current.ToString(), FollowSystem = FollowSystem, UiStyle = UiStyle };
         System.IO.Directory.CreateDirectory(gameRoot);
         System.IO.File.WriteAllText(path,
             System.Text.Json.JsonSerializer.Serialize(pref));
@@ -70,5 +90,8 @@ public static class ThemeManager
 
         /// <summary>清单 #18：跟随系统主题。</summary>
         public bool FollowSystem { get; set; }
+
+        /// <summary>清单 #12：界面风格 Id（standard / android / glass）。</summary>
+        public string UiStyle { get; set; } = "standard";
     }
 }
