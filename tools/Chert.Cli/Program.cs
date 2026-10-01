@@ -20,9 +20,20 @@ internal static class Program
     private static bool _quiet;
     private static string _gameRoot = GameConstants.DefaultGameRoot;
 
+    // CurseForge 命令行覆盖（优先级高于 profile 与内置 Key）
+    private static string? _cfKey;
+    private static string? _cfRoot;
+
     private static async Task<int> Main(string[] args)
     {
         var rest = ExtractGlobalFlags(args);
+
+        // CurseForge 三层 Key 策略：先同步 profile（用户 Key / API Root / 开关），
+        // 再叠加命令行覆盖 —— 命令行 > 用户设置 > 构建时注入的内置 Key。
+        try { Chert.Core.Download.CurseForgeConfig.Apply(ProfileStore.Load(_gameRoot).CurseForge); }
+        catch { /* 读配置失败按未配置处理，不阻塞命令 */ }
+        if (_cfKey is not null) Chert.Core.Download.CurseForgeConfig.LaunchArgumentOverride = _cfKey;
+        if (_cfRoot is not null) Chert.Core.Download.CurseForgeConfig.ApiRoot = _cfRoot;
 
         if (rest.Length == 0)
         {
@@ -70,6 +81,26 @@ internal static class Program
             if (a.StartsWith("--game-dir=", StringComparison.Ordinal))
             {
                 _gameRoot = a["--game-dir=".Length..];
+                continue;
+            }
+            if (a is "--curseforge-key")
+            {
+                if (i + 1 < args.Length) _cfKey = args[++i];
+                continue;
+            }
+            if (a.StartsWith("--curseforge-key=", StringComparison.Ordinal))
+            {
+                _cfKey = a["--curseforge-key=".Length..];
+                continue;
+            }
+            if (a is "--curseforge-root")
+            {
+                if (i + 1 < args.Length) _cfRoot = args[++i];
+                continue;
+            }
+            if (a.StartsWith("--curseforge-root=", StringComparison.Ordinal))
+            {
+                _cfRoot = a["--curseforge-root=".Length..];
                 continue;
             }
             rest.Add(a);
@@ -231,16 +262,16 @@ internal static class Program
         var o = CliOptions.Parse(args, ValueKeys);
         if (o.Positional.Count < 2)
         {
-            Err("用法: chert modpack <modrinth> <文件路径> [--game-dir path]");
+            Err("用法: chert modpack <modrinth|curseforge|auto> <文件路径> [--curseforge-key key] [--game-dir path]");
             return 1;
         }
 
         var packType = o.Positional[0].ToLowerInvariant();
         var filePath = o.Positional[1];
 
-        if (packType != "modrinth")
+        if (packType is not ("modrinth" or "curseforge" or "auto"))
         {
-            Err("整合包类型当前仅支持 modrinth");
+            Err("整合包类型支持 modrinth / curseforge / auto（auto = 按内容自动识别）");
             return 1;
         }
 
@@ -250,13 +281,24 @@ internal static class Program
             return 1;
         }
 
+        if (packType == "curseforge" && !Chert.Core.Download.CurseForgeConfig.HasKey)
+        {
+            Err("安装 CurseForge 整合包需要 API Key：用 --curseforge-key <key> 传入，"
+                + "或在启动器「设置 → 下载」中配置。");
+            return 1;
+        }
+
         Info($"安装 {packType} 整合包: {filePath} → {_gameRoot}");
         try
         {
+            // 必须用带 CurseForgeAuthHandler 的 HttpClient —— 2026-07 起 CF CDN 直链强制带 x-api-key
+            var client = new HttpClient(new Chert.Core.Download.CurseForgeAuthHandler(new HttpClientHandler()));
             var installer = new Chert.Core.Installers.ModpackInstaller(
-                _gameRoot, new HttpClient(), new Chert.Core.Download.HttpDownloader(new HttpClient()),
+                _gameRoot, client, new Chert.Core.Download.HttpDownloader(client),
                 new CliLogger());
-            await installer.InstallAsync(filePath);
+
+            if (packType == "curseforge") await installer.InstallCurseForgeAsync(filePath);
+            else await installer.InstallAnyAsync(filePath);
             if (_json) WriteJson(new { installed = true, file = filePath, gameRoot = _gameRoot });
             else Info("整合包安装完成。");
             return 0;
@@ -858,7 +900,7 @@ internal static class Program
         Console.WriteLine("  launch     <versionId> [--username <name>] [--memory <MB>] [--java <path>]");
         Console.WriteLine("  list       [--game-dir <path>]                 列出已安装版本（别名 versions）");
         Console.WriteLine("  install    <vanilla|fabric|forge> <versionId>");
-        Console.WriteLine("  modpack    <modrinth> <file>");
+        Console.WriteLine("  modpack    <modrinth|curseforge|auto> <file>");
         Console.WriteLine("  mods       <list|check|updates|verify|update|enable|disable|remove>");
         Console.WriteLine("  skin       <username>");
         Console.WriteLine("  dirs                                           输出关键目录路径");
@@ -870,9 +912,11 @@ internal static class Program
         Console.WriteLine("  help       [命令]");
         Console.WriteLine();
         Console.WriteLine("全局选项:");
-        Console.WriteLine("  --game-dir <path>   指定游戏目录（默认见下）");
-        Console.WriteLine("  --json              以 JSON 输出，便于脚本解析");
-        Console.WriteLine("  --quiet / -q        静默模式（--json 时自动生效）");
+        Console.WriteLine("  --game-dir <path>      指定游戏目录（默认见下）");
+        Console.WriteLine("  --curseforge-key <key> CurseForge API Key（覆盖用户设置与内置 Key）");
+        Console.WriteLine("  --curseforge-root <url> CurseForge API Root（可指向镜像，默认官方）");
+        Console.WriteLine("  --json                 以 JSON 输出，便于脚本解析");
+        Console.WriteLine("  --quiet / -q           静默模式（--json 时自动生效）");
         Console.WriteLine();
         Console.WriteLine("退出码: 0=成功  1=用法或异常  2=部分失败（核验 / 更新 / 启用 / 卸载）");
         Console.WriteLine();

@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Input;
 using Chert.Core.Ai;
 using Chert.Core.Auth;
+using Chert.Core.Download;
 using Chert.Core.Hud;
 using Chert.Core.Input;
 using Chert.Core.Launcher;
@@ -77,6 +78,11 @@ public class SettingsViewModel : ObservableObject
     private int _maxConcurrentDownloads = 8;
     private bool _autoRepairResourcePacks = true;
     private bool _serverPackCacheEnabled = true;
+
+    // ---- CurseForge（设置 → 下载）----
+    private bool _curseForgeEnabled = true;
+    private string _curseForgeApiKey = "";
+    private string _curseForgeApiRoot = "";
 
     // ---- 推荐 ----
     private string _selectedIntelliRecommend = "Enabled";
@@ -397,6 +403,42 @@ public class SettingsViewModel : ObservableObject
         set => SetField(ref _serverPackCacheEnabled, value);
     }
 
+    // ---- CurseForge 接入（设置 → 下载）----
+
+    /// <summary>CurseForge 源总开关。关闭后下载中心的 CurseForge 来源不可选，Modrinth 不受影响。</summary>
+    public bool CurseForgeEnabled
+    {
+        get => _curseForgeEnabled;
+        set { if (SetField(ref _curseForgeEnabled, value)) OnPropertyChanged(nameof(CurseForgeStatusText)); }
+    }
+
+    /// <summary>用户自定义 API Key（留空 = 使用构建时注入的内置 Key）。</summary>
+    public string CurseForgeApiKey
+    {
+        get => _curseForgeApiKey;
+        set { if (SetField(ref _curseForgeApiKey, value)) OnPropertyChanged(nameof(CurseForgeStatusText)); }
+    }
+
+    /// <summary>API Root 覆盖（留空 = 官方 https://api.curseforge.com；可填第三方镜像）。</summary>
+    public string CurseForgeApiRoot
+    {
+        get => _curseForgeApiRoot;
+        set { if (SetField(ref _curseForgeApiRoot, value)) OnPropertyChanged(nameof(CurseForgeStatusText)); }
+    }
+
+    /// <summary>当前 Key 来源提示（内置 / 自定义 / 未配置 / 已关闭）。</summary>
+    public string CurseForgeStatusText
+    {
+        get
+        {
+            if (!CurseForgeEnabled) return LocaleManager.T("settings.cf_status_disabled");
+            if (!string.IsNullOrWhiteSpace(CurseForgeApiKey)) return LocaleManager.T("settings.cf_status_user");
+            return CurseForgeConfig.BuiltInApiKey.Length > 0
+                ? LocaleManager.T("settings.cf_status_builtin")
+                : LocaleManager.T("settings.cf_status_none");
+        }
+    }
+
     // ===== 推荐 =====
     public string SelectedIntelliRecommend { get => _selectedIntelliRecommend; set => SetField(ref _selectedIntelliRecommend, value); }
     public ObservableCollection<CategoryPref> CategoryPreferences { get => _categoryPreferences; set => SetField(ref _categoryPreferences, value); }
@@ -506,6 +548,7 @@ public class SettingsViewModel : ObservableObject
     public ICommand ResetGameRootCommand { get; }
     public ICommand CheckUpdateCommand { get; }
     public ICommand LoginMicrosoftCommand { get; }
+    public ICommand TestCurseForgeCommand { get; }
 
 
     public SettingsViewModel()
@@ -526,6 +569,7 @@ public class SettingsViewModel : ObservableObject
         ResetGameRootCommand = new RelayCommand(_ => ResetGameRoot());
         CheckUpdateCommand = new AsyncRelayCommand(_ => CheckUpdateAsync());
         LoginMicrosoftCommand = new AsyncRelayCommand(_ => LoginMicrosoftAsync());
+        TestCurseForgeCommand = new AsyncRelayCommand(_ => TestCurseForgeAsync());
 
 
         var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
@@ -621,6 +665,11 @@ public class SettingsViewModel : ObservableObject
         MaxConcurrentDownloads = profile.MaxConcurrentDownloads;
         AutoRepairResourcePacks = profile.AutoRepairResourcePacks;
         ServerPackCacheEnabled = profile.ServerPackCacheEnabled;
+
+        // CurseForge 接入
+        CurseForgeEnabled = profile.CurseForge.Enabled;
+        CurseForgeApiKey = profile.CurseForge.ApiKey ?? "";
+        CurseForgeApiRoot = profile.CurseForge.ApiRoot ?? "";
 
 
         // 外观
@@ -817,6 +866,14 @@ public class SettingsViewModel : ObservableObject
             AutoRepairResourcePacks = AutoRepairResourcePacks,
             ServerPackCacheEnabled = ServerPackCacheEnabled,
 
+            // CurseForge 接入（Key / API Root / 开关）
+            CurseForge = new CurseForgeSettings
+            {
+                Enabled = CurseForgeEnabled,
+                ApiKey = CurseForgeApiKey?.Trim() ?? "",
+                ApiRoot = CurseForgeApiRoot?.Trim() ?? ""
+            },
+
             // 外观
             ThemeColor = ThemeColor,
             BackgroundImagePath = string.IsNullOrWhiteSpace(BackgroundImagePath) ? null : BackgroundImagePath,
@@ -837,6 +894,10 @@ public class SettingsViewModel : ObservableObject
         Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
         // 开机自启：开关此前只落库未生效，这里同步 HKCU\\Run 注册表项
         Chert.App.Services.AutoStartService.Apply(profile.AutoStartLauncher);
+
+        // 即时生效：把 CurseForge 配置同步进 Core，无需重启
+        LauncherService.Instance.ApplyCurseForgeSettings();
+        OnPropertyChanged(nameof(CurseForgeStatusText));
 
         // 即时生效
         ApplyTheme();
@@ -930,6 +991,34 @@ public class SettingsViewModel : ObservableObject
         NewOfflineName = "";
         RefreshAccounts();
         StatusMessage = $"已添加离线账号：{session.Username}";
+    }
+
+    /// <summary>
+    /// 测试 CurseForge 连接：先把当前界面上的 Key / API Root 同步进 Core，再发一次最小请求验证。
+    /// 仅测试，不落盘（用户仍需点保存）。
+    /// </summary>
+    private async Task TestCurseForgeAsync()
+    {
+        StatusMessage = LocaleManager.T("settings.cf_testing");
+        try
+        {
+            CurseForgeConfig.LaunchArgumentOverride = null;
+            CurseForgeConfig.UserApiKey = string.IsNullOrWhiteSpace(CurseForgeApiKey) ? null : CurseForgeApiKey.Trim();
+            CurseForgeConfig.ApiRoot = CurseForgeApiRoot?.Trim() ?? "";
+            CurseForgeConfig.Enabled = true;
+
+            var client = new Chert.Core.Download.CurseForgeClient(LauncherService.Instance.ApiClient);
+            var ok = await client.TestConnectionAsync();
+
+            StatusMessage = ok
+                ? LocaleManager.T("settings.cf_test_ok")
+                : LocaleManager.Tf("settings.cf_test_fail", client.LastError ?? LocaleManager.T("settings.cf_test_unknown"));
+            OnPropertyChanged(nameof(CurseForgeStatusText));
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = LocaleManager.Tf("settings.cf_test_fail", ex.Message);
+        }
     }
 
     /// <summary>填入 LittleSkin 公共服务器地址，省去手抄 URL。</summary>

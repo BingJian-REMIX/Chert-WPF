@@ -38,3 +38,6 @@ _ReSharper.Caches/
 
 # 本地临时工具（个人 QA 探针，不入库）
 tools/CrashProbe/
+
+# 本地私有构建配置：放 CurseForge API Key 等机密值，构建时注入二进制，绝不入库
+Directory.Build.user.props

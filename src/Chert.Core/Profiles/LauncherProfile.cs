@@ -146,6 +146,10 @@ public class LauncherProfile
     [JsonPropertyName("globalHotkeysEnabled")]
     public bool GlobalHotkeysEnabled { get; set; } = true;
 
+    /// <summary>CurseForge 接入配置（用户 Key 覆盖 / API Root / 开关）。内置 Key 走构建时注入。</summary>
+    [JsonPropertyName("curseForge")]
+    public CurseForgeSettings CurseForge { get; set; } = new();
+
     // ---- 外观（设置 → 外观）----
 
     [JsonPropertyName("themeColor")]

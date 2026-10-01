@@ -557,6 +557,8 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="{theme:Loc settings.download}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
@@ -608,6 +610,62 @@
                                    Foreground="{DynamicResource PrimaryForeground}"/>
 
                     </WrapPanel>
+
+                    <!-- CurseForge：Key 三层策略（启动参数 > 此处自定义 > 构建时注入的内置 Key） -->
+
+                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,3">
+
+                        <TextBlock Text="{theme:Loc settings.cf_section}" FontSize="14" FontWeight="Bold"
+
+                                   VerticalAlignment="Center" Margin="0,0,12,0"/>
+
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                      IsChecked="{Binding CurseForgeEnabled, Mode=TwoWay}"/>
+
+                        <TextBlock Text="{Binding CurseForgeStatusText}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   FontSize="11" Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,3">
+
+                        <TextBlock Text="{theme:Loc settings.cf_key}" VerticalAlignment="Center" Width="90"/>
+
+                        <TextBox Text="{Binding CurseForgeApiKey, UpdateSourceTrigger=PropertyChanged}" Width="300"
+
+                                 ToolTip="{theme:Loc settings.cf_key_hint}"
+
+                                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                                 BorderBrush="{DynamicResource InputBorder}"/>
+
+                        <Button Content="{theme:Loc settings.cf_test}" Command="{Binding TestCurseForgeCommand}"
+
+                                Width="80" Margin="8,0,0,0" Padding="0,2"/>
+
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,3">
+
+                        <TextBlock Text="{theme:Loc settings.cf_root}" VerticalAlignment="Center" Width="90"/>
+
+                        <TextBox Text="{Binding CurseForgeApiRoot, UpdateSourceTrigger=PropertyChanged}" Width="300"
+
+                                 ToolTip="{theme:Loc settings.cf_root_hint}"
+
+                                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                                 BorderBrush="{DynamicResource InputBorder}"/>
+
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="8" Margin="0,3" FontSize="11" TextWrapping="Wrap"
+
+                               Foreground="{DynamicResource SecondaryForeground}"
+
+                               Text="{theme:Loc settings.cf_tip}"/>
 
                 </Grid>
 

@@ -126,19 +126,16 @@ public class ModpackViewModel : ObservableObject
         try
         {
             var path = dlg.FileName;
-            var client = new HttpClient();
-            var downloader = new HttpDownloader(client, 8, LauncherService.Instance);
-            var root = LauncherService.Instance.GameRoot;
-
             StatusMessage = $"正在导入 {Path.GetFileName(path)} …";
-            if (!path.EndsWith(".mrpack", StringComparison.OrdinalIgnoreCase))
-            {
-                StatusMessage = "仅支持 Modrinth .mrpack 整合包。";
-                return;
-            }
-            var installer = new ModpackInstaller(root, client, downloader, LauncherService.Instance);
-            await installer.InstallAsync(path);
-            StatusMessage = $"整合包导入完成：{Path.GetFileName(path)}";
+
+            // 自动识别 Modrinth .mrpack 与 CurseForge 整合包 zip。
+            // 此前这里对非 .mrpack 一律拒绝，导致「从 Zip 导入」这条降级路径实际不可用。
+            var result = await LauncherService.Instance.ImportModpackAsync(
+                path, isolated: false, preferredName: null, progress: null);
+
+            StatusMessage = string.IsNullOrEmpty(result.Name)
+                ? $"整合包导入完成：{Path.GetFileName(path)}"
+                : $"整合包导入完成：{result.Name}（{result.ModCount} 个文件）";
         }
         catch (Exception ex)
         {

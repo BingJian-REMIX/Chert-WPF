@@ -55,7 +55,8 @@ public class LauncherService : ILogger
         GameRootChanged?.Invoke();
     }
 
-    private readonly HttpClient _client = new();
+    // 挂 CurseForgeAuthHandler：发往 forgecdn 的请求自动附加 x-api-key（2026-07 起 CDN 强制认证）
+    private readonly HttpClient _client = new(new CurseForgeAuthHandler(new HttpClientHandler()));
     private readonly IDownloader _downloader;
 
     /// <summary>整合包在线源注册表（当前仅 Modrinth 常驻可用）。</summary>
@@ -86,15 +87,41 @@ public class LauncherService : ILogger
 
         Pixelmap = new PixelmapClient(_client);
 
-        // 整合包在线源：Modrinth 免 Key 常驻可用。
+        // 整合包在线源：Modrinth 免 Key 常驻可用；CurseForge 需 API Key（未配置时
+        // IsAvailable=false，界面显示原因且不影响 Modrinth）。
+        var cfSource = new CurseForgeModpackSource(_client);
+        CurseForge = cfSource.Client;
         _modpackSources = new IModpackSource[]
         {
-            new ModrinthModpackSource(_client)
+            new ModrinthModpackSource(_client),
+            cfSource
         };
+
+        // 把 profile 里的 CurseForge 设置（用户 Key 覆盖 / API Root / 开关）同步到 Core 静态配置
+        ApplyCurseForgeSettings();
     }
 
     /// <summary>当前可用的整合包在线源。</summary>
     public IReadOnlyList<IModpackSource> ModpackSources => _modpackSources;
+
+    /// <summary>CurseForge API 客户端（搜索 / 详情 / 指纹匹配 / 直链解析）。未配置 Key 时不可用。</summary>
+    public CurseForgeClient CurseForge { get; }
+
+    /// <summary>
+    /// 重新读取 profile 并同步 CurseForge 配置（设置页保存 Key / API Root / 开关后调用）。
+    /// </summary>
+    public void ApplyCurseForgeSettings()
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameRoot);
+            CurseForgeConfig.Apply(profile.CurseForge);
+        }
+        catch
+        {
+            // 读配置失败不影响启动，按未配置处理
+        }
+    }
 
     /// <summary>按 Id 取得整合包源（未知 Id 回退到 Modrinth）。</summary>
     public IModpackSource GetModpackSource(string? id) =>
@@ -130,21 +157,51 @@ public class LauncherService : ILogger
         string? sourceId, ModpackVersion version, bool isolated, string? preferredName,
         IProgress<double>? progress, CancellationToken ct)
     {
-        if (string.IsNullOrEmpty(version.FileUrl)) return null;
+        var isCurseForge = string.Equals(sourceId, "curseforge", StringComparison.OrdinalIgnoreCase);
 
-        var tmp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")
-            + ".mrpack");
+        // CurseForge 的版本条目不带直链（作者可关闭第三方分发），此处按 modId + fileId 现解析
+        var url = version.FileUrl;
+        if (string.IsNullOrWhiteSpace(url) && isCurseForge)
+        {
+            if (int.TryParse(version.ProjectId, out var modId) && int.TryParse(version.Id, out var fileId))
+                url = await CurseForge.ResolveDownloadUrlAsync(modId, fileId, ct);
+
+            if (string.IsNullOrWhiteSpace(url))
+            {
+                Log("该整合包未开放第三方分发，请前往 CurseForge 官网手动下载后「从 Zip 导入」。");
+                return null;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(url)) return null;
+
+        var tmp = Path.Combine(Path.GetTempPath(),
+            Guid.NewGuid().ToString("N") + (isCurseForge ? ".zip" : ".mrpack"));
         try
         {
-            await _downloader.DownloadAsync(new DownloadItem(new[] { version.FileUrl }, tmp, version.Sha1), progress, ct);
+            await _downloader.DownloadAsync(new DownloadItem(new[] { url }, tmp, version.Sha1), progress, ct);
 
             var installer = new ModpackInstaller(GameRoot, _client, _downloader, this);
-            return await installer.InstallAsync(tmp, isolated, preferredName, null, ct);
+            return isCurseForge
+                ? await installer.InstallCurseForgeAsync(tmp, isolated, preferredName, null, ct)
+                : await installer.InstallAsync(tmp, isolated, preferredName, null, ct);
         }
         finally
         {
             try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* 忽略 */ }
         }
+    }
+
+    /// <summary>
+    /// 从本地归档导入整合包（「从 Zip 导入」降级路径）。
+    /// 自动识别 Modrinth <c>.mrpack</c> 与 CurseForge 整合包 zip；无法识别时抛
+    /// <see cref="InvalidDataException"/> 并说明缺哪个特征文件。
+    /// </summary>
+    public async Task<ModpackInstallResult> ImportModpackAsync(string archivePath, bool isolated = false,
+        string? preferredName = null,
+        IProgress<(int Done, int Total)>? progress = null, CancellationToken ct = default)
+    {
+        var installer = new ModpackInstaller(GameRoot, _client, _downloader, this);
+        return await installer.InstallAnyAsync(archivePath, isolated, preferredName, progress, ct);
     }
 
     /// <summary>
