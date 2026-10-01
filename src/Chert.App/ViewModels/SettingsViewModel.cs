@@ -738,7 +738,24 @@ public class SettingsViewModel : ObservableObject
             var v = value ?? "standard";
             if (!SetField(ref _uiStyle, v)) return;
             Chert.App.App.ApplyUiStyle(UiStyles.Parse(v));
+            ReportUiStyleSwitched(v);
         }
+    }
+
+    /// <summary>切换界面风格后的即时反馈（对齐设计稿右下角那条「已切换到灵动布局」提示）。</summary>
+    private static void ReportUiStyleSwitched(string id)
+    {
+        var key = id switch
+        {
+            "android" => "settings.ui_style_android",
+            "glass" => "settings.ui_style_glass",
+            "dynamic" => "settings.ui_style_dynamic",
+            _ => "settings.ui_style_standard"
+        };
+        ToastService.Show(
+            LocaleManager.T("settings.appearance"),
+            $"{LocaleManager.T("settings.ui_style_switched")} {LocaleManager.T(key)}",
+            ToastKind.Info);
     }
 
     // ===== 清单 #11：触屏模式 =====

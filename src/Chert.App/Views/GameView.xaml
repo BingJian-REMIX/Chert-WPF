@@ -8,7 +8,7 @@
 
              xmlns:theme="clr-namespace:Chert.App.Themes"
 
-             Background="{DynamicResource WindowBackground}">
+             Background="Transparent">
 
     <UserControl.Resources>
 

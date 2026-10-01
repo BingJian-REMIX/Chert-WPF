@@ -920,9 +920,12 @@ public partial class MainWindow : Window
                 VerticalAlignment = VerticalAlignment.Stretch,
                 // HTML .sitem .ind{top:8px;bottom:8px}：窄栏下指示条两端留白，不顶满整行
                 Margin = glassBar ? new Thickness(0, 8, 0, 8) : new Thickness(0),
-                Fill = (Brush)Application.Current.Resources["SidebarIndicatorBrush"],
                 Visibility = Visibility.Collapsed
             };
+            // 侧边栏边线（选中指示条）必须**跟随当前索引贴色**：这里用动态资源引用，
+            // 而不是一次性取 Brush 实例 —— 之前写 Application.Current.Resources[...] 是快照，
+            // SetTabTheme 之后改资源时这条线不会跟着变，永远停在首次构建时的颜色。
+            indicator.SetResourceReference(Shape.FillProperty, "SidebarIndicatorBrush");
 
             var inner = new StackPanel
             {

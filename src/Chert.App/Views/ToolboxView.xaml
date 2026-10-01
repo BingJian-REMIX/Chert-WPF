@@ -6,7 +6,7 @@
 
              xmlns:vm="clr-namespace:Chert.App.ViewModels"
 
-             Background="{DynamicResource WindowBackground}"
+             Background="Transparent"
              xmlns:theme="clr-namespace:Chert.App.Themes">
 
     <UserControl.DataContext>
