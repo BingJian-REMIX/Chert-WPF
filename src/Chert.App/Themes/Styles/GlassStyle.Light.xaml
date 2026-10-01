@@ -1,54 +1,62 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- 清单 #16：简约毛玻璃（亮色版）。
-         布局与标准风格完全一致，只把「面板表面」换成半透明层，突出层次与通透感。
-         未覆盖的键沿用 LightTheme.xaml。-->
+    <!--
+        清单 #16：简约毛玻璃（亮色版）。
+        对照稿：design/chert_layout.html 的「简约布局（Minimal Layout）」。
+
+        设计稿只有暗色单版；亮色玻璃按同一配方映射到 LightTheme 基线：
+          · 窗口底   大面积通透白 #D8F5F7FA
+          · 面板     白 70%        #B3FFFFFF
+          · 细边     白 35%        #59FFFFFF
+          · 强调色   --accent 蓝 #2563EB（设计稿亮色版对应值）
+        去掉旧的冷调青蓝（#4FC3F7 / #0288D1 / #E6029688），统一为蓝系。
+    -->
 
     <!-- 背景：大面积通透底（窗口需开启 AllowsTransparency 才能看到桌面虚化） -->
     <SolidColorBrush x:Key="WindowBackground" Color="#D8F5F7FA"/>
     <SolidColorBrush x:Key="CardBackground" Color="#B3FFFFFF"/>
-    <SolidColorBrush x:Key="ControlBackground" Color="#99FFFFFF"/>
-    <SolidColorBrush x:Key="ListViewBackground" Color="#8CFFFFFF"/>
+    <SolidColorBrush x:Key="ControlBackground" Color="#B3FFFFFF"/>
+    <SolidColorBrush x:Key="ListViewBackground" Color="#99FFFFFF"/>
 
     <!-- 分割线：玻璃边缘的高光描边 -->
     <SolidColorBrush x:Key="ControlBorder" Color="#59FFFFFF"/>
     <SolidColorBrush x:Key="ListViewBorder" Color="#59FFFFFF"/>
     <SolidColorBrush x:Key="InputBorder" Color="#80B0BEC5"/>
-    <SolidColorBrush x:Key="InputFocusBorder" Color="#FF4FC3F7"/>
+    <SolidColorBrush x:Key="InputFocusBorder" Color="#FF2563EB"/>
 
     <!-- 交互态 -->
-    <SolidColorBrush x:Key="ControlHoverBackground" Color="#66E1F5FE"/>
-    <SolidColorBrush x:Key="CardBorderHover" Color="#CC4FC3F7"/>
-    <SolidColorBrush x:Key="ButtonBackground" Color="#80E1F5FE"/>
-    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#A6B3E5F2"/>
-    <SolidColorBrush x:Key="ButtonForeground" Color="#FF102027"/>
-    <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#40CFD8DC"/>
+    <SolidColorBrush x:Key="ControlHoverBackground" Color="#66E3E8EE"/>
+    <SolidColorBrush x:Key="CardBorderHover" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="ButtonBackground" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#FF1D4FD0"/>
+    <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#40B0BEC5"/>
 
-    <!-- 强调色：冷调玻璃蓝 -->
-    <SolidColorBrush x:Key="AccentBrush" Color="#E6029688"/>
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="#F233A9B1"/>
+    <!-- 强调色：蓝系 -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF1D4FD0"/>
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFFFF"/>
 
-    <!-- 前景：加深以抵消半透明底造成的对比度损失 -->
+    <!-- 前景 -->
     <SolidColorBrush x:Key="PrimaryForeground" Color="#FF102027"/>
     <SolidColorBrush x:Key="SecondaryForeground" Color="#FF3E5C66"/>
     <SolidColorBrush x:Key="StatusForeground" Color="#FF2A4149"/>
 
     <!-- 输入控件 -->
-    <SolidColorBrush x:Key="InputBackground" Color="#8CFFFFFF"/>
+    <SolidColorBrush x:Key="InputBackground" Color="#99FFFFFF"/>
     <SolidColorBrush x:Key="InputForeground" Color="#FF102027"/>
 
     <!-- 进度条 / 开关 -->
     <SolidColorBrush x:Key="ProgressBackground" Color="#66CFD8DC"/>
-    <SolidColorBrush x:Key="ProgressForeground" Color="#FF0288D1"/>
+    <SolidColorBrush x:Key="ProgressForeground" Color="#FF2563EB"/>
     <SolidColorBrush x:Key="ToggleOffBrush" Color="#80B0BEC5"/>
 
     <!-- 标签页 / 标题栏：更透，让内容「浮」在上面 -->
-    <SolidColorBrush x:Key="TabBackground" Color="#66F5F7FA"/>
+    <SolidColorBrush x:Key="TabBackground" Color="#D8F5F7FA"/>
     <SolidColorBrush x:Key="TabItemBackground" Color="#4DFFFFFF"/>
-    <SolidColorBrush x:Key="TabItemHoverBackground" Color="#99E1F5FE"/>
-    <SolidColorBrush x:Key="TabItemSelectedBackground" Color="#B3E1F5FE"/>
+    <SolidColorBrush x:Key="TabItemHoverBackground" Color="#99FFFFFF"/>
+    <SolidColorBrush x:Key="TabItemSelectedBackground" Color="#B3FFFFFF"/>
     <SolidColorBrush x:Key="ListViewHeaderBackground" Color="#66FFFFFF"/>
 
     <!-- 危险色 -->

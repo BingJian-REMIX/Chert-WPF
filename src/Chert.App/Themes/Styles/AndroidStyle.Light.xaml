@@ -1,56 +1,64 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- 清单 #15：简约安卓式（Material 配色，亮色版）。
-         仅覆盖必要画刷键；未覆盖的键沿用 LightTheme.xaml，保证任何风格都能完整跑通。 -->
+    <!--
+        清单 #15：简约安卓式（亮色版）。
+        对照稿：design/chert_layout.html 的「安卓布局」（设计稿只给了暗色配色，
+        亮色版按同一配方映射到 LightTheme 的亮色基线，保持与「标准」风格同源）。
 
-    <!-- 背景：Material 的浅灰底 -->
-    <SolidColorBrush x:Key="WindowBackground" Color="#FFF4F6F8"/>
-    <SolidColorBrush x:Key="CardBackground" Color="#FFFFFFFF"/>
+        设计稿的安卓布局只是布局形态不同（底部四色导航 / 顶部子标签 / 标题栏用强调色），
+        颜色沿用主题本身，因此本字典不再使用自造的 Material You 紫，取值与 LightTheme.xaml 一致。
+    -->
+
+    <!-- 背景 -->
+    <SolidColorBrush x:Key="WindowBackground" Color="#FFF5F5F5"/>
+    <SolidColorBrush x:Key="CardBackground" Color="#E6FFFFFF"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="ListViewBackground" Color="#FFFFFFFF"/>
 
-    <!-- 分割线：更细更淡 -->
-    <SolidColorBrush x:Key="ControlBorder" Color="#FFE0E0E0"/>
-    <SolidColorBrush x:Key="ListViewBorder" Color="#FFE0E0E0"/>
-    <SolidColorBrush x:Key="InputBorder" Color="#FFBDBDBD"/>
-    <SolidColorBrush x:Key="InputFocusBorder" Color="#FF6750A4"/>
+    <!-- 分割线 -->
+    <SolidColorBrush x:Key="ControlBorder" Color="#FFD1D5DB"/>
+    <SolidColorBrush x:Key="ListViewBorder" Color="#FFD1D5DB"/>
+    <SolidColorBrush x:Key="InputBorder" Color="#FFD1D5DB"/>
+    <SolidColorBrush x:Key="InputFocusBorder" Color="#FF2563EB"/>
 
-    <!-- 交互态：Material 的 state layer -->
-    <SolidColorBrush x:Key="ControlHoverBackground" Color="#FFF0EDF4"/>
-    <SolidColorBrush x:Key="CardBorderHover" Color="#FF6750A4"/>
-    <SolidColorBrush x:Key="ButtonBackground" Color="#FFEADDFF"/>
-    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#FFD9CBFA"/>
-    <SolidColorBrush x:Key="ButtonForeground" Color="#FF1D192B"/>
-    <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#FFE7E0EC"/>
+    <!-- 交互态 -->
+    <SolidColorBrush x:Key="ControlHoverBackground" Color="#FFF0F0F0"/>
+    <SolidColorBrush x:Key="CardBorderHover" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="ButtonBackground" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="ButtonHoverBackground" Color="#FF1D4ED8"/>
+    <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#FFD1D5DB"/>
 
-    <!-- 强调色：Material You 紫 -->
-    <SolidColorBrush x:Key="AccentBrush" Color="#FF6750A4"/>
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF7F67BE"/>
+    <!-- 强调色 -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF1D4ED8"/>
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFFFF"/>
 
     <!-- 前景 -->
-    <SolidColorBrush x:Key="PrimaryForeground" Color="#FF1D1B20"/>
-    <SolidColorBrush x:Key="SecondaryForeground" Color="#FF625B71"/>
-    <SolidColorBrush x:Key="StatusForeground" Color="#FF49454F"/>
+    <SolidColorBrush x:Key="PrimaryForeground" Color="#FF1A1A1A"/>
+    <SolidColorBrush x:Key="SecondaryForeground" Color="#FF4B5563"/>
+    <SolidColorBrush x:Key="StatusForeground" Color="#FF4B5563"/>
 
-    <!-- 输入控件：填充式文本框 -->
-    <SolidColorBrush x:Key="InputBackground" Color="#FFE7E0EC"/>
-    <SolidColorBrush x:Key="InputForeground" Color="#FF1D1B20"/>
+    <!-- 输入控件 -->
+    <SolidColorBrush x:Key="InputBackground" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="InputForeground" Color="#FF1A1A1A"/>
 
     <!-- 进度条 / 开关 -->
-    <SolidColorBrush x:Key="ProgressBackground" Color="#FFE7E0EC"/>
-    <SolidColorBrush x:Key="ProgressForeground" Color="#FF6750A4"/>
-    <SolidColorBrush x:Key="ToggleOffBrush" Color="#FFCAC4D0"/>
+    <SolidColorBrush x:Key="ProgressBackground" Color="#FFD1D5DB"/>
+    <SolidColorBrush x:Key="ProgressForeground" Color="#FF2563EB"/>
+    <SolidColorBrush x:Key="ToggleOffBrush" Color="#FFD1D5DB"/>
 
-    <!-- 标签页 / 标题栏 -->
-    <SolidColorBrush x:Key="TabBackground" Color="#FFF4F6F8"/>
-    <SolidColorBrush x:Key="TabItemBackground" Color="#FFF4F6F8"/>
-    <SolidColorBrush x:Key="TabItemHoverBackground" Color="#FFE7E0EC"/>
-    <SolidColorBrush x:Key="TabItemSelectedBackground" Color="#FFEADDFF"/>
-    <SolidColorBrush x:Key="ListViewHeaderBackground" Color="#FFF4F6F8"/>
+    <!-- 标签页 / 标题栏 / 状态栏 -->
+    <SolidColorBrush x:Key="TabBackground" Color="#FFF5F5F5"/>
+    <SolidColorBrush x:Key="TabItemBackground" Color="#FFFFFFFF"/>
+    <SolidColorBrush x:Key="TabItemHoverBackground" Color="#FFEBEBEB"/>
+    <SolidColorBrush x:Key="TabItemSelectedBackground" Color="#FFF0F0F0"/>
+    <SolidColorBrush x:Key="ListViewHeaderBackground" Color="#FFF3F4F6"/>
+    <SolidColorBrush x:Key="TitleBarForeground" Color="#FF1A1A1A"/>
+    <SolidColorBrush x:Key="TitleBarOverlayForeground" Color="#26000000"/>
 
     <!-- 危险色 -->
-    <SolidColorBrush x:Key="DangerBrush" Color="#FFB3261E"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#FFDC2626"/>
 
 </ResourceDictionary>
