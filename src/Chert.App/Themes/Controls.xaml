@@ -42,8 +42,12 @@
                             选中态的强调色单独一层做 opacity 过渡（对齐 HTML transition:.15s ease）——
                             直接换 Track.Background 是瞬变，且那两个画刷来自合并字典、动画会抛「已冻结」。
                         -->
+                        <!--
+                            常态 Opacity=0，只在选中时淡入（配合下方 Trigger 的 Enter/Exit 动画）。
+                            漏写 Opacity="0" 的后果：强调色层常驻 → 每个开关看起来都是「已开启」的实心色块。
+                        -->
                         <Border x:Name="TrackAccent" Width="44" Height="24" CornerRadius="12"
-                                Background="{DynamicResource AccentBrush}"/>
+                                Background="{DynamicResource AccentBrush}" Opacity="0"/>
                         <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White"
                                  HorizontalAlignment="Left" Margin="3,0,0,0">
                             <Ellipse.RenderTransform>
