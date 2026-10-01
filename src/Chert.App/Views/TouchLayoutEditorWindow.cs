@@ -97,8 +97,9 @@ public class TouchLayoutEditorWindow : Window
         // ===== 右：属性 =====
         var right = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
 
-        right.Children.Add(Title("按键列表"));
-        _list = new ListBox { Height = 150, SelectionChanged = OnSelectionChanged };
+        right.Children.Add(SectionTitle("按键列表"));
+        _list = new ListBox { Height = 150 };
+        _list.SelectionChanged += OnSelectionChanged;
         _list.DisplayMemberPath = "Label";
         right.Children.Add(_list);
 
@@ -133,16 +134,16 @@ public class TouchLayoutEditorWindow : Window
         _sizeSlider.ValueChanged += (_, _) => ApplyToSelected();
         right.Children.Add(Labeled("按键大小", _sizeSlider));
 
-        var addBtn = new Button { Content = "添加按键", Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(10, 4) };
+        var addBtn = new Button { Content = "添加按键", Margin = new Thickness(0, 10, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
         addBtn.Click += (_, _) => AddButton();
-        var delBtn = new Button { Content = "删除选中", Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(10, 4) };
+        var delBtn = new Button { Content = "删除选中", Margin = new Thickness(0, 6, 0, 0), Padding = new Thickness(10, 4, 10, 4) };
         delBtn.Click += (_, _) => RemoveSelected();
         var btnRow = new StackPanel { Orientation = Orientation.Horizontal };
         btnRow.Children.Add(addBtn);
         btnRow.Children.Add(delBtn);
         right.Children.Add(btnRow);
 
-        right.Children.Add(Title("面板"));
+        right.Children.Add(SectionTitle("面板"));
         _widthBox = new TextBox { Text = _cfg.PanelWidth.ToString(), Margin = new Thickness(0, 4, 0, 0) };
         _heightBox = new TextBox { Text = _cfg.PanelHeight.ToString(), Margin = new Thickness(0, 4, 0, 0) };
         right.Children.Add(Labeled("宽度", _widthBox));
@@ -156,11 +157,11 @@ public class TouchLayoutEditorWindow : Window
 
         // ===== 底部按钮 =====
         var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
-        var resetBtn = new Button { Content = "恢复默认", Padding = new Thickness(10, 4), Margin = new Thickness(0, 0, 8, 0) };
+        var resetBtn = new Button { Content = "恢复默认", Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 8, 0) };
         resetBtn.Click += (_, _) => ResetDefault();
-        var cancelBtn = new Button { Content = "取消", Padding = new Thickness(10, 4), Margin = new Thickness(0, 0, 8, 0) };
+        var cancelBtn = new Button { Content = "取消", Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 0, 8, 0) };
         cancelBtn.Click += (_, _) => Close();
-        var saveBtn = new Button { Content = "保存", Padding = new Thickness(16, 4) };
+        var saveBtn = new Button { Content = "保存", Padding = new Thickness(16, 4, 16, 4) };
         saveBtn.Click += (_, _) => Save();
         bottom.Children.Add(resetBtn);
         bottom.Children.Add(cancelBtn);
@@ -174,7 +175,7 @@ public class TouchLayoutEditorWindow : Window
         if (_list.Items.Count > 0) _list.SelectedIndex = 0;
     }
 
-    private static TextBlock Title(string text) => new()
+    private static TextBlock SectionTitle(string text) => new()
     {
         Text = text,
         FontWeight = FontWeights.Bold,

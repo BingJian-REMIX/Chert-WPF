@@ -124,10 +124,10 @@ public class EasterEggGameWindow : Window
         {
             Content = "开始（45 秒）",
             Margin = new Thickness(0, 14, 0, 0),
-            Padding = new Thickness(16, 6),
+            Padding = new Thickness(16, 6, 16, 6),
             HorizontalAlignment = HorizontalAlignment.Center
         };
-        _startBtn.Click += (_, _) => _running ? Stop() : Start();
+        _startBtn.Click += (_, _) => { if (_running) Stop(); else Start(); };
         root.Children.Add(_startBtn);
 
         Content = root;

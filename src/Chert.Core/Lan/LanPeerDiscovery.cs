@@ -124,7 +124,7 @@ public static class LanPeerDiscovery
         {
             foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (ni.OperationalState != OperationalState.Up) continue;
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
                 if (ni.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel) continue;
 
                 var props = ni.GetIPProperties();

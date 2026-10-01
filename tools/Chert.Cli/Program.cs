@@ -36,19 +36,19 @@ internal static class Program
         return cmd switch
         {
             "launch" => await Launch(sub),
-            "list" or "versions" => Task.FromResult(ListVersions(sub)),
+            "list" or "versions" => ListVersions(sub),
             "install" => await Install(sub),
             "modpack" => await Modpack(sub),
             "mods" => await Mods(sub),
             "skin" => await Skin(sub),
-            "dirs" => Task.FromResult(Dirs(sub)),
-            "profiles" or "config" => Task.FromResult(Profiles(sub)),
+            "dirs" => Dirs(sub),
+            "profiles" or "config" => Profiles(sub),
             "update" or "self-update" => await SelfUpdate(sub),
-            "logs" => Task.FromResult(Logs(sub)),
-            "completion" => Task.FromResult(Completion(sub)),
-            "version" or "--version" => Task.FromResult(Version(sub)),
-            "help" or "--help" or "-h" => Task.FromResult(Help(sub)),
-            _ => Task.FromResult(UnknownCommand(cmd))
+            "logs" => Logs(sub),
+            "completion" => Completion(sub),
+            "version" or "--version" => Version(sub),
+            "help" or "--help" or "-h" => Help(sub),
+            _ => UnknownCommand(cmd)
         };
     }
 

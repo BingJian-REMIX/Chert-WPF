@@ -73,7 +73,7 @@ public static class LanWorldShare
         {
             foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (ni.OperationalState != System.Net.NetworkInformation.OperationalState.Up) continue;
+                if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
                 if (ni.NetworkInterfaceType is System.Net.NetworkInformation.NetworkInterfaceType.Loopback
                     or System.Net.NetworkInformation.NetworkInterfaceType.Tunnel) continue;
 

@@ -103,7 +103,7 @@ public class VersionListViewModel : ObservableObject
     private bool _isBusy;
 
     // 清单 #64：多维度分类检索（全量条目 + 检索条件）
-    private readonly List<VersionEntry> _allVersions = new();
+    private List<VersionEntry> _allVersions = new();
     private ObservableCollection<VersionEntry> _filteredVersions = new();
     private string _searchText = "";
     private string _loaderFilter = "";

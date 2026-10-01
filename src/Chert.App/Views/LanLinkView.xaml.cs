@@ -8,5 +8,8 @@ public partial class LanLinkView : UserControl
     public LanLinkView() => InitializeComponent();
 
     /// <summary>供外部（如全局搜索命中后）主动搜索一次。</summary>
-    public void Refresh() => _ = (DataContext as ViewModels.LanLinkViewModel)?.RefreshCommand.Execute(null);
+    public void Refresh()
+    {
+        (DataContext as ViewModels.LanLinkViewModel)?.RefreshCommand.Execute(null);
+    }
 }

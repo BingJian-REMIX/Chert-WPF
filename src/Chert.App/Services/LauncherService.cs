@@ -366,7 +366,7 @@ public class LauncherService : ILogger
             svm.DownloadProgress = Math.Clamp(p, 0, 1) * 100;
             svm.DownloadText = $"补全前置原版：{p:P0}";
         });
-        var launchResult = await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, ct, vanillaProgress);
+        var launchResult = await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, vanillaProgress, ct);
         Chert.App.ViewModels.StatusBarViewModel.Current.DownloadProgress = 0;
         return launchResult;
     }
