@@ -207,11 +207,13 @@
 
             <WrapPanel Grid.Row="0" Margin="0,0,0,4">
 
-                <ToggleButton x:Name="Mode2D" Content="{theme:Loc skin.m266}" Width="64" Height="24"
+                <ToggleButton x:Name="Mode2D" Style="{StaticResource ToggleChipStyle}"
+                              Content="{theme:Loc skin.m266}" Width="64" Height="24"
 
                               FontSize="11" IsChecked="True" Click="Mode_Changed"/>
 
-                <ToggleButton x:Name="Mode3D" Content="{theme:Loc skin.m267}" Width="64" Height="24"
+                <ToggleButton x:Name="Mode3D" Style="{StaticResource ToggleChipStyle}"
+                              Content="{theme:Loc skin.m267}" Width="64" Height="24"
 
                               FontSize="11" IsChecked="False" Click="Mode_Changed" Margin="4,0,0,0"/>
 

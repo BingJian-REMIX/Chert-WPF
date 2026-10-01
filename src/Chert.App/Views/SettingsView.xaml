@@ -914,7 +914,8 @@
 
                                        Fill="{Binding ThemeColor, Converter={x:Static conv:StringToBrushConverter.Instance}}"/>
 
-                            <ToggleButton x:Name="ThemeColorPickerToggle" Content="{theme:Loc settings.pick_color}"
+                            <ToggleButton x:Name="ThemeColorPickerToggle" Style="{StaticResource ToggleChipStyle}"
+                                         Content="{theme:Loc settings.pick_color}"
 
                                          Width="76" Margin="8,0,0,0" Padding="0,2"/>
 
