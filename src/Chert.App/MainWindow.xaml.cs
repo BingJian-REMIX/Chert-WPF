@@ -186,6 +186,10 @@ public partial class MainWindow : Window
 
     // ===== 最大化：限制到当前工作区，避免覆盖任务栏 =====
     private const int WM_GETMINMAXINFO = 0x0024;
+    private const int WM_SYSCOMMAND = 0x0112;
+    private const int SC_MINIMIZE = 0xF020;
+    private const int SC_MAXIMIZE = 0xF030;
+    private const int SC_RESTORE = 0xF120;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct POINT { public int x; public int y; }
@@ -208,8 +212,29 @@ public partial class MainWindow : Window
         source?.AddHook(WndProcHook);
     }
 
-    private static IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private IntPtr WndProcHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        // 清单 #17：双击标题栏 / Win+↑ / 系统菜单 / 任务栏菜单 触发的最大化·还原·最小化，
+        // 统一改走带过渡的版本 —— 无边框窗口（WindowStyle=None + 自绘标题栏）系统不给 DWM 几何动画，
+        // 默认是「啪」地跳过去，和其余 0.2s ease-out 的动效不是一个语言。
+        if (msg == WM_SYSCOMMAND && IsLoaded && AnimationsEnabled && !_stateAnimating
+            && WindowState != WindowState.Minimized)
+        {
+            WindowState? target = (wParam.ToInt32() & 0xFFF0) switch
+            {
+                SC_MAXIMIZE => WindowState.Maximized,
+                SC_MINIMIZE => WindowState.Minimized,
+                SC_RESTORE => WindowState.Normal,
+                _ => (WindowState?)null
+            };
+            if (target is { } t && t != WindowState)
+            {
+                handled = true;
+                AnimateWindowState(t);
+                return IntPtr.Zero;
+            }
+        }
+
         if (msg == WM_GETMINMAXINFO)
         {
             try
@@ -233,11 +258,140 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    private void BtnMax_Click(object sender, RoutedEventArgs e)
+    // ===== 清单 #17：窗口状态过渡（最大化 / 还原 / 最小化）=====
+
+    /// <summary>状态过渡进行中标记（期间忽略重复触发，避免动画互相打断）。</summary>
+    private bool _stateAnimating;
+
+    /// <summary>
+    /// 「正常态」窗口矩形（DIP）。自己记而不用 WPF 的 <see cref="Window.RestoreBounds"/> ——
+    /// 过渡期间我们手工改过 Left/Top/Width/Height，WPF 记录的还原矩形会跟着被污染，
+    /// 导致「最大化后还原回不到原来的大小」。
+    /// </summary>
+    private Rect? _restoreRect;
+
+    /// <summary>
+    /// 带过渡地切换窗口状态（最大化 / 还原 / 最小化）。
+    /// <para>
+    /// 为什么要自己做：本窗口是 `WindowStyle=None` + 自绘标题栏，系统不会给它 DWM 的窗口几何动画，
+    /// 点最大化 / 还原是「啪」地跳过去，和其余动效（0.2s ease-out）完全不是一个语言。
+    /// </para>
+    /// <para>
+    /// 实现要点（坑都在这）：
+    /// 1. 动画期间窗口必须处于 `Normal` —— 最大化时系统接管 Left/Top/Width/Height，赋值会被直接忽略；
+    /// 2. 先把**本地值**写成最终矩形，动画用 `FillBehavior.Stop`：结束后属性回落到本地值，
+    ///    既不会收尾时跳一下，也不留持值动画（留了就变成「用户此后拖不动 / 缩放不了窗口」）；
+    /// 3. `RestoreBounds` 必须在切回 Normal **之前**读走，否则会被 WPF 重算成当前矩形。
+    /// </para>
+    /// </summary>
+    private void AnimateWindowState(WindowState target)
     {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        if (target == WindowState) { RefreshMaximizeIcon(); return; }
+
+        if (!AnimationsEnabled || !IsLoaded || _stateAnimating || WindowState == WindowState.Minimized)
+        {
+            ApplyWindowState(target);
+            return;
+        }
+
+        var from = new Rect(Left, Top, Width, Height);
+
+        // 离开「正常态」前先把当前矩形记下来，供之后还原使用
+        if (target != WindowState.Normal) _restoreRect = from;
+
+        var to = target switch
+        {
+            WindowState.Maximized => MaximizeTargetRect(),
+            // 优先用自己记的矩形；没有记录（如首次会话）再退回 WPF 的 RestoreBounds
+            WindowState.Normal => _restoreRect ?? RestoreBounds,
+            _ => MinimizeTargetRect(from)            // 最小化：朝任务栏方向缩小
+        };
+        if (from.Width < 1 || from.Height < 1 || to.Width < 1 || to.Height < 1)
+        {
+            ApplyWindowState(target);
+            return;
+        }
+
+        _stateAnimating = true;
+        try
+        {
+            // 最大化时系统接管窗口矩形，要动几何必须先切回 Normal
+            if (WindowState == WindowState.Maximized) WindowState = WindowState.Normal;
+
+            // 先把本地值写成最终矩形（动画 Stop 后回落到它）。
+            // 还原时这一步还兼任「显式恢复几何」——系统切回 Normal 时会用它自己的推断值，
+            // 我们紧接着覆盖成还原矩形，避免出现「还原回去大小不对」。
+            Left = to.Left; Top = to.Top; Width = to.Width; Height = to.Height;
+
+            var dur = TimeSpan.FromMilliseconds(target == WindowState.Minimized ? 160 : 200);
+            BeginAnimation(Window.LeftProperty, StateAnim(from.Left, to.Left, dur));
+            BeginAnimation(Window.TopProperty, StateAnim(from.Top, to.Top, dur));
+            BeginAnimation(FrameworkElement.WidthProperty, StateAnim(from.Width, to.Width, dur));
+
+            var last = StateAnim(from.Height, to.Height, dur);
+            last.Completed += (_, _) => FinishWindowState(target, to, from);
+            BeginAnimation(FrameworkElement.HeightProperty, last);
+        }
+        catch
+        {
+            // 任何意外都直接落到目标状态，绝不把窗口卡在半路
+            _stateAnimating = false;
+            ApplyWindowState(target);
+        }
+    }
+
+    private static DoubleAnimation StateAnim(double from, double to, TimeSpan dur) =>
+        new(from, to, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop };
+
+    /// <summary>过渡收尾：清掉动画（不留持值）→ 落到真正的窗口状态。</summary>
+    /// <param name="target">目标窗口状态。</param>
+    /// <param name="final">动画终点矩形。</param>
+    /// <param name="origin">动画起点矩形（即过渡前的正常态矩形）。</param>
+    private void FinishWindowState(WindowState target, Rect final, Rect origin)
+    {
+        try
+        {
+            BeginAnimation(Window.LeftProperty, null);
+            BeginAnimation(Window.TopProperty, null);
+            BeginAnimation(FrameworkElement.WidthProperty, null);
+            BeginAnimation(FrameworkElement.HeightProperty, null);
+
+            // 最小化：窗口已不可见，把矩形复位回原尺寸 ——
+            // 否则从任务栏还原时窗口会以「缩小后的 40%」尺寸回来。
+            // 最大化：不动（系统接管矩形），还原时由 _restoreRect 显式写回。
+            var r = target == WindowState.Minimized ? origin : final;
+            Left = r.Left; Top = r.Top; Width = r.Width; Height = r.Height;
+        }
+        catch { /* 收尾失败不影响状态落地 */ }
+        _stateAnimating = false;
+        ApplyWindowState(target);
+    }
+
+    /// <summary>直接落到目标状态（不做过渡）。</summary>
+    private void ApplyWindowState(WindowState target)
+    {
+        WindowState = target;
         RefreshMaximizeIcon();
     }
+
+    /// <summary>最大化目标矩形（工作区，DIP）。与 WM_GETMINMAXINFO 用同一口径，保证动画终点即系统终点。</summary>
+    private static Rect MaximizeTargetRect()
+    {
+        var wa = SystemParameters.WorkArea;
+        return new Rect(wa.Left, wa.Top, wa.Width, wa.Height);
+    }
+
+    /// <summary>最小化目标矩形：横向居中缩到 40%、贴到工作区底部（比直接消失自然）。</summary>
+    private static Rect MinimizeTargetRect(Rect from)
+    {
+        var wa = SystemParameters.WorkArea;
+        var w = from.Width * 0.4;
+        var h = from.Height * 0.4;
+        return new Rect(from.Left + from.Width / 2 - w / 2, wa.Bottom - h, w, h);
+    }
+
+    private void BtnMax_Click(object sender, RoutedEventArgs e) =>
+        AnimateWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
 
     private void RefreshMaximizeIcon()
     {
@@ -1786,6 +1940,14 @@ public partial class MainWindow : Window
         if (IsInteractiveElement(e.OriginalSource as DependencyObject))
             return;
 
+        // 清单 #17：标题栏双击 = 最大化 / 还原（WindowChrome.CaptionHeight=0，
+        // 系统不会替我们处理双击，这里手动接上，并走同一套过渡）
+        if (e.ClickCount == 2)
+        {
+            AnimateWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+            return;
+        }
+
         try { DragMove(); }
         catch (InvalidOperationException) { /* 拖动期间窗口状态变化，忽略 */ }
     }
@@ -1821,7 +1983,7 @@ public partial class MainWindow : Window
         DownloadQueuePopup.IsOpen = !DownloadQueuePopup.IsOpen;
     }
 
-    private void BtnMin_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void BtnMin_Click(object sender, RoutedEventArgs e) => AnimateWindowState(WindowState.Minimized);
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
