@@ -16,6 +16,55 @@
 
              xmlns:views="clr-namespace:Chert.App.Views">
 
+    <UserControl.Resources>
+
+        <conv:StringEqualsConverter x:Key="StrEq"/>
+
+        <!--
+            外观页「界面布局」卡片（对齐 design/chert_layout.html 的 .layout-card）：
+            每张卡 = 布局缩略图 + 名称，选中时描边转强调色并显示「使用中」徽标。
+            用 RadioButton 承载是为了天然互斥；IsChecked 由 SelectedUiStyle 比较得出（单向）。
+        -->
+        <Style x:Key="StyleCardStyle" TargetType="RadioButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" CornerRadius="10" Padding="8,8,8,6" BorderThickness="2"
+                                Background="{DynamicResource CardBackground}"
+                                BorderBrush="{DynamicResource ControlBorder}">
+                            <StackPanel>
+                                <ContentPresenter/>
+                                <Border x:Name="PickBtn" CornerRadius="6" Margin="0,8,0,0" Padding="0,3"
+                                        Background="{DynamicResource ControlBackground}">
+                                    <TextBlock Text="{theme:Loc settings.ui_style_pick}" FontSize="11"
+                                               HorizontalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}"/>
+                                </Border>
+                                <Border x:Name="InUseBtn" CornerRadius="6" Margin="0,8,0,0" Padding="0,3"
+                                        Background="{DynamicResource AccentBrush}" Visibility="Collapsed">
+                                    <TextBlock Text="{theme:Loc settings.ui_style_inuse}" FontSize="11"
+                                               HorizontalAlignment="Center" Foreground="{DynamicResource AccentForeground}"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                <Setter TargetName="PickBtn" Property="Visibility" Value="Collapsed"/>
+                                <Setter TargetName="InUseBtn" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+    </UserControl.Resources>
+
     <UserControl.DataContext>
 
         <vm:SettingsViewModel/>
@@ -995,16 +1044,172 @@
 
                     </WrapPanel>
 
-                    <!-- 清单 #12 / #15 / #16：界面风格 -->
-                    <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,3">
-                        <TextBlock Text="{theme:Loc settings.ui_style}" VerticalAlignment="Center" Width="90"/>
-                        <ComboBox Width="150" SelectedValue="{Binding SelectedUiStyle, Mode=TwoWay}" SelectedValuePath="Tag"
-                                  ToolTip="{theme:Loc settings.ui_style_tip}">
-                            <ComboBoxItem Content="{theme:Loc settings.ui_style_standard}" Tag="standard"/>
-                            <ComboBoxItem Content="{theme:Loc settings.ui_style_android}" Tag="android"/>
-                            <ComboBoxItem Content="{theme:Loc settings.ui_style_glass}" Tag="glass"/>
-                            <ComboBoxItem Content="{theme:Loc settings.ui_style_dynamic}" Tag="dynamic"/>
-                        </ComboBox>
+                    <!-- 清单 #12 / #15 / #16 / #17：界面布局（对齐 design/chert_layout.html 的 4 张布局卡片） -->
+                    <StackPanel Grid.Row="8" Margin="0,3">
+                        <TextBlock Text="{theme:Loc settings.ui_style}" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,6"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton GroupName="UiStyleCard" Style="{StaticResource StyleCardStyle}"
+
+                                     IsChecked="{Binding SelectedUiStyle, Mode=OneWay, Converter={StaticResource StrEq}, ConverterParameter=standard}"
+
+                                     Command="{Binding SelectUiStyleCommand}" CommandParameter="standard"
+
+                                     ToolTip="{theme:Loc settings.ui_style_tip}">
+
+                            <StackPanel Width="132">
+
+                                <Grid Height="72">
+
+                                            <Grid.RowDefinitions>
+
+                                                <RowDefinition Height="12"/><RowDefinition Height="*"/>
+
+                                            </Grid.RowDefinitions>
+
+                                            <Border Grid.Row="0" Background="{DynamicResource TabGameBrush}"/>
+
+                                            <Grid Grid.Row="1">
+
+                                                <Grid.ColumnDefinitions>
+
+                                                    <ColumnDefinition Width="18"/><ColumnDefinition Width="*"/>
+
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="{DynamicResource ControlBorder}"/>
+
+                                                <Border Grid.Column="1" Background="{DynamicResource WindowBackground}" Margin="3"/>
+
+                                            </Grid>
+
+                                        </Grid>
+                                <TextBlock Text="{theme:Loc settings.ui_style_standard}" FontSize="12" Margin="0,7,0,0"
+
+                                           HorizontalAlignment="Center" TextWrapping="Wrap"
+
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+                            <RadioButton GroupName="UiStyleCard" Style="{StaticResource StyleCardStyle}"
+
+                                     IsChecked="{Binding SelectedUiStyle, Mode=OneWay, Converter={StaticResource StrEq}, ConverterParameter=dynamic}"
+
+                                     Command="{Binding SelectUiStyleCommand}" CommandParameter="dynamic"
+
+                                     ToolTip="{theme:Loc settings.ui_style_tip}">
+
+                            <StackPanel Width="132">
+
+                                <Grid Height="72">
+
+                                            <Border Background="{DynamicResource TabGameBrush}"/>
+
+                                            <Border Margin="4,16,4,4" CornerRadius="9" Background="{DynamicResource WindowBackground}"/>
+
+                                        </Grid>
+                                <TextBlock Text="{theme:Loc settings.ui_style_dynamic}" FontSize="12" Margin="0,7,0,0"
+
+                                           HorizontalAlignment="Center" TextWrapping="Wrap"
+
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+                            <RadioButton GroupName="UiStyleCard" Style="{StaticResource StyleCardStyle}"
+
+                                     IsChecked="{Binding SelectedUiStyle, Mode=OneWay, Converter={StaticResource StrEq}, ConverterParameter=android}"
+
+                                     Command="{Binding SelectUiStyleCommand}" CommandParameter="android"
+
+                                     ToolTip="{theme:Loc settings.ui_style_tip}">
+
+                            <StackPanel Width="132">
+
+                                <Grid Height="72">
+
+                                            <Grid.RowDefinitions>
+
+                                                <RowDefinition Height="12"/><RowDefinition Height="*"/><RowDefinition Height="14"/>
+
+                                            </Grid.RowDefinitions>
+
+                                            <Border Grid.Row="0" Background="{DynamicResource AccentBrush}"/>
+
+                                            <Border Grid.Row="1" Background="{DynamicResource WindowBackground}"/>
+
+                                            <UniformGrid Grid.Row="2" Rows="1">
+
+                                                <Border Background="{DynamicResource TabGameBrush}"/>
+
+                                                <Border Background="{DynamicResource TabDownloadBrush}"/>
+
+                                                <Border Background="{DynamicResource TabToolboxBrush}"/>
+
+                                                <Border Background="{DynamicResource TabSettingsBrush}"/>
+
+                                            </UniformGrid>
+
+                                        </Grid>
+                                <TextBlock Text="{theme:Loc settings.ui_style_android}" FontSize="12" Margin="0,7,0,0"
+
+                                           HorizontalAlignment="Center" TextWrapping="Wrap"
+
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+                            <RadioButton GroupName="UiStyleCard" Style="{StaticResource StyleCardStyle}"
+
+                                     IsChecked="{Binding SelectedUiStyle, Mode=OneWay, Converter={StaticResource StrEq}, ConverterParameter=glass}"
+
+                                     Command="{Binding SelectUiStyleCommand}" CommandParameter="glass"
+
+                                     ToolTip="{theme:Loc settings.ui_style_tip}">
+
+                            <StackPanel Width="132">
+
+                                <Grid Height="72">
+
+                                            <Grid.RowDefinitions>
+
+                                                <RowDefinition Height="9"/><RowDefinition Height="*"/><RowDefinition Height="7"/>
+
+                                            </Grid.RowDefinitions>
+
+                                            <Border Grid.Row="0" Background="{DynamicResource ControlBackground}"/>
+
+                                            <Grid Grid.Row="1">
+
+                                                <Grid.ColumnDefinitions>
+
+                                                    <ColumnDefinition Width="12"/><ColumnDefinition Width="*"/>
+
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="{DynamicResource ControlBackground}"/>
+
+                                                <Border Grid.Column="1" Background="{DynamicResource WindowBackground}"/>
+
+                                            </Grid>
+
+                                            <Border Grid.Row="2" Background="{DynamicResource ControlBackground}"/>
+
+                                        </Grid>
+                                <TextBlock Text="{theme:Loc settings.ui_style_glass}" FontSize="12" Margin="0,7,0,0"
+
+                                           HorizontalAlignment="Center" TextWrapping="Wrap"
+
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            </StackPanel>
+
+                        </RadioButton>
+                        </StackPanel>
                     </StackPanel>
 
                 </Grid>

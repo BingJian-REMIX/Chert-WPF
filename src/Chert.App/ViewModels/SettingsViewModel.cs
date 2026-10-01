@@ -730,6 +730,13 @@ public class SettingsViewModel : ObservableObject
     /// 清单 #12 / #15 / #16：界面风格 Id（standard / android / glass）。
     /// 赋值即切换：App 层叠加对应风格资源字典，主窗口按风格切换沉底导航。
     /// </summary>
+    private ICommand? _selectUiStyleCommand;
+
+    /// <summary>外观页的布局卡片点击（等价于设置 <see cref="SelectedUiStyle"/>）。
+    /// 用延迟初始化而不是字段初始化器 —— 后者不能引用实例属性（CS0236）。</summary>
+    public ICommand SelectUiStyleCommand =>
+        _selectUiStyleCommand ??= new RelayCommand(p => { if (p is string s) SelectedUiStyle = s; });
+
     public string SelectedUiStyle
     {
         get => _uiStyle;
