@@ -374,20 +374,47 @@ public class SavesViewModel : ObservableObject
         {
             var levelDat = Path.Combine(savePath, "level.dat");
             if (!File.Exists(levelDat)) { StatusMessage = "找不到 level.dat"; return; }
+
             long seed = 0;
+            bool found = false;
             try
             {
-                var raw = File.ReadAllText(levelDat);
-                var idx = raw.IndexOf("RandomSeed", StringComparison.Ordinal);
-                if (idx >= 0)
+                // level.dat 是 gzip 压缩的 NBT 二进制；直接文本扫描 RandomSeed 必失败，必须走 NBT 解析。
+                var root = NbtFile.ReadGzip(levelDat);            // 根 Compound（无名）
+                var data = root.GetChild("Data") ?? root;          // 极端情况下根直接是 Data
+                var seedTag = data.GetChild("RandomSeed")
+                           ?? data.GetChild("WorldGenSettings")?.GetChild("seed"); // 1.16+ 迁移到世界生成设置
+                if (seedTag is not null)
                 {
-                    var start = raw.IndexOfAny(new[] { ':', ' ' }, idx + 10) + 1;
-                    while (start < raw.Length && raw[start] == ' ') start++;
-                    var end = raw.IndexOfAny(new[] { ',', '}', '\n', '\r' }, start);
-                    if (end > start && long.TryParse(raw[start..end].Trim(), out var s)) seed = s;
+                    seed = seedTag.Type switch
+                    {
+                        NbtTagType.Long => seedTag.LongValue,
+                        NbtTagType.Int => seedTag.IntValue,
+                        NbtTagType.String => long.TryParse(seedTag.StringValue, out var s) ? s : 0,
+                        _ => 0
+                    };
+                    found = seedTag.Type is NbtTagType.Long or NbtTagType.Int or NbtTagType.String;
+                }
+                // 兜底：极旧版本 Data.Seed
+                if (!found)
+                {
+                    var alt = data.GetChild("Seed");
+                    if (alt is not null)
+                    {
+                        seed = alt.Type == NbtTagType.Long ? alt.LongValue
+                             : alt.Type == NbtTagType.Int ? alt.IntValue : 0;
+                        found = true;
+                    }
                 }
             }
-            catch { StatusMessage = "种子提取失败"; return; }
+            catch (Exception ex)
+            {
+                StatusMessage = $"种子读取失败：{ex.Message}";
+                return;
+            }
+
+            if (!found) { StatusMessage = "该存档未记录种子（可能为旧版或未生成）"; return; }
+
             System.Windows.Clipboard.SetText(seed.ToString());
             StatusMessage = $"种子 {seed} 已复制到剪贴板";
             ToastService.Show("种子", $"{Path.GetFileName(savePath)}: {seed}", ToastKind.Success);

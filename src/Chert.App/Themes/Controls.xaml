@@ -69,6 +69,7 @@
                                         <DoubleAnimation Storyboard.TargetName="TrackAccent"
                                                          Storyboard.TargetProperty="Opacity"
                                                          To="1" Duration="0:0:0.15"
+                                                         FillBehavior="Stop"
                                                          EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
@@ -83,6 +84,7 @@
                                         <DoubleAnimation Storyboard.TargetName="TrackAccent"
                                                          Storyboard.TargetProperty="Opacity"
                                                          To="0" Duration="0:0:0.15"
+                                                         FillBehavior="Stop"
                                                          EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>

@@ -34,10 +34,19 @@ public static class NetworkDiagnostics
         var result = new DiagnosticResult { Name = name, Url = url };
         var own = client is null;
         client ??= new HttpClient { Timeout = TimeSpan.FromMilliseconds(timeoutMs) };
+
+        // 归一化：缺少 scheme 的纯主机地址（如用户添加的服务器 host）补 http://，
+        // 否则 HttpClient 会抛 InvalidOperationException（此前被当成结果展示）。
+        var probeUrl = url;
+        if (!probeUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            && !probeUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            probeUrl = "http://" + probeUrl.Trim();
+        result.Url = probeUrl;
+
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using var resp = await client.GetAsync(probeUrl, HttpCompletionOption.ResponseHeadersRead);
             sw.Stop();
             result.LatencyMs = sw.ElapsedMilliseconds;
             result.Reachable = resp.IsSuccessStatusCode
@@ -46,9 +55,9 @@ public static class NetworkDiagnostics
         catch (Exception ex)
         {
             sw.Stop();
-            result.LatencyMs = sw.ElapsedMilliseconds;
+            result.LatencyMs = -1;          // 失败不暴露延迟数值（避免「0 ms」被误读为有效结果）
             result.Reachable = false;
-            result.Error = ex.GetType().Name;
+            result.Error = Humanize(ex);    // 人类可读原因，而非异常类名
         }
         finally
         {
@@ -56,6 +65,18 @@ public static class NetworkDiagnostics
         }
         return result;
     }
+
+    /// <summary>把探测异常翻译成用户可读的原因（不暴露异常类名 / 堆栈）。</summary>
+    private static string Humanize(Exception ex) => ex switch
+    {
+        System.Threading.Tasks.TaskCanceledException or System.TimeoutException => "连接超时",
+        HttpRequestException hx when hx.InnerException is System.Net.Sockets.SocketException =>
+            "无法连接（网络不可达 / 被拒绝）",
+        HttpRequestException hx => $"请求失败：{hx.Message}",
+        System.Net.Sockets.SocketException => "无法解析主机或网络不可达",
+        InvalidOperationException => "地址无效（缺少 http:// 或 https://）",
+        _ => ex.Message
+    };
 
     /// <summary>批量诊断默认端点。</summary>
     public static async Task<List<DiagnosticResult>> DiagnoseAsync(

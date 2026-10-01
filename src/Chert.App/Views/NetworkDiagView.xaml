@@ -83,9 +83,11 @@
 
                             </Ellipse>
 
-                            <TextBlock Text="{Binding LatencyMs, StringFormat={}{0} ms}" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding LatencyMs, StringFormat={}{0} ms}" Margin="0,0,8,0"
+                                       Visibility="{Binding Reachable, Converter={StaticResource BoolToVis}}"/>
 
-                            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}"/>
+                            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource DangerBrush}"
+                                       Visibility="{Binding Error, Converter={StaticResource NonEmptyToVis}}"/>
 
                         </StackPanel>
 

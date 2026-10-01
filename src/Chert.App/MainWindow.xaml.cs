@@ -1614,7 +1614,8 @@ public partial class MainWindow : Window
         else if (android)
         {
             // 安卓：标题栏强调色实底 + 隐藏侧栏 + 沉底四色导航（64px）
-            TitleBar.Background = (TryFindResource("AccentBrush") as SolidColorBrush) ?? Brushes.DodgerBlue;
+            // 用动态绑定（而非 TryFindResource 快照）—— 之后在设置里改主题色可实时跟随刷新。
+            TitleBar.SetResourceReference(Panel.BackgroundProperty, "AccentBrush");
             SidebarRoot.Visibility = Visibility.Collapsed;
             BottomNavBar.Height = 64;
             SetDynamicCard(false);
