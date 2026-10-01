@@ -698,12 +698,20 @@ public partial class MainWindow : Window
             // 每贴独立克隆画刷（p.Brush），避免悬浮动画连累合并字典里的共享/冻结画刷。
             // 圆角透明区已由 TabCornerRadius 的「重叠侧切直」消除，Root 保持透明，保留贴纸外观。
             var solid = TabColor($"Tab{def.Kind}Brush");
+            // 清掉可能残留的「悬浮亮度」ColorAnimation —— 它同样是 HoldEnd，
+            // 会永久接管 p.Brush.Color，压住下一行的本地赋值（换风格后贴纸颜色卡在旧配色）。
+            p.Brush.BeginAnimation(SolidColorBrush.ColorProperty, null);
             p.Brush.Color = isSel ? TabColor($"Tab{def.Kind}ActiveBrush") : solid;
             p.BaseColor = p.Brush.Color;
             // 悬浮/选中提亮到该色 Active 档（#4CAF50→#55C45A 等），与 HTML 的 brightness(1.12) 一致
             p.HoverColor = TabColor($"Tab{def.Kind}ActiveBrush");
             p.Bg.Background = p.Brush;
 
+            // ★ 必须先清掉 Title.Opacity 上的残留动画再赋本地值。
+            // 悬浮展开用过的 DoubleAnimation 是 HoldEnd —— 动画结束后它会**永久接管**该属性，
+            // 于是这里的 p.Title.Opacity = 1 只是改本地值、被动画压住，
+            // 表现为「标准风格下划过几个页签 → 切到玻璃后那几个页签的文字全没了」（实测截图确认）。
+            p.Title.BeginAnimation(UIElement.OpacityProperty, null);
             p.Title.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
             p.Title.Opacity = expanded ? 1 : 0;
 
@@ -712,6 +720,7 @@ public partial class MainWindow : Window
             {
                 p.Underline.Fill = CreamUnderline;
                 // 选中下划线：opacity 平滑渐显到 1（对齐 HTML 的 .tab.selected .underline{opacity:1}，无呼吸循环）
+                p.Underline.BeginAnimation(UIElement.OpacityProperty, null);
                 p.Underline.Opacity = 0;
                 if (AnimationsEnabled)
                     p.Underline.BeginAnimation(Rectangle.OpacityProperty,
@@ -816,25 +825,36 @@ public partial class MainWindow : Window
     /// 展开时 0→1 淡入，收起时 1→0 淡出后隐藏。关闭动画开关时直接置值。</summary>
     private static void RevealTitle(TabParts p, bool show, bool animate)
     {
+        // ★ 两条铁律，缺一不可（玻璃风格「页签文字缺失」就是违反它们导致的）：
+        //   1. 先把**最终值写成本地值**，再启动动画；
+        //   2. 动画一律 FillBehavior.Stop —— 默认的 HoldEnd 会在动画结束后**永久接管**该属性，
+        //      之后任何 `p.Title.Opacity = x` 只改本地值、被动画压住，文字就再也显示不出来。
+        p.Title.BeginAnimation(UIElement.OpacityProperty, null);
+
         if (show)
         {
             p.Title.Visibility = Visibility.Visible;
+            p.Title.Opacity = 1;
             if (animate)
             {
-                p.Title.Opacity = 0;
                 p.Title.BeginAnimation(UIElement.OpacityProperty,
-                    new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut });
-            }
-            else
-            {
-                p.Title.Opacity = 1;
+                    new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = UiEaseOut,
+                        FillBehavior = FillBehavior.Stop
+                    });
             }
         }
         else
         {
+            p.Title.Opacity = 0;
             if (animate)
             {
-                var a = new DoubleAnimation(0, TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut };
+                var a = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(250))
+                {
+                    EasingFunction = UiEaseOut,
+                    FillBehavior = FillBehavior.Stop
+                };
                 a.Completed += (_, _) =>
                 {
                     if (p.Title.Opacity <= 0.01) p.Title.Visibility = Visibility.Collapsed;
@@ -843,7 +863,6 @@ public partial class MainWindow : Window
             }
             else
             {
-                p.Title.Opacity = 0;
                 p.Title.Visibility = Visibility.Collapsed;
             }
         }
