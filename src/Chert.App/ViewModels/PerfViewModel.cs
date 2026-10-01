@@ -198,6 +198,10 @@ public class PerfViewModel : ObservableObject, IDisposable
 
         try { if (_cpuCounter != null) SystemCpu = _cpuCounter.NextValue(); } catch { }
         try { if (_memCounter != null) MemoryAvailableMb = _memCounter.NextValue(); } catch { }
+        // P06：CpuUsageText / MemoryUsageText 是计算属性（分别依赖 SystemCpu / MemoryAvailableMb），
+        // 仅通知底层字段不会刷新这两个派生 TextBlock；补上显式通知，让大数字随采样实时刷新。
+        OnPropertyChanged(nameof(CpuUsageText));
+        OnPropertyChanged(nameof(MemoryUsageText));
 
         // bug2.txt #7：滚动历史缓冲，供实时折线图使用
         _cpuHistory.Add(SystemCpu);
