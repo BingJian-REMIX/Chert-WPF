@@ -459,6 +459,7 @@ public class SettingsViewModel : ObservableObject
     private string _windowBackgroundColor = "";
     private bool _glassBlurEnabled = true;
     private bool _hideSidebarLabels;
+    private double _glassOpacity = 75;
 
     /// <summary>清单 #17：外观页——窗口背景色（空 = 跟随主题）。</summary>
     public string WindowBackgroundColor
@@ -481,6 +482,24 @@ public class SettingsViewModel : ObservableObject
             ThemeManager.GlassBlurEnabled = value;
             // 立刻重算外壳：玻璃风格下这一步决定要不要向系统申请背板
             Chert.App.App.ApplyUiStyle(UiStyles.Parse(_uiStyle));
+        }
+    }
+
+    /// <summary>
+    /// 清单 #17：外观页——毛玻璃不透明度（30–100，百分比）。
+    /// 数值越大外壳越实、越小越透（桌面虚化越明显）；作用范围见 MainWindow.GlassAlpha。
+    /// 用 double 而不是 int：Slider.Value 是 double，绑到 int 会触发转换与绑定错误日志。
+    /// </summary>
+    public double GlassOpacity
+    {
+        get => _glassOpacity;
+        set
+        {
+            var v = Math.Clamp(value, 30, 100);
+            if (!SetField(ref _glassOpacity, v)) return;
+            ThemeManager.GlassOpacity = v / 100.0;
+            // 实时预览：立刻重算外壳（拖滑块即可看到变化）
+            ThemeManager.NotifyAppearanceChanged();
         }
     }
 
@@ -729,6 +748,7 @@ public class SettingsViewModel : ObservableObject
         ThemeColor = profile.ThemeColor;
         WindowBackgroundColor = profile.WindowBackgroundColor ?? "";
         GlassBlurEnabled = profile.GlassBlurEnabled;
+        GlassOpacity = Math.Clamp(profile.GlassOpacity, 30, 100);
         HideSidebarLabels = profile.HideSidebarLabels;
         BackgroundImagePath = profile.BackgroundImagePath ?? "";
         FontScale = profile.FontScale;
@@ -1020,6 +1040,7 @@ public class SettingsViewModel : ObservableObject
             ThemeColor = ThemeColor,
             WindowBackgroundColor = string.IsNullOrWhiteSpace(WindowBackgroundColor) ? null : WindowBackgroundColor,
             GlassBlurEnabled = GlassBlurEnabled,
+            GlassOpacity = (int)Math.Round(GlassOpacity),
             HideSidebarLabels = HideSidebarLabels,
             BackgroundImagePath = string.IsNullOrWhiteSpace(BackgroundImagePath) ? null : BackgroundImagePath,
             FontScale = FontScale,

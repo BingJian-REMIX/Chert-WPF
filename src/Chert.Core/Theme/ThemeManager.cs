@@ -16,6 +16,13 @@ public class ThemeManager
     /// <summary>清单 #17：外观页「显示毛玻璃效果」。关闭时 MainWindow 不申请系统背板，玻璃风格落回不透明底。</summary>
     public static bool GlassBlurEnabled { get; set; } = true;
 
+    /// <summary>
+    /// 清单 #16：外观页「毛玻璃不透明度」——玻璃外壳（标题栏 / 状态栏 / 侧栏 / 内容底 / 页签）的不透明度，
+    /// 取值 0.30–1.00。MainWindow 生成玻璃画刷时以它为**目标外壳不透明度**，
+    /// 按「设计稿各层相对比例」整体缩放，因此调低它不会破坏各层原有层次关系。
+    /// </summary>
+    public static double GlassOpacity { get; set; } = 0.75;
+
     /// <summary>清单 #17：外观页「隐藏侧边栏图标标签」。开启后侧边栏即使展开也只显示图标。</summary>
     public static bool HideSidebarLabels { get; set; }
 

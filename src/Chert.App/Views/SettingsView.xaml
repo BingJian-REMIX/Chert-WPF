@@ -929,7 +929,8 @@
 
                         <RowDefinition Height="Auto"/>   <!-- 9 窗口背景色 -->
                         <RowDefinition Height="Auto"/>   <!-- 10 显示毛玻璃效果 -->
-                        <RowDefinition Height="Auto"/>   <!-- 11 隐藏侧边栏图标标签 -->
+                        <RowDefinition Height="Auto"/>   <!-- 11 毛玻璃透度 -->
+                        <RowDefinition Height="Auto"/>   <!-- 12 隐藏侧边栏图标标签 -->
                         <RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
@@ -1288,6 +1289,18 @@
                     </WrapPanel>
 
                     <WrapPanel Grid.Row="11" Margin="0,3">
+
+                        <TextBlock Text="{theme:Loc settings.glass_opacity}" VerticalAlignment="Center" Width="90"/>
+
+                        <Slider Minimum="30" Maximum="100" TickFrequency="1" Width="160"
+                                Value="{Binding GlassOpacity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                        <TextBlock Text="{Binding GlassOpacity, StringFormat={}{0:F0}%}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    </WrapPanel>
+
+                    <WrapPanel Grid.Row="12" Margin="0,3">
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 

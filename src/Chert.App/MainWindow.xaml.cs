@@ -363,7 +363,9 @@ public partial class MainWindow : Window
         BigPageNavigator.ShowHandler = ShowBigPage;
         BigPageNavigator.CloseHandler = CloseBigPage;
 
-        AnimationsEnabled = ProfileStore.Load(GameConstants.DefaultGameRoot).AnimationsEnabled;
+        var startupProfile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+        AnimationsEnabled = startupProfile.AnimationsEnabled;
+        ThemeManager.GlassOpacity = Math.Clamp(startupProfile.GlassOpacity, 30, 100) / 100.0;
 
         // bug #21（游戏目录切换）：页面在构造期一次性缓存，换目录后版本 / 存档列表仍是旧数据，
         // 故重建除设置页外的三个页面。设置页正是事件源，重建它会销毁当前正在显示的界面。
@@ -876,9 +878,9 @@ public partial class MainWindow : Window
         }
         if (IsGlassStyle())
         {
-            // 玻璃：内容区半透明底（对齐 HTML .content rgba(15,17,21,.28)），不挂索引贴色带
-            PageBorder.Background = TryFindResource("GlassContentBackground") as Brush
-                ?? new SolidColorBrush(Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
+            // 玻璃：内容区半透明底（对齐 HTML .content rgba(15,17,21,.28)），不挂索引贴色带。
+            // 底色的 alpha 跟随「毛玻璃不透明度」——它是覆盖面积最大的一层，直接决定虚化能否透出来。
+            PageBorder.Background = GlassFill("GlassContentBackground", Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
             return;
         }
         var winBg = (TryFindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
@@ -1473,6 +1475,7 @@ public partial class MainWindow : Window
         SearchArea.Visibility = Visibility.Visible;
         SearchColumn.Width = new GridLength(272);
         TabPanel.HorizontalAlignment = HorizontalAlignment.Right;
+        TabPanel.Margin = new Thickness(0, 0, 8, 0);   // XAML 默认值，避免玻璃的左边距残留到其他风格
 
         TitleBar.SetResourceReference(Panel.BackgroundProperty, "TitleBarBrush");
 
@@ -1496,7 +1499,7 @@ public partial class MainWindow : Window
         TitleBarRow.Height = new GridLength(40);
         StatusBarRow.Height = new GridLength(26);
 
-        TitleBar.Background = TryFindResource("GlassChromeBackground") as Brush ?? Brushes.Transparent;
+        TitleBar.Background = GlassFill("GlassChromeBackground", Color.FromArgb(0x8C, 0x1A, 0x1D, 0x24));
         BrandText.Text = "> Chert";
         BrandText.FontFamily = MonoFont;
         BrandText.FontSize = 14;
@@ -1505,16 +1508,20 @@ public partial class MainWindow : Window
         // 浏览器式标签才能紧贴品牌文字从左侧排开（HTML：tab 容器 left:96px、justify-content:flex-start）
         SearchColumn.Width = new GridLength(0);
         TabPanel.HorizontalAlignment = HorizontalAlignment.Left;
+        // 品牌文字（"> Chert"）在 Column 0、页签在 Column 2 —— 品牌列是 Auto 宽，
+        // 于是页签会**紧贴甚至压住**品牌文字的右端（实测截图：第一个页签左边缘与 "Chert" 重叠）。
+        // 对齐 HTML `.window.minimal` 的 tab 容器 left:96px，这里让出 16px 间距。
+        TabPanel.Margin = new Thickness(16, 0, 8, 0);
 
         SidebarRoot.Visibility = Visibility.Visible;
         SidebarRoot.Width = 42;
-        SidebarRoot.Background = TryFindResource("GlassSidebarBackground") as Brush ?? Brushes.Transparent;
+        SidebarRoot.Background = GlassFill("GlassSidebarBackground", Color.FromArgb(0x66, 0x1A, 0x1D, 0x24));
         SidebarRoot.BorderThickness = new Thickness(0, 0, 1, 0);
         SidebarRoot.BorderBrush = TryFindResource("GlassSidebarBorder") as Brush ?? Brushes.Transparent;
         // 玻璃侧栏恒为窄图标栏：收起所有文字标签
         foreach (var p in _sidebarItems.Values) p.Title.Visibility = Visibility.Collapsed;
 
-        StatusBarRoot.Background = TryFindResource("GlassChromeBackground") as Brush ?? Brushes.Transparent;
+        StatusBarRoot.Background = GlassFill("GlassChromeBackground", Color.FromArgb(0x8C, 0x1A, 0x1D, 0x24));
         StatusBarRoot.FontFamily = MonoFont;
         StatusBarRoot.FontSize = 11;
 
@@ -1553,9 +1560,10 @@ public partial class MainWindow : Window
     /// <summary>清单 #16：玻璃标签改「浏览器式」外观——顶部圆角、白 8% 描边、中性半透明底、等宽字、无下划线。</summary>
     private void ApplyGlassTabChrome(TabParts p, bool isSel)
     {
-        var baseBg = (TryFindResource("GlassTabBackground") as SolidColorBrush)?.Color ?? Colors.Transparent;
-        var activeBg = (TryFindResource("GlassTabActiveBackground") as SolidColorBrush)?.Color ?? baseBg;
-        var hoverBg = (TryFindResource("GlassTabHoverBackground") as SolidColorBrush)?.Color ?? baseBg;
+        // 页签底同样跟随「毛玻璃不透明度」（它叠在标题栏 chrome 之上，两层一起缩放才不会有色阶断层）
+        var baseBg = GlassAlpha("GlassTabBackground", Color.FromArgb(0x0A, 0xFF, 0xFF, 0xFF));
+        var activeBg = GlassAlpha("GlassTabActiveBackground", Color.FromArgb(0xB8, 0x0F, 0x11, 0x15));
+        var hoverBg = GlassAlpha("GlassTabHoverBackground", Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
 
         p.Brush.Color = isSel ? activeBg : baseBg;
         p.BaseColor = p.Brush.Color;
@@ -1841,6 +1849,28 @@ public partial class MainWindow : Window
         mask.BeginAnimation(UIElement.OpacityProperty,
             new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = UiEaseOut });
     }
+
+    /// <summary>
+    /// 清单 #16：按「毛玻璃不透明度」生成外壳画刷。
+    /// <para>
+    /// 做法：以**当前主题的窗口底不透明度**为基准（设计稿里各层都是相对它写的），
+    /// 把目标 key 的 alpha 等比缩放到 <see cref="ThemeManager.GlassOpacity"/>。
+    /// 这样调不透明度时各层的相对层次（内容底 &lt; 侧栏 &lt; 标题栏）不会乱掉，
+    /// 也不会出现「外壳很透、页面卡片还是实心」的撕裂观感。
+    /// </para>
+    /// </summary>
+    private Color GlassAlpha(string key, Color fallback)
+    {
+        var src = (TryFindResource(key) as SolidColorBrush)?.Color ?? fallback;
+        var baseAlpha = (TryFindResource("WindowBackground") as SolidColorBrush)?.Color.A / 255.0 ?? 1.0;
+        if (baseAlpha <= 0.02) baseAlpha = 1.0;
+        var target = Math.Clamp(ThemeManager.GlassOpacity, 0.05, 1.0);
+        var a = Math.Min(1.0, src.A / 255.0 / baseAlpha * target);
+        return Color.FromArgb((byte)Math.Round(a * 255), src.R, src.G, src.B);
+    }
+
+    /// <summary>清单 #16：同上，直接返回可赋给控件的画刷。</summary>
+    private SolidColorBrush GlassFill(string key, Color fallback) => new(GlassAlpha(key, fallback));
 
     /// <summary>新建一层状态蒙版（圆角 / 不拦截命中）。</summary>
     private Border NewMask(string brushKey, double radius) => new()

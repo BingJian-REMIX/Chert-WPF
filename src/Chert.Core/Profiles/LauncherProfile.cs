@@ -159,6 +159,10 @@ public class LauncherProfile
     [JsonPropertyName("windowBackgroundColor")]
     public string? WindowBackgroundColor { get; set; }
 
+    /// <summary>清单 #16：玻璃风格外壳的不透明度（30–100，越小越透、毛玻璃背板越明显）。</summary>
+    [JsonPropertyName("glassOpacity")]
+    public int GlassOpacity { get; set; } = 75;
+
     /// <summary>清单 #17：外观页——是否启用系统级毛玻璃背板（关闭时玻璃风格落回不透明底）。</summary>
     [JsonPropertyName("glassBlurEnabled")]
     public bool GlassBlurEnabled { get; set; } = true;
