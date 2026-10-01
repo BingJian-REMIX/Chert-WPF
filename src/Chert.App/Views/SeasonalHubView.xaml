@@ -39,7 +39,11 @@
 
                 <!-- 清单 #42：限时活动倒计时 -->
                 <TextBlock Text="{theme:Loc seasonal.events_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
-                <ItemsControl ItemsSource="{Binding Events}" Margin="0,0,0,14">
+                <TextBlock Text="{theme:Loc seasonal.events_empty}" Margin="0,0,0,14" FontSize="12"
+                           Foreground="{DynamicResource SecondaryForeground}"
+                           Visibility="{Binding HasEvents, Converter={StaticResource BoolToVisInvert}}"/>
+                <ItemsControl ItemsSource="{Binding Events}" Margin="0,0,0,14"
+                              Visibility="{Binding HasEvents, Converter={StaticResource BoolToVis}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
@@ -73,7 +77,11 @@
 
                 <!-- 清单 #43：节日服务器推荐 -->
                 <TextBlock Text="{theme:Loc seasonal.servers_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
-                <ItemsControl ItemsSource="{Binding Servers}" Margin="0,0,0,14">
+                <TextBlock Text="{theme:Loc seasonal.servers_empty}" Margin="0,0,0,14" FontSize="12"
+                           Foreground="{DynamicResource SecondaryForeground}"
+                           Visibility="{Binding HasServers, Converter={StaticResource BoolToVisInvert}}"/>
+                <ItemsControl ItemsSource="{Binding Servers}" Margin="0,0,0,14"
+                              Visibility="{Binding HasServers, Converter={StaticResource BoolToVis}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
@@ -113,7 +121,11 @@
 
                 <!-- 清单 #44：节日内容推荐 -->
                 <TextBlock Text="{theme:Loc seasonal.picks_title}" FontSize="14" FontWeight="Bold" Margin="0,0,0,6"/>
-                <ItemsControl ItemsSource="{Binding Picks}">
+                <TextBlock Text="{theme:Loc seasonal.picks_empty}" Margin="0,0,0,14" FontSize="12"
+                           Foreground="{DynamicResource SecondaryForeground}"
+                           Visibility="{Binding HasPicks, Converter={StaticResource BoolToVisInvert}}"/>
+                <ItemsControl ItemsSource="{Binding Picks}"
+                              Visibility="{Binding HasPicks, Converter={StaticResource BoolToVis}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"

@@ -50,6 +50,31 @@ public class SeasonalHubViewModel : ObservableObject
         set => SetField(ref _statusMessage, value);
     }
 
+    private bool _hasEvents;
+    private bool _hasServers;
+    private bool _hasPicks;
+
+    /// <summary>限时活动是否有内容（空态提示用）。</summary>
+    public bool HasEvents
+    {
+        get => _hasEvents;
+        private set => SetField(ref _hasEvents, value);
+    }
+
+    /// <summary>节日服务器推荐是否有内容。</summary>
+    public bool HasServers
+    {
+        get => _hasServers;
+        private set => SetField(ref _hasServers, value);
+    }
+
+    /// <summary>节日内容推荐是否有内容。</summary>
+    public bool HasPicks
+    {
+        get => _hasPicks;
+        private set => SetField(ref _hasPicks, value);
+    }
+
     public ObservableCollection<SeasonalEventCard> Events
     {
         get => _events;
@@ -87,6 +112,22 @@ public class SeasonalHubViewModel : ObservableObject
         Refresh();
     }
 
+    /// <summary>节日 key → 本地化词条 id。归一化：只保留字母数字并转小写（mid_autumn → midautumn）。</summary>
+    private static string SeasonNameKey(string key)
+    {
+        var slug = new string(key.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        return $"seasonal.{slug}.name";
+    }
+
+    /// <summary>词条确实缺失时的兜底：把 mid_autumn 这类 key 收拾成人能读的样子（而非原样露出下划线）。</summary>
+    private static string Prettify(string key)
+    {
+        var parts = key.Split(new[] { '_', '-', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0
+            ? key
+            : string.Join(" ", parts.Select(p => char.ToUpperInvariant(p[0]) + p[1..]));
+    }
+
     public void Refresh()
     {
         var config = SeasonalThemeManager.CurrentConfig;
@@ -100,11 +141,13 @@ public class SeasonalHubViewModel : ObservableObject
 
         HasSeason = !string.IsNullOrWhiteSpace(key);
 
-        // 词条缺失时 LocaleManager.T 会原样返回 key，此处退化为直接显示 key，避免露出未翻译标记
-        var nameKey = $"seasonal.{key}.name";
-        var name = HasSeason ? LocaleManager.T(nameKey) : "";
-        if (HasSeason && (string.IsNullOrWhiteSpace(name) || string.Equals(name, nameKey, StringComparison.Ordinal)))
-            name = key!;
+        // ★ 节日 key 与词条 id 的规范不一致：key 是 mid_autumn（带下划线），
+        //   词条是 seasonal.midautumn.name（无下划线）—— 直接拼 key 会查不到，
+        //   于是「当前节日」直接露出原始 key（用户反馈的 mid_autumn）。
+        //   这里先把 key 归一化（只保留字母数字、转小写）再查词条。
+        var name = HasSeason ? LocaleManager.T(SeasonNameKey(key!)) : "";
+        if (HasSeason && (string.IsNullOrWhiteSpace(name) || name == SeasonNameKey(key!)))
+            name = Prettify(key!);
 
         SeasonText = HasSeason
             ? $"{LocaleManager.T("seasonal.current")}：{name}"
@@ -115,6 +158,7 @@ public class SeasonalHubViewModel : ObservableObject
             Events = new ObservableCollection<SeasonalEventCard>();
             Servers = new ObservableCollection<SeasonalServerEntry>();
             Picks = new ObservableCollection<SeasonalPickCard>();
+            HasEvents = HasServers = HasPicks = false;
             StatusMessage = LocaleManager.T("seasonal.hub_loading");
             return;
         }
@@ -133,6 +177,11 @@ public class SeasonalHubViewModel : ObservableObject
                     KindText = KindText(p.KindEnum),
                     Url = p.ResolvedUrl
                 }));
+
+        // 分节空态：三栏各自给一句说明，而不是留白（用户反馈「三栏全空」看不出是没内容还是没加载）
+        HasEvents = Events.Count > 0;
+        HasServers = Servers.Count > 0;
+        HasPicks = Picks.Count > 0;
 
         var total = Events.Count + Servers.Count + Picks.Count;
         StatusMessage = total == 0

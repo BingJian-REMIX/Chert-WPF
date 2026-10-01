@@ -459,20 +459,27 @@
 
                             <TextBlock Text="{theme:Loc settings.hud_fields}" Margin="0,0,0,4"
                                        Foreground="{DynamicResource SecondaryForeground}"/>
-                            <ItemsControl ItemsSource="{Binding HudFields}">
+                            <!--
+                                字段一律 4 列 2 行对齐排布（此前是 WrapPanel：每个条目按自身内容宽度排，
+                                开关与文字在列上参差不齐 —— 用户反馈的「开关未贴合」）。
+                                UniformGrid 让每格等宽，开关落在同一条竖线上。
+                            -->
+                            <ItemsControl ItemsSource="{Binding HudFields}" HorizontalAlignment="Left">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
-                                        <WrapPanel/>
+                                        <UniformGrid Rows="2" Columns="4"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,14,4" MinWidth="88">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,18,8"
+                                                    HorizontalAlignment="Left" VerticalAlignment="Center">
 
                                             <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
                                                           IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
 
                                             <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                       TextTrimming="CharacterEllipsis"
 
                                                        Foreground="{DynamicResource PrimaryForeground}"/>
 
@@ -528,19 +535,24 @@
                                            Foreground="{DynamicResource PrimaryForeground}"/>
                             </StackPanel>
 
-                            <WrapPanel Margin="0,8,0,2">
-                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudShowBackground, Mode=TwoWay}"/>
-                                <TextBlock Text="{theme:Loc settings.hud_background}" VerticalAlignment="Center" Margin="8,0,18,0"
-                                           Foreground="{DynamicResource PrimaryForeground}"/>
-
-                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudClickThrough, Mode=TwoWay}"/>
-                                <TextBlock Text="{theme:Loc settings.hud_click_through}" VerticalAlignment="Center" Margin="8,0,18,0"
-                                           Foreground="{DynamicResource PrimaryForeground}"/>
-
-                                <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudOnlyWhenForeground, Mode=TwoWay}"/>
-                                <TextBlock Text="{theme:Loc settings.hud_foreground_only}" VerticalAlignment="Center" Margin="8,0,0,0"
-                                           Foreground="{DynamicResource PrimaryForeground}"/>
-                            </WrapPanel>
+                            <!-- 三个开关同样按等宽列对齐（与上面的 4 列字段格同一套对齐语言） -->
+                            <UniformGrid Rows="1" Columns="3" HorizontalAlignment="Left" Margin="0,8,0,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudShowBackground, Mode=TwoWay}"/>
+                                    <TextBlock Text="{theme:Loc settings.hud_background}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudClickThrough, Mode=TwoWay}"/>
+                                    <TextBlock Text="{theme:Loc settings.hud_click_through}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding HudOnlyWhenForeground, Mode=TwoWay}"/>
+                                    <TextBlock Text="{theme:Loc settings.hud_foreground_only}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                </StackPanel>
+                            </UniformGrid>
 
                             <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                 <Button Content="{theme:Loc settings.hud_reset}" Command="{Binding ResetHudCommand}" Padding="10,4"/>
