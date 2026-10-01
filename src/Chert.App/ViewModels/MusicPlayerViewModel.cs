@@ -120,6 +120,14 @@ public class MusicPlayerViewModel : ObservableObject
     private double _durationSec;
     private bool _isSeeking;
 
+    /// <summary>用户正在点击 / 拖动进度条。拖拽期间置 true，暂停定时器回写位置，
+    /// 否则 500ms 一次的 RefreshProgress 会把拖柄拽回实际播放位置（表现为拖动中回弹）。</summary>
+    public bool IsSeeking
+    {
+        get => _isSeeking;
+        set => _isSeeking = value;
+    }
+
     /// <summary>当前播放位置（秒）。</summary>
     public double PositionSec
     {

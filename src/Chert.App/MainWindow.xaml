@@ -520,7 +520,9 @@
 
                     BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,0,0,1">
 
-                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+                <ScrollViewer x:Name="TopTabsScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+
+                              PreviewMouseWheel="TopTabsScroll_PreviewMouseWheel">
 
                     <StackPanel x:Name="TopTabsPanel" Orientation="Horizontal"
 
@@ -680,45 +682,57 @@
 
                 <StackPanel Orientation="Horizontal" x:Name="MusicMini">
 
-                    <Button Width="26" Height="22" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicPrevBtn" Width="26" Height="22" BorderThickness="0" Background="Transparent"
 
                             Command="{Binding PreviousCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
-                            ToolTip="上一首" VerticalAlignment="Center" Content="⏮" FontSize="11"/>
+                            ToolTip="上一首" VerticalAlignment="Center" Cursor="Hand">
 
-                    <Button Width="26" Height="22" BorderThickness="0" Background="Transparent"
-
-                            Command="{Binding PlayPauseCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
-
-                            ToolTip="播放 / 暂停" VerticalAlignment="Center" FontSize="11">
-
-                        <Button.Style>
-
-                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-
-                                <Setter Property="Content" Value="▶"/>
-
-                                <Style.Triggers>
-
-                                    <DataTrigger Binding="{Binding IsPlaying, Source={x:Static vm:MusicPlayerViewModel.Instance}}" Value="True">
-
-                                        <Setter Property="Content" Value="⏸"/>
-
-                                    </DataTrigger>
-
-                                </Style.Triggers>
-
-                            </Style>
-
-                        </Button.Style>
+                        <theme:PngIcon Token="previous" Size="12"/>
 
                     </Button>
 
-                    <Button Width="26" Height="22" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicPlayBtn" Width="26" Height="22" BorderThickness="0" Background="Transparent"
+
+                            Command="{Binding PlayPauseCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
+
+                            ToolTip="播放 / 暂停" VerticalAlignment="Center" Cursor="Hand">
+
+                        <theme:PngIcon Size="12">
+
+                            <theme:PngIcon.Style>
+
+                                <Style TargetType="theme:PngIcon">
+
+                                    <Setter Property="Token" Value="play"/>
+
+                                    <Style.Triggers>
+
+                                        <DataTrigger Binding="{Binding IsPlaying, Source={x:Static vm:MusicPlayerViewModel.Instance}}" Value="True">
+
+                                            <Setter Property="Token" Value="pause"/>
+
+                                        </DataTrigger>
+
+                                    </Style.Triggers>
+
+                                </Style>
+
+                            </theme:PngIcon.Style>
+
+                        </theme:PngIcon>
+
+                    </Button>
+
+                    <Button x:Name="MusicNextBtn" Width="26" Height="22" BorderThickness="0" Background="Transparent"
 
                             Command="{Binding NextCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
-                            ToolTip="下一首" VerticalAlignment="Center" Content="⏭" FontSize="11"/>
+                            ToolTip="下一首" VerticalAlignment="Center" Cursor="Hand">
+
+                        <theme:PngIcon Token="next" Size="12"/>
+
+                    </Button>
 
                     <StackPanel Orientation="Vertical" VerticalAlignment="Center" Margin="8,0,0,0">
 
@@ -736,7 +750,9 @@
 
                     <!-- bug #10/#12：微条细长进度条（有曲目即显示；时长未知时禁用） -->
 
-                    <Slider Minimum="0" Maximum="100" Width="80" VerticalAlignment="Center" Margin="10,0,0,0"
+                    <Slider x:Name="MusicMiniSeek" Style="{StaticResource MiniSeekBarStyle}"
+
+                            Minimum="0" Maximum="100" Width="88" VerticalAlignment="Center" Margin="10,0,0,0"
 
                             Value="{Binding ProgressRatio, Source={x:Static vm:MusicPlayerViewModel.Instance}, Mode=OneWay}"
 
@@ -748,7 +764,33 @@
 
                             Command="{Binding ExpandCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
-                            ToolTip="展开 / 收起播放列表" VerticalAlignment="Center" Content="▤" FontSize="11"/>
+                            ToolTip="展开 / 收起播放列表" VerticalAlignment="Center" Cursor="Hand">
+
+                        <theme:PngIcon Size="12">
+
+                            <theme:PngIcon.Style>
+
+                                <Style TargetType="theme:PngIcon">
+
+                                    <Setter Property="Token" Value="menu-unfold"/>
+
+                                    <Style.Triggers>
+
+                                        <DataTrigger Binding="{Binding Expanded, Source={x:Static vm:MusicPlayerViewModel.Instance}}" Value="True">
+
+                                            <Setter Property="Token" Value="menu-fold"/>
+
+                                        </DataTrigger>
+
+                                    </Style.Triggers>
+
+                                </Style>
+
+                            </theme:PngIcon.Style>
+
+                        </theme:PngIcon>
+
+                    </Button>
 
                 </StackPanel>
 
@@ -929,6 +971,8 @@
                                    VerticalAlignment="Center" Foreground="{DynamicResource SecondaryForeground}"/>
 
                         <Slider Minimum="0" Maximum="100" Width="90" VerticalAlignment="Center"
+
+                                Style="{StaticResource MiniSeekBarStyle}"
 
                                 Value="{Binding Volume, Mode=TwoWay}"/>
 

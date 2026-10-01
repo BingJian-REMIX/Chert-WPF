@@ -823,6 +823,82 @@
     <Style TargetType="Slider">
         <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
     </Style>
+    <!-- P13 底栏迷你进度条（方案 02）：胶囊轨道 + hover 显形拖柄。
+         拖柄常态不显示，鼠标移入才淡入；点击轨道任意位置即可跳转。
+         用法 Style="{StaticResource MiniSeekBarStyle}"；色值一律走主题 key。 -->
+    <Style x:Key="MiniSeekBarStyle" TargetType="Slider">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="IsMoveToPointEnabled" Value="True"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid x:Name="TrackRoot" Background="Transparent" Height="16" SnapsToDevicePixels="True">
+                        <Border Height="6" CornerRadius="3" VerticalAlignment="Center"
+                                Background="{DynamicResource ProgressBackground}"/>
+                        <Track x:Name="PART_Track" VerticalAlignment="Center">
+                            <Track.DecreaseRepeatButton>
+                                <RepeatButton Command="Slider.DecreaseLarge" Focusable="False" IsTabStop="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Height="6" CornerRadius="3"
+                                                    Background="{DynamicResource AccentBrush}"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton>
+                                <RepeatButton Command="Slider.IncreaseLarge" Focusable="False" IsTabStop="False">
+                                    <RepeatButton.Template>
+                                        <ControlTemplate TargetType="RepeatButton">
+                                            <Border Height="6" Background="Transparent"/>
+                                        </ControlTemplate>
+                                    </RepeatButton.Template>
+                                </RepeatButton>
+                            </Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb x:Name="SeekThumb" Width="12" Height="12" Opacity="0" Focusable="False">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Ellipse Width="12" Height="12" SnapsToDevicePixels="True"
+                                                     Fill="{DynamicResource AccentBrush}"
+                                                     Stroke="{DynamicResource WindowBackground}" StrokeThickness="1.5"/>
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SeekThumb"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SeekThumb"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.15"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="TrackRoot" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
     <Style TargetType="TreeView">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
         <Setter Property="Background" Value="{DynamicResource InputBackground}"/>

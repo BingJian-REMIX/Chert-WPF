@@ -12,7 +12,16 @@ public partial class MusicPlayerView : UserControl
     {
         InitializeComponent();
         DataContext = MusicPlayerViewModel.Instance;
-        // bug #10：点击 / 拖动进度条松手时跳转（拖动过程中不触发，避免抖动）
-        SeekBar.PreviewMouseUp += (_, _) => MusicPlayerViewModel.Instance.SeekCommand.Execute(SeekBar.Value);
+        // bug #10 + P13：点击 / 拖动进度条跳转。统一走 SeekInteraction —— 完全接管鼠标时序，
+        // 由坐标算值并在松手时提交；拖拽期间置 IsSeeking，暂停定时器回写位置，避免拖柄回弹。
+        SeekInteraction.Attach(
+            SeekBar,
+            ratio =>
+            {
+                if (MusicPlayerViewModel.Instance.HasProgress)
+                    MusicPlayerViewModel.Instance.SeekCommand.Execute(ratio);
+            },
+            () => MusicPlayerViewModel.Instance.IsSeeking = true,
+            () => MusicPlayerViewModel.Instance.IsSeeking = false);
     }
 }

@@ -60,7 +60,11 @@ public class ToolboxViewModel : ObservableObject
         get => _selectedPanel;
         set
         {
-            if (!SetField(ref _selectedPanel, value)) return;
+            // P02：不能因为 SelectedPanel 前后同值就提前 return。
+            // 「崩溃分析」等外部面板只改 SelectedView、不改 SelectedPanel（见 ToolboxView.ShowPanel），
+            // 之后再点回同一个面板时 SelectedPanel 未变化，若提前 return 则 SelectedView 不会同步，
+            // 界面就会一直卡在崩溃分析页上。
+            SetField(ref _selectedPanel, value);
             if (_selectedPanel is not null)
             {
                 _selectedPanel.IsSelected = true;

@@ -949,7 +949,7 @@
 
                     <TextBlock Grid.Row="0" Text="{theme:Loc settings.appearance}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,3">
 
                         <TextBlock Text="{theme:Loc settings.theme}" VerticalAlignment="Center" Width="90"/>
 
@@ -965,7 +965,7 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Margin="0,3">
+                    <StackPanel Grid.Row="3" Margin="0,3">
 
                         <StackPanel Orientation="Horizontal">
 
@@ -1040,7 +1040,7 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,3">
 
                         <TextBlock Text="{theme:Loc settings.bg_image}" VerticalAlignment="Center" Width="90"/>
 
@@ -1052,7 +1052,7 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="5" Orientation="Horizontal" Margin="0,3">
 
                         <TextBlock Text="{theme:Loc settings.font_scaling}" VerticalAlignment="Center" Width="90"/>
 
@@ -1066,7 +1066,7 @@
 
                     </StackPanel>
 
-                    <WrapPanel Grid.Row="5" Margin="0,3">
+                    <WrapPanel Grid.Row="6" Margin="0,3">
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 
@@ -1078,7 +1078,7 @@
 
                     </WrapPanel>
 
-                    <WrapPanel Grid.Row="6" Margin="0,3">
+                    <WrapPanel Grid.Row="7" Margin="0,3">
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 
@@ -1090,7 +1090,7 @@
 
                     </WrapPanel>
 
-                    <WrapPanel Grid.Row="7" Margin="0,3">
+                    <WrapPanel Grid.Row="8" Margin="0,3">
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 
@@ -1105,7 +1105,7 @@
                     </WrapPanel>
 
                     <!-- 清单 #12 / #15 / #16 / #17：界面布局（对齐 design/chert_layout.html 的 4 张布局卡片） -->
-                    <StackPanel Grid.Row="8" Margin="0,3">
+                    <StackPanel Grid.Row="1" Margin="0,3">
                         <TextBlock Text="{theme:Loc settings.ui_style}" VerticalAlignment="Center"
                                    Foreground="{DynamicResource PrimaryForeground}" Margin="0,0,0,6"/>
                         <StackPanel Orientation="Horizontal">

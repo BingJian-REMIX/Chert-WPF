@@ -99,6 +99,8 @@
 
                     <Slider Grid.Column="1" x:Name="SeekBar" Minimum="0" Maximum="100"
 
+                            Style="{StaticResource MiniSeekBarStyle}"
+
                             Value="{Binding ProgressRatio, Mode=OneWay}"
 
                             VerticalAlignment="Center" IsMoveToPointEnabled="True"/>
@@ -150,6 +152,8 @@
                         <TextBlock Text="🔊" VerticalAlignment="Center" Margin="0,0,6,0"/>
 
                         <Slider Minimum="0" Maximum="100" Width="140" Value="{Binding Volume}"
+
+                                Style="{StaticResource MiniSeekBarStyle}"
 
                                 VerticalAlignment="Center"/>
 

@@ -542,6 +542,18 @@ public partial class MainWindow : Window
         player.Ended += () => MusicPlayerViewModel.Instance.OnTrackEnded();
         MusicPlayerViewModel.Instance.SetVolumeFromHost(); // 推送初始音量到 MediaElement
         ((System.Windows.Controls.Primitives.Popup)MusicListPopup).Closed += (_, _) => MusicPlayerViewModel.Instance.Expanded = false;
+        // P13：底栏迷你进度条支持拖动 / 点击跳转。值为 0-100 的比例，VM 内部再换算成秒。
+        // 统一走 SeekInteraction（完全接管鼠标：按下即拖拽、按 Thumb 行程由坐标算值、松手提交），
+        // 避开「隧道 / 冒泡时序导致提交旧值」的坑；拖拽期间置 IsSeeking 暂停定时器回写。
+        SeekInteraction.Attach(
+            MusicMiniSeek,
+            ratio =>
+            {
+                if (MusicPlayerViewModel.Instance.HasProgress)
+                    MusicPlayerViewModel.Instance.SeekCommand.Execute(ratio);
+            },
+            () => MusicPlayerViewModel.Instance.IsSeeking = true,
+            () => MusicPlayerViewModel.Instance.IsSeeking = false);
 
         LauncherService.Instance.Logged += line =>
         {
@@ -1279,6 +1291,21 @@ public partial class MainWindow : Window
                 ? new SolidColorBrush(Color.FromArgb(0x66, accent.R, accent.G, accent.B))
                 : Brushes.Transparent;
         }
+        RequestTopTabVisible();
+    }
+
+    /// <summary>安卓顶栏：把当前选中标签滚入可视区（对齐侧边栏的 RequestSidebarCenter）。
+    /// 顶栏是横向 ScrollViewer + 纵向 Disabled，常规上下 / 点击不会自动滚动，故显式 BringIntoView。
+    /// 需等布局完成：刚 Add 进 StackPanel 的标签此刻还没有实际位置。</summary>
+    private void RequestTopTabVisible()
+    {
+        if (_topTabs.Count == 0 || TopTabsBar.Visibility != Visibility.Visible) return;
+        TopTabsScroll.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            var sel = _sidebarState.SelectedId;
+            if (sel is null) return;
+            if (_topTabs.TryGetValue(sel, out var p)) p.Root.BringIntoView();
+        }));
     }
 
     private void SelectSidebarItem(string id)
@@ -1862,6 +1889,15 @@ public partial class MainWindow : Window
         _gameBigPage = null;
         BigPageHost.Visibility = Visibility.Collapsed;
         BigPageHost.Children.Clear();
+    }
+
+    /// <summary>P01：安卓顶栏标签条的滚轮处理。垂直滚轮换算为横向滚动。</summary>
+    private void TopTabsScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (TopTabsScroll.ScrollableWidth <= 0) return;
+        // Delta 上滚为正 → 标签向左移动（HorizontalOffset 减小）
+        TopTabsScroll.ScrollToHorizontalOffset(TopTabsScroll.HorizontalOffset - e.Delta);
+        e.Handled = true;
     }
 
     private void PlayPageTransition()
