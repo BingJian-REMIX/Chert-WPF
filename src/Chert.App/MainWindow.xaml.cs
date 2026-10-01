@@ -250,6 +250,8 @@ public partial class MainWindow : Window
     private readonly Dictionary<MainTabKind, TabParts> _tabs = new();
     // 清单 #15：沉底导航可视部件（简约安卓式风格启用）
     private readonly Dictionary<MainTabKind, BottomNavParts> _bottomNav = new();
+    // 清单 #15：安卓顶部横向子标签可视部件（副页 Id → 胶囊）
+    private readonly Dictionary<string, TopTabParts> _topTabs = new();
     // 清单 #34：彩蛋触发序列（↑↑↓↓←→←→BA）匹配进度
     private static readonly Key[] KonamiSequence =
     {
@@ -602,9 +604,9 @@ public partial class MainWindow : Window
             _tabs[def.Kind] = new TabParts(grid, bg, title, underline, scale, lift);
 
             // 清单 #15：沉底导航项（与顶部索引贴同源，安卓式风格时取代顶部索引贴）
+            // 清单 #15：宽度交给 UniformGrid 等分（HTML .bnav-item{flex:1}），不再固定 92px
             var navRoot = new Grid
             {
-                Width = 92,
                 Margin = new Thickness(2, 0, 2, 0),
                 Cursor = Cursors.Hand,
                 Background = Brushes.Transparent
@@ -615,12 +617,14 @@ public partial class MainWindow : Window
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
-            var navIcon = new PngIcon { Token = def.Icon, Size = 20 };
+            // 清单 #15：对齐 HTML .bnav-item svg{22px} + span{11px;font-weight:600} + gap:4px
+            var navIcon = new PngIcon { Token = def.Icon, Size = 22 };
             var navTitle = new TextBlock
             {
                 Text = LocaleManager.T(def.Title),
                 FontSize = 11,
-                Margin = new Thickness(0, 2, 0, 0),
+                FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(0, 4, 0, 0),
                 HorizontalAlignment = HorizontalAlignment.Center
             };
             navInner.Children.Add(navIcon);
@@ -986,10 +990,89 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 清单 #15：安卓风格的「顶部横向子标签栏」（对齐 HTML .window.android .top-tabs）——
+    /// 42px 高、左对齐横向排布、胶囊状子标签，替代被隐藏的侧边栏充当副页切换入口。
+    /// 数据源与侧边栏同源（<see cref="Sidebar.For"/>），选中项用当前主标签的主题色。
+    /// </summary>
+    private void BuildTopTabs(MainTabKind kind)
+    {
+        TopTabsPanel.Children.Clear();
+        _topTabs.Clear();
+
+        if (!IsAndroidStyle() || !Sidebar.Has(kind))
+        {
+            TopTabsBar.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        foreach (var it in Sidebar.For(kind))
+        {
+            var text = new TextBlock
+            {
+                Text = LocaleManager.T(it.Title),
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var tab = new Border
+            {
+                Height = 28,
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(12, 0, 12, 0),
+                Margin = new Thickness(0, 0, 6, 0),
+                Cursor = Cursors.Hand,
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                BorderBrush = Brushes.Transparent,
+                Child = text
+            };
+
+            var id = it.Id;
+            tab.MouseLeftButtonUp += (_, _) => SelectSidebarItem(id);
+            tab.MouseEnter += (_, _) =>
+            {
+                if (id == _sidebarState.SelectedId) return;
+                tab.Background = TryFindResource("ControlHoverBackground") as Brush ?? Brushes.Transparent;
+            };
+            tab.MouseLeave += (_, _) =>
+            {
+                if (id == _sidebarState.SelectedId) return;
+                tab.Background = Brushes.Transparent;
+            };
+
+            TopTabsPanel.Children.Add(tab);
+            _topTabs[id] = new TopTabParts(tab, text);
+        }
+
+        TopTabsBar.Visibility = Visibility.Visible;
+        SyncTopTabsSelection(_sidebarState.SelectedId);
+    }
+
+    /// <summary>同步安卓顶部子标签的选中态（HTML .ttab.active：主题色文字 + 14% 底 + 40% 描边）。</summary>
+    private void SyncTopTabsSelection(string? selId)
+    {
+        if (_topTabs.Count == 0) return;
+        var accent = TabColor($"Tab{_currentKind}Brush");
+        var dim = TryFindResource("SecondaryForeground") as Brush ?? new SolidColorBrush(Colors.Gray);
+        foreach (var (id, p) in _topTabs)
+        {
+            var active = id == selId;
+            p.Text.Foreground = active ? new SolidColorBrush(accent) : dim;
+            p.Root.Background = active
+                ? new SolidColorBrush(Color.FromArgb(0x24, accent.R, accent.G, accent.B))
+                : Brushes.Transparent;
+            p.Root.BorderBrush = active
+                ? new SolidColorBrush(Color.FromArgb(0x66, accent.R, accent.G, accent.B))
+                : Brushes.Transparent;
+        }
+    }
+
     private void SelectSidebarItem(string id)
     {
         _sidebarState.Select(id);
         UpdateSidebarSelection();
+        SyncTopTabsSelection(id);
         RouteSidebar(id);
         // 选中项变更（点击 / 键盘 / 程序切换）→ 自动居中到侧边栏垂直中央
         RequestSidebarCenter();
@@ -1174,6 +1257,7 @@ public partial class MainWindow : Window
         SetTabTheme(kind);
         ApplyTabLayout(kind);
         ApplyBottomNavSelection(kind);
+        BuildTopTabs(kind);
 
         _sidebarState.SwitchOwner(kind);
         BuildSidebar(kind);
@@ -1282,6 +1366,7 @@ public partial class MainWindow : Window
             ApplyTabLayout(_currentKind);
             ApplyPageTint(_currentKind);
             BuildSidebar(_currentKind);
+            BuildTopTabs(_currentKind);
 
             // 侧栏可见性与宽度按当前风格收口：安卓隐藏、玻璃恒 42px、其余沿用用户当前展开状态
             SidebarRoot.BeginAnimation(FrameworkElement.WidthProperty, null);
@@ -1755,4 +1840,7 @@ public partial class MainWindow : Window
 
     /// <summary>清单 #15：沉底导航项的可视部件。</summary>
     private sealed record BottomNavParts(Grid Root, Border Pill, TextBlock Title, FrameworkElement Icon);
+
+    /// <summary>清单 #15：安卓顶部横向子标签的可视部件。</summary>
+    private sealed record TopTabParts(Border Root, TextBlock Text);
 }

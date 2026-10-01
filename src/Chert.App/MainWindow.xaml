@@ -504,11 +504,37 @@
 
             </Grid.ColumnDefinitions>
 
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/>   <!-- 安卓顶部横向子标签栏（其余风格折叠为 0） -->
+
+                <RowDefinition Height="*"/>
+
+            </Grid.RowDefinitions>
+
+            <!-- 安卓顶部横向子标签（清单 #15）：42px、左对齐、胶囊状子标签，替代被隐藏的侧边栏 -->
+
+            <Border x:Name="TopTabsBar" Grid.Row="0" Grid.ColumnSpan="2" Height="42" Visibility="Collapsed"
+
+                    Background="{DynamicResource ControlBackground}"
+
+                    BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,0,0,1">
+
+                <ScrollViewer HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled">
+
+                    <StackPanel x:Name="TopTabsPanel" Orientation="Horizontal"
+
+                                Margin="8,0" VerticalAlignment="Center"/>
+
+                </ScrollViewer>
+
+            </Border>
+
 
 
             <!-- 全局侧边栏（bug #6：隐藏竖滚动条，避免遮挡图标/截断长名；bug #20：右边线随当前主标签色） -->
 
-            <Border x:Name="SidebarRoot" Grid.Column="0" Width="56"
+            <Border x:Name="SidebarRoot" Grid.Row="1" Grid.Column="0" Width="56"
 
                     Background="{DynamicResource ControlBackground}"
 
@@ -528,7 +554,7 @@
 
             <!-- 内容宿主（分页切换动画作用于此） -->
 
-            <Border x:Name="PageBorder" Grid.Column="1" Background="{DynamicResource WindowBackground}"
+            <Border x:Name="PageBorder" Grid.Row="1" Grid.Column="1" Background="{DynamicResource WindowBackground}"
 
                     TextElement.Foreground="{DynamicResource PrimaryForeground}">
 
@@ -580,9 +606,9 @@
 
                 BorderBrush="{DynamicResource ControlBorder}" BorderThickness="0,1,0,0">
 
-            <StackPanel x:Name="BottomNavPanel" Orientation="Horizontal"
+            <!-- 清单 #15：用 UniformGrid 等分宽度，对齐 HTML .bnav-item{flex:1} -->
 
-                        HorizontalAlignment="Center" Margin="4,2"/>
+            <UniformGrid x:Name="BottomNavPanel" Rows="1" Margin="0"/>
 
         </Border>
 
