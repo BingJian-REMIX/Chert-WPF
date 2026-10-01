@@ -866,7 +866,7 @@ public partial class MainWindow : Window
         if (IsAndroidStyle())
         {
             // 安卓：内容区不挂索引贴色带，回归纯窗口底（对齐 HTML .page-tint{display:none}）
-            PageBorder.Background = FindResource("WindowBackground") as Brush ?? Brushes.Transparent;
+            PageBorder.Background = TryFindResource("WindowBackground") as Brush ?? Brushes.Transparent;
             return;
         }
         if (IsGlassStyle())
@@ -876,7 +876,7 @@ public partial class MainWindow : Window
                 ?? new SolidColorBrush(Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
             return;
         }
-        var winBg = (FindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
+        var winBg = (TryFindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
         var grad = new LinearGradientBrush
         {
             StartPoint = new Point(0, 0),
@@ -1332,6 +1332,29 @@ public partial class MainWindow : Window
     /// 其它风格 → 恢复顶部索引贴、隐藏沉底导航。
     /// </summary>
     private void ApplyUiStyle()
+    {
+        // 容错包装：本方法挂在 ThemeManager.OnThemeChanged / OnUiStyleChanged / OnAppearanceChanged 上，
+        // 一旦抛异常会顺事件链扩散（订阅者彼此独立，前一个抛了后面就收不到通知），
+        // 表现就是「切一次主题/风格抛一堆异常」。这里兜住并落日志，外观问题绝不阻断 UI。
+        try { ApplyUiStyleCore(); }
+        catch (Exception ex) { WriteUiError("ApplyUiStyle", ex); }
+    }
+
+    /// <summary>把外观 / 主题切换期的异常落到启动器日志，便于用户回报问题。</summary>
+    private static void WriteUiError(string where, Exception ex)
+    {
+        System.Diagnostics.Debug.WriteLine($"[Chert] {where} 失败: {ex}");
+        try
+        {
+            var dir = System.IO.Path.Combine(Chert.Core.Utils.GameConstants.DefaultGameRoot, "logs");
+            System.IO.Directory.CreateDirectory(dir);
+            System.IO.File.AppendAllText(System.IO.Path.Combine(dir, "mclcs_launcher.log"),
+                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [UI] {where} 失败: {ex}\r\n");
+        }
+        catch { /* 日志本身失败不再抛 */ }
+    }
+
+    private void ApplyUiStyleCore()
     {
         var kind = UiStyles.Parse(ThemeManager.UiStyle);
         var android = kind == UiStyleKind.Android;
