@@ -8,6 +8,7 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <!-- 默认亮色启动（规格：WPF 默认 Light）；运行期 ApplyTheme 会按 mclcs_theme.json 覆盖。 -->
+                <ResourceDictionary Source="Themes/Motion.xaml"/>
                 <ResourceDictionary Source="Themes/LightTheme.xaml"/>
                 <ResourceDictionary Source="Themes/Palette.xaml"/>
                 <ResourceDictionary Source="Themes/Controls.xaml"/>

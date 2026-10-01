@@ -1,0 +1,32 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        清单 #17：界面动效令牌（对齐 design/chert_layout.html 的 transition 体系）。
+
+        ★ 为什么要单独一份：
+          1. HTML 里几乎每个过渡都写了 ease / ease-out，而 WPF 的
+             DoubleAnimation / ThicknessAnimation **默认是线性曲线** —— 观感生硬的主因。
+          2. 配合 Style 的 Trigger 使用时，默认是**瞬变**（没有过渡），必须显式写
+             EnterActions / ExitActions 的 Storyboard 才能得到 CSS transition 那种「平滑过去」。
+
+        时长档位（与 HTML 的 transition 一一对应，供各模板内联书写时对照）：
+          0:0:0.12  悬停 / 状态微反馈（HTML .12s）
+          0:0:0.15  大多数交互过渡（HTML .15s）
+          0:0:0.20  页面切换 / 宽度变化（HTML .2s）
+          0:0:0.38  入场错峰（索引贴揭示）
+    -->
+
+    <!-- 最常用：CSS 的 ease-out（起步快、收尾缓） -->
+    <CubicEase x:Key="MotionEase" EasingMode="EaseOut"/>
+
+    <!-- 双向对称（展开/收起这类来回过渡） -->
+    <CubicEase x:Key="MotionEaseInOut" EasingMode="EaseInOut"/>
+
+    <!-- 更柔和的收尾（小位移、淡入淡出） -->
+    <QuadraticEase x:Key="MotionEaseSoft" EasingMode="EaseOut"/>
+
+    <!-- 轻微回弹（HTML 里 transform:scale 的「弹一下」观感，如底部导航选中图标放大） -->
+    <BackEase x:Key="MotionEaseBack" EasingMode="EaseOut" Amplitude="0.3"/>
+
+</ResourceDictionary>
