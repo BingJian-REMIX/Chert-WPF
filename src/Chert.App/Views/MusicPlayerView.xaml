@@ -201,63 +201,62 @@
 
         <Grid Grid.Row="3">
 
-            <!-- 本地 / 在线：统一播放列表（#85：包 ScrollViewer 以约束高度并启用滚动） -->
+            <!-- 本地 / 在线：统一播放列表。
+                 滚动结构：把「自带滚动条 + 最大高度」直接交给 ListBox 自己管。
+                 不要写成「外层 ScrollViewer 包住 ListBox、同时禁用 ListBox 自身滚动」——
+                 ListBox 在这种嵌套里会吃掉鼠标滚轮事件，表现就是列表滚不动（用户反馈）。 -->
 
-            <ScrollViewer Visibility="{Binding IsMcOst, Converter={StaticResource InvBoolToVisibility}}"
+            <ListBox Visibility="{Binding IsMcOst, Converter={StaticResource InvBoolToVisibility}}"
 
-                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                     ItemsSource="{Binding Tracks}"
 
-                          MaxHeight="360">
+                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
 
-                <ListBox ItemsSource="{Binding Tracks}"
+                     BorderBrush="{DynamicResource InputBorder}"
 
-                          Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+                     HorizontalContentAlignment="Stretch"
 
-                          BorderBrush="{DynamicResource InputBorder}"
+                     MaxHeight="360"
 
-                          HorizontalContentAlignment="Stretch"
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
 
-                          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
-                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemTemplate>
 
-                    <ListBox.ItemTemplate>
+                    <DataTemplate>
 
-                        <DataTemplate>
+                        <DockPanel>
 
-                            <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="✕" Width="32" Padding="0"
 
-                                <Button DockPanel.Dock="Right" Content="✕" Width="32" Padding="0"
+                                    Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                        Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                    CommandParameter="{Binding}" ToolTip="{theme:Loc music.m189}"
 
-                                        CommandParameter="{Binding}" ToolTip="{theme:Loc music.m189}"
+                                    Background="Transparent" BorderThickness="0"
 
-                                        Background="Transparent" BorderThickness="0"
+                                    Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center"
 
-                                        Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center"
+                                    HorizontalAlignment="Right"/>
 
-                                        HorizontalAlignment="Right"/>
+                            <Button Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                <Button Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                    CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="6,4"
 
-                                        CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="6,4"
+                                    Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}">
 
-                                        Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}">
+                                <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis"/>
 
-                                    <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis"/>
+                            </Button>
 
-                                </Button>
+                        </DockPanel>
 
-                            </DockPanel>
+                    </DataTemplate>
 
-                        </DataTemplate>
+                </ListBox.ItemTemplate>
 
-                    </ListBox.ItemTemplate>
-
-                </ListBox>
-
-            </ScrollViewer>
+            </ListBox>
 
 
 

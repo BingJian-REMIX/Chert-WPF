@@ -1046,7 +1046,11 @@
 
                         <Hyperlink NavigateUri="{x:Static core:GameConstants.GitHubRepoUri}" RequestNavigate="OpenUrl_Click">
 
-                            {theme:Loc settings.license_github}
+                            <!-- 注意：{theme:Loc} 是标记扩展，只能出现在「属性」位置。
+                                 之前写成 <Hyperlink> 的元素内容，结果界面上原样显示了
+                                 "{theme:Loc settings.license_github}" 字面量。 -->
+
+                            <Run Text="{theme:Loc settings.license_github}"/>
 
                         </Hyperlink>
 

@@ -816,6 +816,68 @@ public class SettingsViewModel : ObservableObject
         LocaleManager.CurrentLocale = SelectedLanguage;
     }
 
+    /// <summary>
+    /// 把「本设置页不负责」的字段从磁盘上的旧配置搬回新构造的 profile。
+    /// <para>
+    /// 背景：<see cref="Save"/> 里是 <c>new LauncherProfile { ... }</c>，只列出本页负责的字段，
+    /// 其余字段会被**默认值覆盖**。实测有 26 个字段会在每次「保存设置」时静默丢失：
+    /// 窗口布局记忆、音乐自动续播 / 音量 / 断点、收藏的挂机工作流与光影 Token、
+    /// 下载限速与自动重试、局域网联动、备份策略、上次游玩版本与账号、分辨率、最小内存、
+    /// 四色标签自定义配色、侧边栏配置……
+    /// </para>
+    /// <para>
+    /// 「启动时自动续播」的开关本身就绑在本页，但它的 setter 由 <c>MusicPlayerViewModel</c>
+    /// 立即落盘，而随后的保存又会把它重置 —— 这正是用户反馈「需要持久化」的原因。
+    /// </para>
+    /// <para>AI 配置不在此列：它由 <c>_aiVm.ApplyTo(profile)</c> 另行写回。</para>
+    /// </summary>
+    private static void RestoreUntouchedFields(LauncherProfile profile)
+    {
+        try
+        {
+            var old = ProfileStore.Load(GameConstants.DefaultGameRoot);
+
+            // 运行时状态：上次游玩版本 / 上次账号 / 分辨率 / 窗口布局记忆
+            profile.MinMemoryMb = old.MinMemoryMb;
+            profile.LastVersionId = old.LastVersionId;
+            profile.LastAccountId = old.LastAccountId;
+            profile.ResolutionWidth = old.ResolutionWidth;
+            profile.ResolutionHeight = old.ResolutionHeight;
+            profile.WindowLeft = old.WindowLeft;
+            profile.WindowTop = old.WindowTop;
+            profile.WindowWidth = old.WindowWidth;
+            profile.WindowHeight = old.WindowHeight;
+            profile.WindowMaximized = old.WindowMaximized;
+
+            // 下载补充项（限速 / 自动重试）
+            profile.DownloadSpeedLimitKbps = old.DownloadSpeedLimitKbps;
+            profile.DownloadAutoRetryCount = old.DownloadAutoRetryCount;
+
+            // 其它模块负责的配置
+            profile.TabTheme = old.TabTheme;
+            profile.Sidebar = old.Sidebar;
+            profile.LanLink = old.LanLink;
+            profile.Backup = old.Backup;
+            profile.ServerPackCacheMb = old.ServerPackCacheMb;
+
+            // 收藏内容（挂机工作流 / 光影配置 Token）
+            profile.AfkWorkflows = old.AfkWorkflows;
+            profile.ShaderTokens = old.ShaderTokens;
+
+            // 音乐播放器（setter 已即时落盘，这里搬回磁盘值即可）
+            profile.MusicAutoDuck = old.MusicAutoDuck;
+            profile.MusicVolume = old.MusicVolume;
+            profile.MusicResumeOnLaunch = old.MusicResumeOnLaunch;
+            profile.MusicLastTrack = old.MusicLastTrack;
+            profile.MusicLastPosition = old.MusicLastPosition;
+            profile.MusicLastFolder = old.MusicLastFolder;
+        }
+        catch
+        {
+            // 读不到旧配置（首次运行 / 文件损坏）就按默认值走，不影响保存本身
+        }
+    }
+
     private void Save()
     {
         // 游戏目录可能是用户手输的，先应用再写 profile，保证 profile 落到正确的目录里（bug #26）
@@ -888,6 +950,11 @@ public class SettingsViewModel : ObservableObject
             MicrosoftOAuthClientId = MicrosoftOAuthClientId?.Trim() ?? "",
 
         };
+
+        // ⚠️ 上面 new 出来的是**全新** profile：本页不负责的字段会被重置成默认值。
+        // 必须把磁盘上的旧值搬回来，否则每次点「保存设置」都会静默丢配置（实测 26 个字段）。
+        RestoreUntouchedFields(profile);
+
         _aiVm.ApplyTo(profile);
         ProfileStore.Save(profile);
         Chert.App.Services.ToastService.DurationSeconds = profile.ToastDurationSeconds;
@@ -1075,11 +1142,20 @@ public class SettingsViewModel : ObservableObject
         try
         {
             var m = System.Text.RegularExpressions.Regex.Match(msg, @"输入代码：(\S+)");
-            if (m.Success)
+            if (!m.Success) return;
+
+            var code = m.Groups[1].Value.Trim();
+
+            // 此前是「静默复制」——剪贴板里明明有了，界面上却什么都没说，
+            // 用户不知道可以直接到浏览器粘贴（反馈：没有设备码已写入剪贴板的提示）。
+            // 统一派发到 UI 线程后再改状态 / 弹 Toast，避免非 UI 线程触碰绑定属性。
+            System.Windows.Application.Current.Dispatcher.Invoke(() =>
             {
-                var code = m.Groups[1].Value.Trim();
-                System.Windows.Application.Current.Dispatcher.Invoke(() => System.Windows.Clipboard.SetText(code));
-            }
+                System.Windows.Clipboard.SetText(code);
+                var tip = LocaleManager.Tf("settings.ms_code_copied", code);
+                StatusMessage = tip;
+                ToastService.Show(LocaleManager.T("settings.ms_login_title"), tip, ToastKind.Success);
+            });
         }
         catch { /* 剪贴板不可用时忽略 */ }
     }

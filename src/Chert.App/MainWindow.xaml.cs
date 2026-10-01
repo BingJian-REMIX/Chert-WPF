@@ -942,7 +942,12 @@ public partial class MainWindow : Window
             // 选中项用 PrimaryForeground（亮/暗主题均为强对比），避免亮底上白字不可见
             var fg = active ? (Brush)FindResource("PrimaryForeground") : (Brush)FindResource("SecondaryForeground");
             p.Title.Foreground = fg;
-            if (active) p.Row.Background = (Brush)FindResource("ControlHoverBackground");
+            // 高亮底必须「有的清、没的清」两侧都写：
+            // 之前只在 active 时赋背景、从不重置，导致用键盘上下键切换副页时，
+            // 上一个选中项（以及鼠标划过留下的 hover 底）永远亮着 —— 多个项同时高亮。
+            p.Row.Background = active
+                ? (Brush)FindResource("ControlHoverBackground")
+                : Brushes.Transparent;
         }
     }
 
