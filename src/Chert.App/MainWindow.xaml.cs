@@ -81,6 +81,16 @@ public partial class MainWindow : Window
     /// <summary>清单 #16：玻璃风格的等宽字体（终端观感），带回退字族。</summary>
     private static readonly FontFamily MonoFont = new("Consolas, Menlo, Courier New");
 
+    /// <summary>
+    /// 清单 #17：界面动效统一缓动。
+    /// HTML 里几乎每个过渡都是 <c>ease</c> / <c>ease-out</c>（个别用 cubic-bezier expo-out），
+    /// 而 WPF 的 DoubleAnimation / ThicknessAnimation **默认是线性** —— 这正是「WPF 动画生硬」的主因。
+    /// 全工程统一走这里，别再各写各的。
+    /// </summary>
+    private static readonly CubicEase UiEaseOut = new() { EasingMode = EasingMode.EaseOut };
+
+    private static readonly CubicEase UiEaseInOut = new() { EasingMode = EasingMode.EaseInOut };
+
     /// <summary>清单 #16：玻璃浏览器式页签的最小宽度（对齐 HTML .window.minimal .tab 的 min-width:96px）。</summary>
     private const double GlassTabMinWidth = 96;
 
@@ -703,7 +713,7 @@ public partial class MainWindow : Window
                 p.Underline.Opacity = 0;
                 if (AnimationsEnabled)
                     p.Underline.BeginAnimation(Rectangle.OpacityProperty,
-                        new DoubleAnimation(1, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)));
+                        new DoubleAnimation(1, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)) { EasingFunction = UiEaseOut });
                 else
                     p.Underline.Opacity = 1;
             }
@@ -745,11 +755,6 @@ public partial class MainWindow : Window
         // 让选中标签的颜色向下延续到内容区（一条渐隐的同色带）。
         ApplyPageTint(kind);
 
-        // 清单 #17：灵动布局下索引贴色还「下流」到侧栏底。
-        // 设计稿里 .window.dynamic .sidebar{background:transparent}，下方是整页 page-card（--tint），
-        // 视觉上就是「侧栏与内容区同色的一条」。WPF 的 PageBorder 在 Column=1、不横跨侧栏，
-        // 所以这里直接把侧栏底刷成同色，得到完全一致的观感（实测设计稿截图像素：侧栏 = 索引贴色）。
-        if (IsDynamicStyle()) SidebarRoot.Background = solid;
     }
 
     // ===== 索引贴悬浮 / 配色辅助 =====
@@ -783,7 +788,7 @@ public partial class MainWindow : Window
             {
                 p.Root.BeginAnimation(FrameworkElement.WidthProperty,
                     new DoubleAnimation(enter ? MainTabs.ExpandedWidth : MainTabs.CollapsedWidth,
-                        TimeSpan.FromMilliseconds(250)));
+                        TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut });
                 RevealTitle(p, enter, true);
             }
             else
@@ -800,7 +805,7 @@ public partial class MainWindow : Window
         var target = enter ? p.HoverColor : p.BaseColor;
         if (AnimationsEnabled)
             p.Brush.BeginAnimation(SolidColorBrush.ColorProperty,
-                new ColorAnimation(target, TimeSpan.FromMilliseconds(MainTabs.HoverMs)));
+                new ColorAnimation(target, TimeSpan.FromMilliseconds(MainTabs.HoverMs)) { EasingFunction = UiEaseOut });
         else
             p.Brush.Color = target;
     }
@@ -816,7 +821,7 @@ public partial class MainWindow : Window
             {
                 p.Title.Opacity = 0;
                 p.Title.BeginAnimation(UIElement.OpacityProperty,
-                    new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)));
+                    new DoubleAnimation(1, TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut });
             }
             else
             {
@@ -827,7 +832,7 @@ public partial class MainWindow : Window
         {
             if (animate)
             {
-                var a = new DoubleAnimation(0, TimeSpan.FromMilliseconds(250));
+                var a = new DoubleAnimation(0, TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut };
                 a.Completed += (_, _) =>
                 {
                     if (p.Title.Opacity <= 0.01) p.Title.Visibility = Visibility.Collapsed;
@@ -908,7 +913,9 @@ public partial class MainWindow : Window
             return;
         }
 
-        SidebarRoot.Visibility = Visibility.Visible;
+        // 清单 #15：安卓布局用顶部横向子标签取代侧边栏 —— 这里必须也判风格，
+        // 否则 NavigateTo（切主标签）重建侧栏时会把它重新显示出来。
+        SidebarRoot.Visibility = IsAndroidStyle() ? Visibility.Collapsed : Visibility.Visible;
 
         foreach (var it in Sidebar.For(kind))
         {
@@ -990,7 +997,7 @@ public partial class MainWindow : Window
             if (AnimationsEnabled)
             {
                 p.Indicator.BeginAnimation(Rectangle.OpacityProperty,
-                    new DoubleAnimation(active ? 1 : 0, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)));
+                    new DoubleAnimation(active ? 1 : 0, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)) { EasingFunction = UiEaseOut });
             }
             else
             {
@@ -1192,7 +1199,7 @@ public partial class MainWindow : Window
 
         if (AnimationsEnabled)
         {
-            var anim = new DoubleAnimation(scroll.VerticalOffset, target, TimeSpan.FromMilliseconds(220));
+            var anim = new DoubleAnimation(scroll.VerticalOffset, target, TimeSpan.FromMilliseconds(220)) { EasingFunction = UiEaseOut };
             anim.EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut };
             scroll.BeginAnimation(SidebarVerticalOffsetProperty, anim);
         }
@@ -1253,7 +1260,7 @@ public partial class MainWindow : Window
             return;
         }
         SidebarRoot.BeginAnimation(FrameworkElement.WidthProperty,
-            new DoubleAnimation(width, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)));
+            new DoubleAnimation(width, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)) { EasingFunction = UiEaseOut });
         var showLabels = expanded && !ThemeManager.HideSidebarLabels;
         foreach (var p in _sidebarItems.Values)
             p.Title.Visibility = showLabels ? Visibility.Visible : Visibility.Collapsed;
@@ -1283,8 +1290,9 @@ public partial class MainWindow : Window
         BuildSidebar(kind);
         // 清单 #16：玻璃风格侧栏恒为 42px 且不展开
         var glassNav = IsGlassStyle();
-        AnimateSidebar(Sidebar.Has(kind) ? (glassNav ? 42 : _sidebarState.Width) : 0,
-            glassNav ? false : _sidebarState.Expanded);
+        var androidNav = IsAndroidStyle();
+        AnimateSidebar(Sidebar.Has(kind) && !androidNav ? (glassNav ? 42 : _sidebarState.Width) : 0,
+            (glassNav || androidNav) ? false : _sidebarState.Expanded);
 
         // 进入各主视图时同步加载当前选中的副标签内容（规格 1.4 / 2.2）
         RouteSidebar(_sidebarState.SelectedId);
@@ -1423,8 +1431,6 @@ public partial class MainWindow : Window
                 SidebarRoot.Width = glass ? 42 : _sidebarState.Width;
             }
 
-            // 清单 #17：灵动布局的侧栏底取当前索引贴色（切风格时也要立即生效，不必等切标签）
-            if (dynamic) SidebarRoot.Background = Brush($"Tab{_currentKind}Brush");
         }
 
         ApplyBottomNavSelection(_currentKind);
@@ -1576,7 +1582,12 @@ public partial class MainWindow : Window
         if (PageBorder is null) return;
         if (on)
         {
-            PageBorder.Margin = new Thickness(8);
+            // 对齐 HTML .window.dynamic .page-card{position:absolute; inset:var(--tabbar-h) 0 var(--status-h) 0}：
+            // 大卡片**横跨整个宽度（含侧栏位置）**、左右贴边，侧栏透明浮在卡片之上 ——
+            // 这样整页（侧栏 + 内容）是同一张索引贴色卡片，而不是「侧栏一条色 + 内容一张卡」。
+            Grid.SetColumnSpan(PageBorder, 2);
+            Panel.SetZIndex(SidebarRoot, 1);          // 侧栏必须压在卡片之上，否则被卡片盖住
+            PageBorder.Margin = new Thickness(0);
             PageBorder.CornerRadius = new CornerRadius(18);
             PageBorder.BorderThickness = new Thickness(0);
             PageBorder.SizeChanged -= UpdateDynamicCardClip;
@@ -1587,6 +1598,8 @@ public partial class MainWindow : Window
         {
             PageBorder.SizeChanged -= UpdateDynamicCardClip;
             PageBorder.Clip = null;
+            Grid.SetColumnSpan(PageBorder, 1);
+            Panel.SetZIndex(SidebarRoot, 0);
             PageBorder.Margin = new Thickness(0);
             PageBorder.CornerRadius = new CornerRadius(0);
             if (_currentKind != (MainTabKind)(-1)) ApplyPageTint(_currentKind);
@@ -1655,8 +1668,8 @@ public partial class MainWindow : Window
         if (IsDynamicStyle())
         {
             var dur = TimeSpan.FromMilliseconds(120);
-            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
-            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(40, 0, dur));
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = UiEaseOut });
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(40, 0, dur) { EasingFunction = UiEaseOut });
             return;
         }
         // 玻璃：内容横向滑动（对齐 HTML .page.leave/enter 的左右平移，180ms）
@@ -1664,8 +1677,8 @@ public partial class MainWindow : Window
         {
             var gdur = TimeSpan.FromMilliseconds(180);
             PageTransform.Y = 0;
-            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, gdur));
-            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(28, 0, gdur));
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, gdur) { EasingFunction = UiEaseOut });
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(28, 0, gdur) { EasingFunction = UiEaseOut });
             return;
         }
         // 安卓：内容横向滑动（对齐 HTML .page.leave/enter 的左右平移）
@@ -1673,8 +1686,8 @@ public partial class MainWindow : Window
         {
             var dur = TimeSpan.FromMilliseconds(180);
             PageTransform.Y = 0;
-            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
-            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(30, 0, dur));
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur) { EasingFunction = UiEaseOut });
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(30, 0, dur) { EasingFunction = UiEaseOut });
             return;
         }
         var duration = TimeSpan.FromMilliseconds(200);
@@ -1797,11 +1810,11 @@ public partial class MainWindow : Window
 
     private static void AnimateWidth(FrameworkElement el, double to) =>
         el.BeginAnimation(FrameworkElement.WidthProperty,
-            new DoubleAnimation(to, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)));
+            new DoubleAnimation(to, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)) { EasingFunction = UiEaseOut });
 
     private static void AnimateMargin(FrameworkElement el, Thickness to) =>
         el.BeginAnimation(FrameworkElement.MarginProperty,
-            new ThicknessAnimation(to, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)));
+            new ThicknessAnimation(to, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)) { EasingFunction = UiEaseOut });
 
     /// <summary>全局搜索：回车后若命中设置关键词则跳转到对应设置子项，否则跳下载页并预填搜索词（bug #23）。</summary>
     private void GlobalSearch_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
