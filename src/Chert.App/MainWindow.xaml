@@ -986,9 +986,11 @@
                                         <BeginStoryboard>
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
-                                                                 To="340" Duration="0:0:0.28"/>
+                                                                 To="340" Duration="0:0:0.28"
+                                                                 EasingFunction="{StaticResource MotionEase}"/>
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                 To="0" Duration="0:0:0.28"/>
+                                                                 To="0" Duration="0:0:0.28"
+                                                                 EasingFunction="{StaticResource MotionEase}"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.EnterActions>
@@ -1001,9 +1003,11 @@
                             <BeginStoryboard>
                                 <Storyboard>
                                     <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
-                                                     From="340" To="0" Duration="0:0:0.28"/>
+                                                     From="340" To="0" Duration="0:0:0.28"
+                                                     EasingFunction="{StaticResource MotionEaseExpo}"/>
                                     <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                     From="0" To="1" Duration="0:0:0.28"/>
+                                                     From="0" To="1" Duration="0:0:0.28"
+                                                     EasingFunction="{StaticResource MotionEaseExpo}"/>
                                 </Storyboard>
                             </BeginStoryboard>
                         </EventTrigger>

@@ -29,4 +29,7 @@
     <!-- 轻微回弹（HTML 里 transform:scale 的「弹一下」观感，如底部导航选中图标放大） -->
     <BackEase x:Key="MotionEaseBack" EasingMode="EaseOut" Amplitude="0.3"/>
 
+    <!-- HTML .reveal 用的 cubic-bezier(0.16,1,0.3,1)：起步极快、收尾极缓（expo-out 观感） -->
+    <QuinticEase x:Key="MotionEaseExpo" EasingMode="EaseOut"/>
+
 </ResourceDictionary>

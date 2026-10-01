@@ -963,6 +963,13 @@ public partial class MainWindow : Window
             inner.Children.Add(icon);
             inner.Children.Add(title);
 
+            // 悬停底与选中底各用一层独立蒙版做 opacity 过渡：
+            // 直接换 row.Background 是瞬变；两层分开还能避免「鼠标划过后把选中态一起灭掉」。
+            var hoverMask = NewMask("ControlHoverBackground", glassBar ? 6 : 8);
+            var selMask = NewMask("ControlHoverBackground", glassBar ? 6 : 8);
+            row.Children.Add(hoverMask);
+            row.Children.Add(selMask);
+
             row.Children.Add(indicator);
             row.Children.Add(inner);
 
@@ -972,12 +979,13 @@ public partial class MainWindow : Window
             row.FocusVisualStyle = null;
             row.KeyDown += SidebarRow_KeyDown;
             row.MouseLeftButtonUp += (_, _) => SelectSidebarItem(it.Id);
-            // 侧边栏项悬浮：仅背景高亮（对齐 HTML 的 .sitem:hover{background}，无缩放弹跳）
-            row.MouseEnter += (_, _) => row.Background = (Brush)FindResource("ControlHoverBackground");
-            row.MouseLeave += (_, _) => row.Background = Brushes.Transparent;
+            // 侧边栏项悬浮：仅背景高亮（对齐 HTML 的 .sitem:hover{background}，无缩放弹跳），
+            // 走 0.15s / 0.12s 过渡而不是瞬变。
+            row.MouseEnter += (_, _) => FadeMask(hoverMask, 1, 150);
+            row.MouseLeave += (_, _) => FadeMask(hoverMask, 0, 120);
 
             SidebarItemsPanel.Children.Add(row);
-            _sidebarItems[it.Id] = new SidebarParts(row, indicator, title, icon);
+            _sidebarItems[it.Id] = new SidebarParts(row, indicator, title, icon, hoverMask, selMask);
         }
 
         UpdateSidebarSelection();
@@ -1009,9 +1017,8 @@ public partial class MainWindow : Window
             // 高亮底必须「有的清、没的清」两侧都写：
             // 之前只在 active 时赋背景、从不重置，导致用键盘上下键切换副页时，
             // 上一个选中项（以及鼠标划过留下的 hover 底）永远亮着 —— 多个项同时高亮。
-            p.Row.Background = active
-                ? (Brush)FindResource("ControlHoverBackground")
-                : Brushes.Transparent;
+            // 现在选中态走独立蒙版的 opacity 过渡，悬停态互不干扰。
+            FadeMask(p.SelMask, active ? 1 : 0, 150);
         }
     }
 
@@ -1040,17 +1047,23 @@ public partial class MainWindow : Window
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center
             };
+            // 悬停蒙版单独一层（胶囊形，与 Border 的 14px 圆角一致），做 0.15s 过渡。
+            var tabHover = NewMask("ControlHoverBackground", 14);
+            text.Margin = new Thickness(12, 0, 12, 0);
+            var tabContent = new Grid();
+            tabContent.Children.Add(tabHover);
+            tabContent.Children.Add(text);
+
             var tab = new Border
             {
                 Height = 28,
                 CornerRadius = new CornerRadius(14),
-                Padding = new Thickness(12, 0, 12, 0),
                 Margin = new Thickness(0, 0, 6, 0),
                 Cursor = Cursors.Hand,
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(1),
                 BorderBrush = Brushes.Transparent,
-                Child = text
+                Child = tabContent
             };
 
             var id = it.Id;
@@ -1058,16 +1071,16 @@ public partial class MainWindow : Window
             tab.MouseEnter += (_, _) =>
             {
                 if (id == _sidebarState.SelectedId) return;
-                tab.Background = TryFindResource("ControlHoverBackground") as Brush ?? Brushes.Transparent;
+                FadeMask(tabHover, 1, 150);
             };
             tab.MouseLeave += (_, _) =>
             {
                 if (id == _sidebarState.SelectedId) return;
-                tab.Background = Brushes.Transparent;
+                FadeMask(tabHover, 0, 120);
             };
 
             TopTabsPanel.Children.Add(tab);
-            _topTabs[id] = new TopTabParts(tab, text);
+            _topTabs[id] = new TopTabParts(tab, text, tabHover);
         }
 
         TopTabsBar.Visibility = Visibility.Visible;
@@ -1304,7 +1317,15 @@ public partial class MainWindow : Window
         else
             BigPageHost.Visibility = Visibility.Collapsed;
 
-        if (AnimationsEnabled) PlayPageTransition();
+        if (AnimationsEnabled)
+        {
+            PlayPageTransition();
+            // 清单 #17：对齐 HTML 的 triggerReveal() —— 切页后内容区块逐个错峰淡入上浮。
+            // 必须等布局完成后再遍历：刚切过去的页面此刻还没进入可视化树，
+            // 立即取子元素会拿到 0 个（与侧栏居中的 RequestSidebarCenter 同一处理方式）。
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+                new Action(() => MotionFX.Reveal(page)));
+        }
     }
 
     // ===== 彩蛋（清单 #34）=====
@@ -1805,6 +1826,31 @@ public partial class MainWindow : Window
 
     // ===== 工具 =====
 
+    /// <summary>
+    /// 蒙版淡入 / 淡出（对齐 HTML 的 transition:.12s~.15s ease）。
+    /// 与控件模板里 HoverMask 同一思路：**不直接动画共享画刷**，
+    /// 而是叠一层独立 Border 动它的 Opacity —— 共享画刷来自合并字典，动画会抛「已冻结」。
+    /// </summary>
+    private static void FadeMask(UIElement mask, double to, int ms)
+    {
+        if (!AnimationsEnabled)
+        {
+            mask.Opacity = to;
+            return;
+        }
+        mask.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = UiEaseOut });
+    }
+
+    /// <summary>新建一层状态蒙版（圆角 / 不拦截命中）。</summary>
+    private Border NewMask(string brushKey, double radius) => new()
+    {
+        CornerRadius = new CornerRadius(radius),
+        Background = TryFindResource(brushKey) as Brush ?? Brushes.Transparent,
+        Opacity = 0,
+        IsHitTestVisible = false
+    };
+
     private static SolidColorBrush Brush(string key) =>
         (SolidColorBrush)Application.Current.FindResource(key);
 
@@ -1898,11 +1944,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private sealed record SidebarParts(Grid Row, Rectangle Indicator, TextBlock Title, FrameworkElement Icon);
+    private sealed record SidebarParts(Grid Row, Rectangle Indicator, TextBlock Title, FrameworkElement Icon,
+        Border HoverMask, Border SelMask);
 
     /// <summary>清单 #15：沉底导航项的可视部件。</summary>
     private sealed record BottomNavParts(Grid Root, Border Pill, TextBlock Title, FrameworkElement Icon);
 
     /// <summary>清单 #15：安卓顶部横向子标签的可视部件。</summary>
-    private sealed record TopTabParts(Border Root, TextBlock Text);
+    private sealed record TopTabParts(Border Root, TextBlock Text, Border HoverMask);
 }

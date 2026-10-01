@@ -38,6 +38,12 @@
                         <Border x:Name="Track" Width="44" Height="24" CornerRadius="12"
                                 Background="{DynamicResource ToggleOffBrush}"
                                 BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"/>
+                        <!--
+                            选中态的强调色单独一层做 opacity 过渡（对齐 HTML transition:.15s ease）——
+                            直接换 Track.Background 是瞬变，且那两个画刷来自合并字典、动画会抛「已冻结」。
+                        -->
+                        <Border x:Name="TrackAccent" Width="44" Height="24" CornerRadius="12"
+                                Background="{DynamicResource AccentBrush}"/>
                         <Ellipse x:Name="Knob" Width="18" Height="18" Fill="White"
                                  HorizontalAlignment="Left" Margin="3,0,0,0">
                             <Ellipse.RenderTransform>
@@ -47,13 +53,19 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <!-- 兜底：模板加载时即为选中态也要正确着色（动画优先级高于 Setter，正常路径走动画） -->
+                            <Setter TargetName="TrackAccent" Property="Opacity" Value="1"/>
                             <Trigger.EnterActions>
                                 <BeginStoryboard>
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="KnobX"
                                                          Storyboard.TargetProperty="X"
-                                                         To="22" Duration="0:0:0.15"/>
+                                                         To="22" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                        <DoubleAnimation Storyboard.TargetName="TrackAccent"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -62,7 +74,12 @@
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="KnobX"
                                                          Storyboard.TargetProperty="X"
-                                                         To="0" Duration="0:0:0.15"/>
+                                                         To="0" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                        <DoubleAnimation Storyboard.TargetName="TrackAccent"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
@@ -110,7 +127,8 @@
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="Lift"
                                                          Storyboard.TargetProperty="Y"
-                                                         To="-6" Duration="0:0:0.15"/>
+                                                         To="-6" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.EnterActions>
@@ -119,7 +137,8 @@
                                     <Storyboard>
                                         <DoubleAnimation Storyboard.TargetName="Lift"
                                                          Storyboard.TargetProperty="Y"
-                                                         To="0" Duration="0:0:0.15"/>
+                                                         To="0" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
                                     </Storyboard>
                                 </BeginStoryboard>
                             </Trigger.ExitActions>
@@ -189,15 +208,38 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}" CornerRadius="8"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8"/>
+                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource AccentHoverBrush}"/>
+                        <Border Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Background" Value="{DynamicResource ButtonDisabledBackground}"/>
@@ -221,17 +263,41 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border Background="{TemplateBinding Background}" CornerRadius="8"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
+                    <Grid>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                BorderBrush="{TemplateBinding BorderBrush}"/>
+                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource ControlHoverBackground}"/>
+                        <Border Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -275,13 +341,20 @@
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                                CornerRadius="8"/>
+                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource ControlHoverBackground}"/>
+                        <!--
+                            ★ 内容必须单独一层、压在蒙版**之上**。
+                              ControlHoverBackground 是**不透明**色（亮 #F0F0F0 / 暗 #252830），
+                              蒙版盖住内容就等于把按钮文字抹掉 —— 上一轮把 ContentPresenter
+                              放在蒙版下面是个错误，这里修正。
+                        -->
+                        <Border Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
                                               TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
-                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
-                                Background="{DynamicResource ControlHoverBackground}"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -359,9 +432,13 @@
                                       BorderThickness="{TemplateBinding BorderThickness}">
                             <ToggleButton.Template>
                                 <ControlTemplate TargetType="ToggleButton">
-                                    <Border Background="{TemplateBinding Background}"
-                                            BorderBrush="{TemplateBinding BorderBrush}"
-                                            BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8">
+                                    <Grid>
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8"/>
+                                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                                Background="{DynamicResource ControlHoverBackground}"/>
+                                        <!-- 内容层：保持原几何（文本左内边距 8、右侧给箭头留 28、箭头距右 10） -->
                                         <Grid>
                                             <ContentPresenter x:Name="ContentSite"
                                                               Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType=ComboBox}}"
@@ -371,18 +448,63 @@
                                                               HorizontalAlignment="Left" VerticalAlignment="Center"
                                                               Margin="8,0,28,0" IsHitTestVisible="False"
                                                               TextElement.Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ComboBox}}"/>
+                                            <!-- 展开时箭头旋转 180°（对齐 HTML 下拉的 chevron 翻转） -->
                                             <Path x:Name="Arrow" Data="M 0 0 L 4 4 L 8 0"
                                                   Stroke="{DynamicResource SecondaryForeground}" StrokeThickness="1.5"
                                                   HorizontalAlignment="Right" VerticalAlignment="Center"
-                                                  Margin="0,0,10,0"/>
+                                                  Margin="0,0,10,0" RenderTransformOrigin="0.5,0.5">
+                                                <Path.RenderTransform>
+                                                    <RotateTransform x:Name="ArrowRotate" Angle="0"/>
+                                                </Path.RenderTransform>
+                                            </Path>
                                         </Grid>
-                                    </Border>
+                                    </Grid>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
                                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                            <Trigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                                         Storyboard.TargetProperty="Opacity"
+                                                                         To="1" Duration="0:0:0.15"
+                                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.EnterActions>
+                                            <Trigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                                         Storyboard.TargetProperty="Opacity"
+                                                                         To="0" Duration="0:0:0.12"
+                                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </Trigger.ExitActions>
                                         </Trigger>
                                         <DataTrigger Binding="{Binding IsDropDownOpen, RelativeSource={RelativeSource AncestorType=ComboBox}}" Value="True">
                                             <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                                            <DataTrigger.EnterActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ArrowRotate"
+                                                                         Storyboard.TargetProperty="Angle"
+                                                                         To="180" Duration="0:0:0.15"
+                                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.EnterActions>
+                                            <DataTrigger.ExitActions>
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="ArrowRotate"
+                                                                         Storyboard.TargetProperty="Angle"
+                                                                         To="0" Duration="0:0:0.15"
+                                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </DataTrigger.ExitActions>
                                         </DataTrigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -421,23 +543,27 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ComboBoxItem">
-                    <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
-                            BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}"
-                            SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          Content="{TemplateBinding Content}"
-                                          ContentTemplate="{TemplateBinding ContentTemplate}"
-                                          ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
-                                          ContentStringFormat="{TemplateBinding ContentStringFormat}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
+                    <Grid SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}"
+                                SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                        <Border x:Name="HoverMask" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource AccentBrush}"/>
+                        <Border Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Content="{TemplateBinding Content}"
+                                              ContentTemplate="{TemplateBinding ContentTemplate}"
+                                              ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                              ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
         <Style.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
@@ -448,7 +574,6 @@
                     <Condition Property="IsSelected" Value="True"/>
                     <Condition Property="IsMouseOver" Value="True"/>
                 </MultiTrigger.Conditions>
-                <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
                 <Setter Property="Foreground" Value="White"/>
             </MultiTrigger>
         </Style.Triggers>
@@ -514,23 +639,71 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ToggleButton">
-                    <Border x:Name="Bd"
-                            Background="{TemplateBinding Background}"
-                            BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="8" Padding="{TemplateBinding Padding}">
-                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
-                                          TextElement.Foreground="{TemplateBinding Foreground}"/>
-                    </Border>
+                    <Grid>
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"/>
+                        <!-- 悬停蒙版在下、选中蒙版在上：已选中的开关悬停时保持强调色实底，观感稳定 -->
+                        <Border x:Name="HoverMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource ControlHoverBackground}"/>
+                        <Border x:Name="CheckMask" CornerRadius="8" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource AccentBrush}"/>
+                        <Border Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"/>
+                        </Border>
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="CheckMask" Property="Opacity" Value="1"/>
                             <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource AccentForeground}"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="CheckMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5"/>
@@ -707,8 +880,85 @@
         <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
     </Style>
+    <!--
+        ===== 列表项容器（ListBoxItem）=====
+        WPF 默认模板的悬停/选中是**系统色瞬变**，暗色主题下尤其突兀。
+        这里给出与全局控件同语言的容器：圆角 6、悬停蒙版、选中用强调色 18% 淡底，
+        两者都走 opacity 过渡（对齐 HTML 列表项的 transition:.12s）。
+        注意 HorizontalContentAlignment=Stretch：默认的 Left 会让整行内容不撑满，
+        表格化列表（音乐播放列表）会因此错位。
+    -->
     <Style TargetType="ListBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource PrimaryForeground}"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Border x:Name="Bd" CornerRadius="6" Background="Transparent"/>
+                        <Border x:Name="HoverMask" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource ControlHoverBackground}"/>
+                        <Border x:Name="SelMask" CornerRadius="6" IsHitTestVisible="False" Opacity="0"
+                                Background="{DynamicResource AccentBrush}"/>
+                        <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                          VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                          SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="1" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="HoverMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="SelMask" Property="Opacity" Value="0.18"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0.18" Duration="0:0:0.15"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="SelMask"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"
+                                                         EasingFunction="{StaticResource MotionEase}"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
     </Style>
 
 </ResourceDictionary>
