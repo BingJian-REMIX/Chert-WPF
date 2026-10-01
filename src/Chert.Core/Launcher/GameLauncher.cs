@@ -221,7 +221,7 @@ public static class GameLauncher
         {
             FileName = java.JavaExe,
             UseShellExecute = false,
-            CreateNoWindow = false,
+            CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             WorkingDirectory = gameDir

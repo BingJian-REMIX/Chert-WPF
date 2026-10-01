@@ -16,6 +16,7 @@
 
         <!-- 标题栏 -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
+            <theme:PngIcon Token="lan" Size="18" Margin="0,0,6,0" VerticalAlignment="Center"/>
             <TextBlock Text="{theme:Loc lan.title}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
             <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
                           IsChecked="{Binding Enabled, Mode=TwoWay}"
@@ -33,8 +34,22 @@
                         Background="{DynamicResource ControlBackground}"
                         BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
                     <StackPanel>
-                        <TextBlock Text="{Binding ServiceStatus}" FontWeight="Bold"
-                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <theme:PngIcon Size="16" Margin="0,0,6,0" VerticalAlignment="Center">
+                                <theme:PngIcon.Style>
+                                    <Style TargetType="theme:PngIcon">
+                                        <Setter Property="Token" Value="link-unlink"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Enabled}" Value="True">
+                                                <Setter Property="Token" Value="link"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </theme:PngIcon.Style>
+                            </theme:PngIcon>
+                            <TextBlock Text="{Binding ServiceStatus}" FontWeight="Bold"
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+                        </StackPanel>
                         <TextBlock Text="{theme:Loc lan.service_tip}" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap"
                                    Foreground="{DynamicResource SecondaryForeground}"/>
                     </StackPanel>
