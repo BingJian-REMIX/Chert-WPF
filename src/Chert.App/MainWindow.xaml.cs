@@ -677,6 +677,18 @@ public partial class MainWindow : Window
             PageBorder.Background = new SolidColorBrush(tab);
             return;
         }
+        if (IsAndroidStyle())
+        {
+            // 安卓：内容区不挂索引贴色带，回归纯窗口底（对齐 HTML .page-tint{display:none}）
+            PageBorder.Background = FindResource("WindowBackground") as Brush ?? Brushes.Transparent;
+            return;
+        }
+        if (IsGlassStyle())
+        {
+            // 玻璃：内容区半透明深色（对齐 HTML rgba(15,17,21,.28)），不挂索引贴色带
+            PageBorder.Background = new SolidColorBrush(Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
+            return;
+        }
         var winBg = (FindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
         var grad = new LinearGradientBrush
         {
@@ -1040,16 +1052,30 @@ public partial class MainWindow : Window
         {
             // 灵动：标题栏透明 + 侧栏透明 + 内容区变圆角彩色卡片
             TitleBar.Background = Brushes.Transparent;
+            SidebarRoot.Visibility = Visibility.Visible;
+            SidebarRoot.Width = 56;
             SidebarRoot.Background = Brushes.Transparent;
             SidebarRoot.BorderThickness = new Thickness(0);
+            BottomNavBar.ClearValue(Border.HeightProperty);
             SetDynamicCard(true);
+        }
+        else if (android)
+        {
+            // 安卓：标题栏强调色实底 + 隐藏侧栏 + 沉底四色导航（64px）
+            TitleBar.Background = (TryFindResource("AccentBrush") as SolidColorBrush) ?? Brushes.DodgerBlue;
+            SidebarRoot.Visibility = Visibility.Collapsed;
+            BottomNavBar.Height = 64;
+            SetDynamicCard(false);
         }
         else
         {
             // 恢复默认：清除本地值以恢复 XAML 的 DynamicResource（标题栏随主标签变色、侧栏随主题）
             TitleBar.ClearValue(Grid.BackgroundProperty);
+            SidebarRoot.Visibility = Visibility.Visible;
+            SidebarRoot.Width = 56;
             SidebarRoot.ClearValue(Border.BackgroundProperty);
             SidebarRoot.ClearValue(Border.BorderThicknessProperty);
+            BottomNavBar.ClearValue(Border.HeightProperty);
             SetDynamicCard(false);
         }
         ApplyBottomNavSelection(_currentKind);
@@ -1058,6 +1084,14 @@ public partial class MainWindow : Window
     /// <summary>清单 #17：灵动风格判定（透明标题栏 + 整页圆角彩色卡片 + 卡片横向滑动）。</summary>
     private static bool IsDynamicStyle() =>
         UiStyles.Parse(ThemeManager.UiStyle) == UiStyleKind.Dynamic;
+
+    /// <summary>清单 #15：安卓风格判定（沉底四色导航 + 隐藏侧栏 + 内容横向滑动）。</summary>
+    private static bool IsAndroidStyle() =>
+        UiStyles.Parse(ThemeManager.UiStyle) == UiStyleKind.Android;
+
+    /// <summary>清单 #16：玻璃风格判定（终端标题栏 + 窄半透明侧栏 + 毛玻璃窗体）。</summary>
+    private static bool IsGlassStyle() =>
+        UiStyles.Parse(ThemeManager.UiStyle) == UiStyleKind.Glass;
 
     /// <summary>清单 #17：灵动风格下把内容宿主（PageBorder）变为整页圆角彩色卡片；其余风格恢复默认。</summary>
     private void SetDynamicCard(bool on)
@@ -1099,13 +1133,24 @@ public partial class MainWindow : Window
         foreach (var kv in _bottomNav)
         {
             var active = kv.Key == selected;
-            // 强调色 / 次要前景色可能为渐变等非纯色画刷，这里只取纯色形态用于胶囊底色
-            var accent = TryFindResource("AccentBrush") as SolidColorBrush ?? new SolidColorBrush(Colors.DodgerBlue);
             var dim = TryFindResource("SecondaryForeground") as SolidColorBrush ?? new SolidColorBrush(Colors.Gray);
-            kv.Value.Title.Foreground = active ? accent : dim;
-            kv.Value.Pill.Background = active
-                ? new SolidColorBrush(Color.FromArgb(0x22, accent.Color.R, accent.Color.G, accent.Color.B))
-                : Brushes.Transparent;
+            // 安卓四色导航：选中项用该标签主题色（四色之一），其余风格沿用强调色
+            if (IsAndroidStyle())
+            {
+                var tc = TabColor($"Tab{kv.Key}Brush");
+                kv.Value.Title.Foreground = active ? new SolidColorBrush(tc) : dim;
+                kv.Value.Pill.Background = active
+                    ? new SolidColorBrush(Color.FromArgb(0x22, tc.R, tc.G, tc.B))
+                    : Brushes.Transparent;
+            }
+            else
+            {
+                var accent = TryFindResource("AccentBrush") as SolidColorBrush ?? new SolidColorBrush(Colors.DodgerBlue);
+                kv.Value.Title.Foreground = active ? accent : dim;
+                kv.Value.Pill.Background = active
+                    ? new SolidColorBrush(Color.FromArgb(0x22, accent.Color.R, accent.Color.G, accent.Color.B))
+                    : Brushes.Transparent;
+            }
             kv.Value.Icon.Opacity = active ? 1.0 : 0.65;
         }
     }
@@ -1135,6 +1180,15 @@ public partial class MainWindow : Window
             var dur = TimeSpan.FromMilliseconds(120);
             PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
             PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(40, 0, dur));
+            return;
+        }
+        // 安卓：内容横向滑动（对齐 HTML .page.leave/enter 的左右平移）
+        if (IsAndroidStyle())
+        {
+            var dur = TimeSpan.FromMilliseconds(180);
+            PageTransform.Y = 0;
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(30, 0, dur));
             return;
         }
         var duration = TimeSpan.FromMilliseconds(200);
