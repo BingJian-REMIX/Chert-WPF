@@ -118,10 +118,10 @@ public static class MainTabs
     /// <summary>四个主标签，按 Order 升序（左 → 右）。</summary>
     public static IReadOnlyList<MainTabDefinition> All { get; } = new List<MainTabDefinition>
     {
-        new(MainTabKind.Game,     "tab.game",    DefaultGameColor,     "gamepad",  0, hasSidebar: false),
-        new(MainTabKind.Download, "tab.download", DefaultDownloadColor, "download", 1, hasSidebar: true),
-        new(MainTabKind.Toolbox,  "tab.toolbox",  DefaultToolboxColor,  "toolbox",  2, hasSidebar: true),
-        new(MainTabKind.Settings, "tab.settings", DefaultSettingsColor, "cog",      3, hasSidebar: true)
+        new(MainTabKind.Game,     "tab.game",    DefaultGameColor,     "nav-game",  0, hasSidebar: false),
+        new(MainTabKind.Download, "tab.download", DefaultDownloadColor, "nav-download", 1, hasSidebar: true),
+        new(MainTabKind.Toolbox,  "tab.toolbox",  DefaultToolboxColor,  "nav-toolbox",  2, hasSidebar: true),
+        new(MainTabKind.Settings, "tab.settings", DefaultSettingsColor, "nav-settings",      3, hasSidebar: true)
     };
 
     public static MainTabDefinition Get(MainTabKind kind) => All.First(t => t.Kind == kind);
