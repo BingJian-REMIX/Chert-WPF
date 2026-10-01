@@ -40,7 +40,7 @@
 
     <shell:WindowChrome.WindowChrome>
 
-        <shell:WindowChrome GlassFrameThickness="0" CornerRadius="0"
+        <shell:WindowChrome GlassFrameThickness="-1" CornerRadius="0"
 
                             ResizeBorderThickness="6" CaptionHeight="0"/>
 
@@ -72,7 +72,9 @@
 
                 <ColumnDefinition Width="Auto"/>
 
-                <ColumnDefinition Width="272"/>
+                <!-- 全局搜索列（玻璃风格下宽度收为 0，让浏览器式标签紧贴品牌靠左排列） -->
+
+                <ColumnDefinition x:Name="SearchColumn" Width="272"/>
 
                 <ColumnDefinition Width="*"/>
 

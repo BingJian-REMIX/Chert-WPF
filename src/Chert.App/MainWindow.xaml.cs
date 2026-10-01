@@ -81,6 +81,9 @@ public partial class MainWindow : Window
     /// <summary>清单 #16：玻璃风格的等宽字体（终端观感），带回退字族。</summary>
     private static readonly FontFamily MonoFont = new("Consolas, Menlo, Courier New");
 
+    /// <summary>清单 #16：玻璃浏览器式页签的最小宽度（对齐 HTML .window.minimal .tab 的 min-width:96px）。</summary>
+    private const double GlassTabMinWidth = 96;
+
     // 清单 #16：外壳原始值快照（构造时记录，风格切出时逐项还原）
     private GridLength _titleBarRowHeight;
     private GridLength _statusBarRowHeight;
@@ -644,15 +647,29 @@ public partial class MainWindow : Window
     private void ApplyTabLayout(MainTabKind selected)
     {
         var list = MainTabs.All;
+        // 清单 #16：玻璃风格是「浏览器式页签」——全部等宽、都带文字、几乎不重叠，整排靠左排列。
+        // 对齐 HTML .window.minimal .tab{width:auto; min-width:96px} 与容器 justify-content:flex-start。
+        var glassTabs = IsGlassStyle();
         for (var i = 0; i < list.Count; i++)
         {
             var def = list[i];
             var p = _tabs[def.Kind];
             var isSel = def.Kind == selected;
-            var expanded = isSel || def.AlwaysExpanded;
+            var expanded = glassTabs || isSel || def.AlwaysExpanded;
             var w = expanded ? MainTabs.ExpandedWidth : MainTabs.CollapsedWidth;
 
-            AnimateWidth(p.Root, w);
+            if (glassTabs)
+            {
+                // width:auto —— 宽度按文字自适应（MinWidth 兜底），取消折叠/展开的宽度动画
+                p.Root.BeginAnimation(FrameworkElement.WidthProperty, null);
+                p.Root.MinWidth = GlassTabMinWidth;
+                p.Root.Width = double.NaN;
+            }
+            else
+            {
+                p.Root.MinWidth = 0;
+                AnimateWidth(p.Root, w);
+            }
 
             // 每贴独立克隆画刷（p.Brush），避免悬浮动画连累合并字典里的共享/冻结画刷。
             // 圆角透明区已由 TabCornerRadius 的「重叠侧切直」消除，Root 保持透明，保留贴纸外观。
@@ -679,10 +696,18 @@ public partial class MainWindow : Window
                     p.Underline.Opacity = 1;
             }
 
-            // 重叠：左侧邻居展开则 10px，否则 20px
-            var left = i == 0 ? 0 :
-                (NeighborExpanded(i, selected) ? -MainTabs.ExpandedOverlap : -MainTabs.CollapsedOverlap);
-            AnimateMargin(p.Root, new Thickness(left, 0, 0, 0));
+            // 重叠：左侧邻居展开则 10px，否则 20px；玻璃页签是独立页签（HTML margin-left:-1px），几乎不重叠
+            var left = i == 0 ? 0 : (glassTabs ? -1 :
+                (NeighborExpanded(i, selected) ? -MainTabs.ExpandedOverlap : -MainTabs.CollapsedOverlap));
+            if (glassTabs)
+            {
+                p.Root.BeginAnimation(FrameworkElement.MarginProperty, null);
+                p.Root.Margin = new Thickness(left, 0, 0, 0);
+            }
+            else
+            {
+                AnimateMargin(p.Root, new Thickness(left, 0, 0, 0));
+            }
 
             // 选中贴抬到最上层（ZIndex=20），避免被左侧未选中贴的圆角/色块遮住展开后的文字
             Panel.SetZIndex(p.Root, isSel ? 20 : def.ZIndex);
@@ -732,8 +757,9 @@ public partial class MainWindow : Window
         var def = MainTabs.Get(kind);
         var expandedNow = kind == _currentKind || def.AlwaysExpanded;
 
-        // 悬浮展开（仅对未展开的贴生效）：宽度过渡 width 0.25s ease + 文字淡入淡出
-        if (!expandedNow)
+        // 悬浮展开（仅对未展开的贴生效）：宽度过渡 width 0.25s ease + 文字淡入淡出。
+        // 玻璃是恒定宽度的浏览器式页签，悬停只换底色（HTML .tab:hover 不改宽度），不展开。
+        if (!expandedNow && !IsGlassStyle())
         {
             if (AnimationsEnabled)
             {
@@ -852,6 +878,12 @@ public partial class MainWindow : Window
         SidebarItemsPanel.Children.Clear();
         _sidebarItems.Clear();
 
+        // 清单 #16：玻璃侧栏恒为 42px 窄图标栏 —— 对齐 HTML .window.minimal 的
+        // 「.sitem{height:34px;margin:4px 0;justify-content:center}」+「.ico{17px}」。
+        // 若沿用 36px 行高与 14/12 横向内边距，42px 宽度下图标可用宽度只剩 16px，两侧会被裁掉。
+        var glassBar = IsGlassStyle();
+        SidebarItemsPanel.Margin = glassBar ? new Thickness(5, 8, 5, 8) : new Thickness(6, 8, 6, 8);
+
         if (!Sidebar.Has(kind))
         {
             SidebarRoot.Visibility = Visibility.Collapsed;
@@ -864,8 +896,8 @@ public partial class MainWindow : Window
         {
             var row = new Grid
             {
-                Height = 36,
-                Margin = new Thickness(0, 2, 0, 2),
+                Height = glassBar ? 34 : 36,
+                Margin = glassBar ? new Thickness(0, 4, 0, 4) : new Thickness(0, 2, 0, 2),
                 Cursor = Cursors.Hand,
                 Tag = it.Id,
                 Background = Brushes.Transparent
@@ -876,6 +908,8 @@ public partial class MainWindow : Window
                 Width = SidebarState.IndicatorWidth,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Stretch,
+                // HTML .sitem .ind{top:8px;bottom:8px}：窄栏下指示条两端留白，不顶满整行
+                Margin = glassBar ? new Thickness(0, 8, 0, 8) : new Thickness(0),
                 Fill = (Brush)Application.Current.Resources["SidebarIndicatorBrush"],
                 Visibility = Visibility.Collapsed
             };
@@ -884,9 +918,10 @@ public partial class MainWindow : Window
             {
                 Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(14, 0, 12, 0)
+                HorizontalAlignment = glassBar ? HorizontalAlignment.Center : HorizontalAlignment.Stretch,
+                Margin = glassBar ? new Thickness(0) : new Thickness(14, 0, 12, 0)
             };
-            var icon = new PngIcon { Token = it.Icon, Size = 18 };
+            var icon = new PngIcon { Token = it.Icon, Size = glassBar ? 17 : 18 };
             var title = new TextBlock
             {
                 Text = LocaleManager.T(it.Title),
@@ -894,7 +929,7 @@ public partial class MainWindow : Window
                 FontSize = 13,
                 Margin = new Thickness(10, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Visibility = (!IsGlassStyle() && _sidebarState.Expanded) ? Visibility.Visible : Visibility.Collapsed
+                Visibility = (!glassBar && _sidebarState.Expanded) ? Visibility.Visible : Visibility.Collapsed
             };
             inner.Children.Add(icon);
             inner.Children.Add(title);
@@ -1237,12 +1272,37 @@ public partial class MainWindow : Window
             BottomNavBar.ClearValue(Border.HeightProperty);
             SetDynamicCard(false);
         }
+
+        // 清单 #16：风格切换后必须**重算**随风格变化的部件，否则会残留上一风格的外观 ——
+        // 索引贴（玻璃的浏览器式圆角/白描边/等宽字 ↔ 其余的四色贴纸）、内容底色带、
+        // 以及侧栏项（玻璃 17px 窄图标 ↔ 其余带文字）。此前只在切换主标签时才重算，
+        // 导致「从毛玻璃切到其他风格」后索引贴仍是中性灰块、文字几乎不可见。
+        if (_currentKind != (MainTabKind)(-1) && _tabs.Count > 0)
+        {
+            ApplyTabLayout(_currentKind);
+            ApplyPageTint(_currentKind);
+            BuildSidebar(_currentKind);
+
+            // 侧栏可见性与宽度按当前风格收口：安卓隐藏、玻璃恒 42px、其余沿用用户当前展开状态
+            SidebarRoot.BeginAnimation(FrameworkElement.WidthProperty, null);
+            if (android || !Sidebar.Has(_currentKind))
+            {
+                SidebarRoot.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                SidebarRoot.Visibility = Visibility.Visible;
+                SidebarRoot.Width = glass ? 42 : _sidebarState.Width;
+            }
+        }
+
         ApplyBottomNavSelection(_currentKind);
     }
 
     /// <summary>把标题栏 / 侧栏 / 状态栏的外壳复位到 XAML 默认，供风格切换时还原（含关闭毛玻璃背板）。</summary>
     private void RestoreDefaultChrome()
     {
+        SidebarItemsPanel.Margin = new Thickness(6, 8, 6, 8);
         TitleBarRow.Height = _titleBarRowHeight;
         StatusBarRow.Height = _statusBarRowHeight;
 
@@ -1250,6 +1310,8 @@ public partial class MainWindow : Window
         BrandText.FontFamily = _brandFontDefault;
         BrandText.FontSize = _brandFontSizeDefault;
         SearchArea.Visibility = Visibility.Visible;
+        SearchColumn.Width = new GridLength(272);
+        TabPanel.HorizontalAlignment = HorizontalAlignment.Right;
 
         TitleBar.SetResourceReference(Panel.BackgroundProperty, "TitleBarBrush");
 
@@ -1278,6 +1340,10 @@ public partial class MainWindow : Window
         BrandText.FontFamily = MonoFont;
         BrandText.FontSize = 14;
         SearchArea.Visibility = Visibility.Collapsed;
+        // 搜索列是固定宽度，隐藏搜索栏不会让它塌陷 —— 必须显式收为 0，
+        // 浏览器式标签才能紧贴品牌文字从左侧排开（HTML：tab 容器 left:96px、justify-content:flex-start）
+        SearchColumn.Width = new GridLength(0);
+        TabPanel.HorizontalAlignment = HorizontalAlignment.Left;
 
         SidebarRoot.Visibility = Visibility.Visible;
         SidebarRoot.Width = 42;
@@ -1296,12 +1362,27 @@ public partial class MainWindow : Window
         ApplyGlassSurface(TryEnableBackdrop());
     }
 
-    /// <summary>玻璃窗体底色：背板可用时用风格字典的半透明底（透出桌面虚化）；
-    /// 不可用时换成同色不透明底，避免半透明层叠在无背板的黑底上发灰。</summary>
+    /// <summary>
+    /// 玻璃窗体底色：背板可用时**完全透明**（让 DWM 的虚化桌面从窗口后面透出来），
+    /// 不可用时换成同色不透明底，避免半透明层叠在无背板的黑底上发灰。
+    /// <para>
+    /// 关键：只调 DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE) 是**不够的**。
+    /// DWM 的背板只绘制在「DWM 自己渲染的窗口区域」里，而 WPF 窗口的客户区全部由 WPF 自绘，
+    /// 背板会被整个盖住 —— 表现就是「系统返回成功，但一点模糊都看不到」。
+    /// 必须同时让出 WindowChrome 的 GlassFrameThickness=-1（见 MainWindow.xaml），
+    /// 并让窗口底为 Transparent，背板才可见。
+    /// </para>
+    /// </summary>
     private void ApplyGlassSurface(bool backdropActive)
     {
-        if (!backdropActive && TryFindResource("WindowBackground") is SolidColorBrush bg)
+        if (backdropActive)
         {
+            Background = Brushes.Transparent;
+            return;
+        }
+        if (TryFindResource("WindowBackground") is SolidColorBrush bg)
+        {
+            // 无背板能力（Win10 早期 / 远程桌面 / 被系统设置关闭）：同色不透明底兜底
             Background = new SolidColorBrush(Color.FromArgb(0xFF, bg.Color.R, bg.Color.G, bg.Color.B));
             return;
         }
@@ -1321,20 +1402,26 @@ public partial class MainWindow : Window
         p.Bg.Background = p.Brush;
         p.Bg.CornerRadius = new CornerRadius(8, 8, 0, 0);
         p.Bg.BorderThickness = new Thickness(1, 1, 1, 0);
-        p.Bg.BorderBrush = TryFindResource("GlassTabBorder") as Brush;
+        // HTML：常态 color:var(--fg2)、active/hover color:var(--fg)；active 描边提到白 12%
+        p.Bg.BorderBrush = isSel
+            ? new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF))
+            : TryFindResource("GlassTabBorder") as Brush;
         p.Title.FontFamily = MonoFont;
         p.Title.FontSize = 12;
+        p.Title.Foreground = (Brush)FindResource(isSel ? "PrimaryForeground" : "SecondaryForeground");
         p.Underline.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>恢复四色索引贴默认外观（玻璃 → 其他风格切换时）。</summary>
     private static void ApplyDefaultTabChrome(TabParts p, int index, int last)
     {
+        p.Root.MinWidth = 0;
         p.Bg.CornerRadius = TabCornerRadius(index, last);
         p.Bg.BorderThickness = new Thickness(0);
         p.Bg.BorderBrush = null;
         p.Title.ClearValue(TextBlock.FontFamilyProperty);
         p.Title.FontSize = 13;
+        p.Title.Foreground = Brushes.White;
     }
 
     /// <summary>清单 #17：灵动风格判定（透明标题栏 + 整页圆角彩色卡片 + 卡片横向滑动）。</summary>
