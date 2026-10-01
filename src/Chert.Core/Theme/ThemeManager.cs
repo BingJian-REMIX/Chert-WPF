@@ -37,7 +37,7 @@ public static class ThemeManager
     public static bool FollowSystem { get; set; }
 
     /// <summary>
-    /// 清单 #12 / #15 / #16：界面风格（standard / android / glass）。
+    /// 清单 #12 / #15 / #16 / #17：界面风格（standard / android / glass / dynamic）。
     /// 与 <see cref="Current"/>（亮 / 暗）正交，由 App 层叠加对应风格资源字典。
     /// </summary>
     public static string UiStyle { get; private set; } = "standard";
@@ -49,7 +49,7 @@ public static class ThemeManager
     public static void SetUiStyle(string id)
     {
         var v = (id ?? "standard").Trim().ToLowerInvariant();
-        if (v != "android" && v != "glass") v = "standard";
+        if (v != "android" && v != "glass" && v != "dynamic") v = "standard";
         if (UiStyle == v) return;
         UiStyle = v;
         OnUiStyleChanged?.Invoke(v);
@@ -91,7 +91,7 @@ public static class ThemeManager
         /// <summary>清单 #18：跟随系统主题。</summary>
         public bool FollowSystem { get; set; }
 
-        /// <summary>清单 #12：界面风格 Id（standard / android / glass）。</summary>
+        /// <summary>清单 #12：界面风格 Id（standard / android / glass / dynamic）。</summary>
         public string UiStyle { get; set; } = "standard";
     }
 }

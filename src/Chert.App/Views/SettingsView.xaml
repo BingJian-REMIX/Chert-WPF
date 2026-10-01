@@ -937,6 +937,7 @@
                             <ComboBoxItem Content="{theme:Loc settings.ui_style_standard}" Tag="standard"/>
                             <ComboBoxItem Content="{theme:Loc settings.ui_style_android}" Tag="android"/>
                             <ComboBoxItem Content="{theme:Loc settings.ui_style_glass}" Tag="glass"/>
+                            <ComboBoxItem Content="{theme:Loc settings.ui_style_dynamic}" Tag="dynamic"/>
                         </ComboBox>
                     </StackPanel>
 

@@ -671,6 +671,12 @@ public partial class MainWindow : Window
     {
         if (PageBorder is null) return;
         var tab = TabColor($"Tab{kind}Brush");
+        // 灵动：整页卡片直接用索引贴实色（无渐隐带），与透明标题栏下的彩色大卡片一致
+        if (IsDynamicStyle())
+        {
+            PageBorder.Background = new SolidColorBrush(tab);
+            return;
+        }
         var winBg = (FindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
         var grad = new LinearGradientBrush
         {
@@ -1022,10 +1028,69 @@ public partial class MainWindow : Window
     /// </summary>
     private void ApplyUiStyle()
     {
-        var android = UiStyles.UsesBottomNav(UiStyles.Parse(ThemeManager.UiStyle));
+        var kind = UiStyles.Parse(ThemeManager.UiStyle);
+        var android = kind == UiStyleKind.Android;
+        var dynamic = kind == UiStyleKind.Dynamic;
+
+        // 顶部四色索引贴：安卓隐藏（改沉底导航），标准/灵动保留（灵动让贴浮在彩色卡片上）
         TabPanel.Visibility = android ? Visibility.Collapsed : Visibility.Visible;
         BottomNavBar.Visibility = android ? Visibility.Visible : Visibility.Collapsed;
+
+        if (dynamic)
+        {
+            // 灵动：标题栏透明 + 侧栏透明 + 内容区变圆角彩色卡片
+            TitleBar.Background = Brushes.Transparent;
+            SidebarRoot.Background = Brushes.Transparent;
+            SidebarRoot.BorderThickness = new Thickness(0);
+            SetDynamicCard(true);
+        }
+        else
+        {
+            // 恢复默认：清除本地值以恢复 XAML 的 DynamicResource（标题栏随主标签变色、侧栏随主题）
+            TitleBar.ClearValue(Grid.BackgroundProperty);
+            SidebarRoot.ClearValue(Border.BackgroundProperty);
+            SidebarRoot.ClearValue(Border.BorderThicknessProperty);
+            SetDynamicCard(false);
+        }
         ApplyBottomNavSelection(_currentKind);
+    }
+
+    /// <summary>清单 #17：灵动风格判定（透明标题栏 + 整页圆角彩色卡片 + 卡片横向滑动）。</summary>
+    private static bool IsDynamicStyle() =>
+        UiStyles.Parse(ThemeManager.UiStyle) == UiStyleKind.Dynamic;
+
+    /// <summary>清单 #17：灵动风格下把内容宿主（PageBorder）变为整页圆角彩色卡片；其余风格恢复默认。</summary>
+    private void SetDynamicCard(bool on)
+    {
+        if (PageBorder is null) return;
+        if (on)
+        {
+            PageBorder.Margin = new Thickness(8);
+            PageBorder.CornerRadius = new CornerRadius(18);
+            PageBorder.BorderThickness = new Thickness(0);
+            PageBorder.SizeChanged -= UpdateDynamicCardClip;
+            PageBorder.SizeChanged += UpdateDynamicCardClip;
+            UpdateDynamicCardClip(null, null);
+        }
+        else
+        {
+            PageBorder.SizeChanged -= UpdateDynamicCardClip;
+            PageBorder.Clip = null;
+            PageBorder.Margin = new Thickness(0);
+            PageBorder.CornerRadius = new CornerRadius(0);
+            if (_currentKind != (MainTabKind)(-1)) ApplyPageTint(_currentKind);
+        }
+    }
+
+    /// <summary>清单 #17：把内容宿主裁剪为圆角矩形，使彩色卡片四角圆滑（Border 不会自动裁剪子内容）。</summary>
+    private void UpdateDynamicCardClip(object? sender, SizeChangedEventArgs e)
+    {
+        if (PageBorder is null) return;
+        // 布局前 ActualWidth/Height 为 0，暂不裁剪，避免卡片被裁成零尺寸而整片空白；
+        // 等待首个 SizeChanged（真实尺寸）再施加圆角裁剪。
+        if (PageBorder.ActualWidth <= 0 || PageBorder.ActualHeight <= 0) return;
+        var r = PageBorder.CornerRadius.TopLeft;
+        PageBorder.Clip = new RectangleGeometry(new Rect(0, 0, PageBorder.ActualWidth, PageBorder.ActualHeight), r, r);
     }
 
     /// <summary>刷新沉底导航项的选中态（图标 / 文字取强调色，选中项加胶囊高亮底）。</summary>
@@ -1064,6 +1129,14 @@ public partial class MainWindow : Window
 
     private void PlayPageTransition()
     {
+        // 灵动：卡片横向滑入（对齐 HTML 的 .page-card 左右平移），其余风格维持垂直滑入
+        if (IsDynamicStyle())
+        {
+            var dur = TimeSpan.FromMilliseconds(120);
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(40, 0, dur));
+            return;
+        }
         var duration = TimeSpan.FromMilliseconds(200);
         var fade = new DoubleAnimation(0, 1, duration)
         {

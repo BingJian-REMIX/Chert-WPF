@@ -11,7 +11,9 @@ public enum UiStyleKind
     /// <summary>清单 #15：简约安卓式（Material 配色 + 沉底导航）。</summary>
     Android,
     /// <summary>清单 #16：简约毛玻璃（半透明面板，强调层次与通透感）。</summary>
-    Glass
+    Glass,
+    /// <summary>清单 #17：灵动（透明标题栏 + 整页圆角彩色卡片 + 卡片横向滑动）。</summary>
+    Dynamic
 }
 
 /// <summary>界面风格注册表与工具方法。</summary>
@@ -22,6 +24,7 @@ public static class UiStyles
     {
         "android" => UiStyleKind.Android,
         "glass" => UiStyleKind.Glass,
+        "dynamic" => UiStyleKind.Dynamic,
         _ => UiStyleKind.Standard
     };
 
@@ -30,6 +33,7 @@ public static class UiStyles
     {
         UiStyleKind.Android => "android",
         UiStyleKind.Glass => "glass",
+        UiStyleKind.Dynamic => "dynamic",
         _ => "standard"
     };
 
@@ -41,6 +45,7 @@ public static class UiStyles
     {
         UiStyleKind.Standard,
         UiStyleKind.Android,
-        UiStyleKind.Glass
+        UiStyleKind.Glass,
+        UiStyleKind.Dynamic
     };
 }

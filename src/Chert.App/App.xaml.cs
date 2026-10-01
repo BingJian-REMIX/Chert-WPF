@@ -273,7 +273,8 @@ public partial class App : Application
         }
 
         var kind = UiStyles.Parse(ThemeManager.UiStyle);
-        if (kind == UiStyleKind.Standard) return;
+        // 标准与灵动都直接复用 LightTheme/DarkTheme 配色，不叠加任何额外风格字典
+        if (kind is not (UiStyleKind.Android or UiStyleKind.Glass)) return;
 
         var prefix = kind == UiStyleKind.Android ? "AndroidStyle" : "GlassStyle";
         var name = ThemeManager.Current == ThemeType.Light ? "Light" : "Dark";
