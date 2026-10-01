@@ -736,6 +736,12 @@ public partial class MainWindow : Window
         // 索引贴与对应页面「一体」：页面顶部以同色渲染，消除顶栏后方的白色漏出，
         // 让选中标签的颜色向下延续到内容区（一条渐隐的同色带）。
         ApplyPageTint(kind);
+
+        // 清单 #17：灵动布局下索引贴色还「下流」到侧栏底。
+        // 设计稿里 .window.dynamic .sidebar{background:transparent}，下方是整页 page-card（--tint），
+        // 视觉上就是「侧栏与内容区同色的一条」。WPF 的 PageBorder 在 Column=1、不横跨侧栏，
+        // 所以这里直接把侧栏底刷成同色，得到完全一致的观感（实测设计稿截图像素：侧栏 = 索引贴色）。
+        if (IsDynamicStyle()) SidebarRoot.Background = solid;
     }
 
     // ===== 索引贴悬浮 / 配色辅助 =====
@@ -1379,6 +1385,9 @@ public partial class MainWindow : Window
                 SidebarRoot.Visibility = Visibility.Visible;
                 SidebarRoot.Width = glass ? 42 : _sidebarState.Width;
             }
+
+            // 清单 #17：灵动布局的侧栏底取当前索引贴色（切风格时也要立即生效，不必等切标签）
+            if (dynamic) SidebarRoot.Background = Brush($"Tab{_currentKind}Brush");
         }
 
         ApplyBottomNavSelection(_currentKind);
