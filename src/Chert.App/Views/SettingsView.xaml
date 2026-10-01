@@ -84,7 +84,7 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
@@ -507,6 +507,38 @@
                                    TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}"/>
                     </StackPanel>
 
+                    <!-- 清单 #11：触屏模式（启动区：开启后随游戏进程显示虚拟按键面板） -->
+                    <Grid Grid.Row="13" Margin="0,8,0,4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <WrapPanel Grid.Row="0" Margin="0,3">
+                            <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                          IsChecked="{Binding TouchModeEnabled, Mode=TwoWay}"/>
+                            <TextBlock Text="{theme:Loc settings.touch_mode}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                       Foreground="{DynamicResource PrimaryForeground}"
+                                       ToolTip="{theme:Loc settings.touch_mode_tip}"/>
+                        </WrapPanel>
+                        <Border Grid.Row="1" Margin="0,6,0,0" Padding="10" CornerRadius="8"
+                                Background="{DynamicResource ControlBackground}"
+                                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                                Visibility="{Binding TouchModeEnabled, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
+                            <StackPanel>
+                                <TextBlock Text="{theme:Loc settings.touch_config}" FontWeight="Bold" Margin="0,0,0,6"
+                                           Foreground="{DynamicResource PrimaryForeground}"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="{theme:Loc settings.touch_edit}" Command="{Binding EditTouchLayoutCommand}" Padding="10,4"/>
+                                    <Button Content="{theme:Loc settings.touch_reset}" Command="{Binding ResetTouchLayoutCommand}" Padding="10,4" Margin="8,0,0,0"/>
+                                    <TextBlock Text="{Binding TouchButtonCount}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                </StackPanel>
+                                <TextBlock Text="{theme:Loc settings.touch_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
 
 
                 </Grid>
@@ -913,38 +945,6 @@
 
 
 
-                    <!-- 清单 #11：触屏模式 -->
-                    <Grid Grid.Row="13" Margin="0,8,0,4">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <WrapPanel Grid.Row="0" Margin="0,3">
-                            <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-                                          IsChecked="{Binding TouchModeEnabled, Mode=TwoWay}"/>
-                            <TextBlock Text="{theme:Loc settings.touch_mode}" VerticalAlignment="Center" Margin="8,0,0,0"
-                                       Foreground="{DynamicResource PrimaryForeground}"
-                                       ToolTip="{theme:Loc settings.touch_mode_tip}"/>
-                        </WrapPanel>
-                        <Border Grid.Row="1" Margin="0,6,0,0" Padding="10" CornerRadius="8"
-                                Background="{DynamicResource ControlBackground}"
-                                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
-                                Visibility="{Binding TouchModeEnabled, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
-                            <StackPanel>
-                                <TextBlock Text="{theme:Loc settings.touch_config}" FontWeight="Bold" Margin="0,0,0,6"
-                                           Foreground="{DynamicResource PrimaryForeground}"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <Button Content="{theme:Loc settings.touch_edit}" Command="{Binding EditTouchLayoutCommand}" Padding="10,4"/>
-                                    <Button Content="{theme:Loc settings.touch_reset}" Command="{Binding ResetTouchLayoutCommand}" Padding="10,4" Margin="8,0,0,0"/>
-                                    <TextBlock Text="{Binding TouchButtonCount}" VerticalAlignment="Center" Margin="12,0,0,0"
-                                               Foreground="{DynamicResource SecondaryForeground}"/>
-                                </StackPanel>
-                                <TextBlock Text="{theme:Loc settings.touch_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource SecondaryForeground}"/>
-                            </StackPanel>
-                        </Border>
-                    </Grid>
-
                 <!-- 关于 -->
 
                 <Grid x:Name="GridAbout" Visibility="Collapsed">
@@ -953,7 +953,7 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
-                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
 
