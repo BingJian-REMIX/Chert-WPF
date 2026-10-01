@@ -353,8 +353,9 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
-                                        <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" VerticalAlignment="Center"
-                                                  ToolTip="{Binding Tip}"/>
+                                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+
+                                                  VerticalAlignment="Center" ToolTip="{Binding Tip}"/>
                                         <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="6,0,0,0"
                                                    Foreground="{DynamicResource PrimaryForeground}" ToolTip="{Binding Tip}"/>
                                         <TextBox Width="92" Margin="8,0,0,0" Style="{StaticResource FieldBoxStyle}"
@@ -408,11 +409,13 @@
 
                                      Text="{Binding ResolutionHeight, UpdateSourceTrigger=PropertyChanged}"/>
 
-                            <CheckBox Content="{theme:Loc version.fullscreen}" IsChecked="{Binding Fullscreen, Mode=TwoWay}"
+                            <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding Fullscreen, Mode=TwoWay}"
 
-                                      VerticalAlignment="Center" Margin="16,0,0,0"
+                                      VerticalAlignment="Center" Margin="16,0,0,0"/>
 
-                                      Foreground="{DynamicResource PrimaryForeground}"/>
+                            <TextBlock Text="{theme:Loc version.fullscreen}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
 
                         </WrapPanel>
 
@@ -580,11 +583,13 @@
 
                         <TextBlock Text="{theme:Loc version.m299}" Style="{StaticResource GroupHeaderStyle}"/>
 
-                        <CheckBox Content="{theme:Loc version.m300}"
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding Locked, Mode=TwoWay}"
 
-                                  IsChecked="{Binding Locked, Mode=TwoWay}"
+                                  VerticalAlignment="Center"/>
 
-                                  Foreground="{DynamicResource PrimaryForeground}"/>
+                        <TextBlock Text="{theme:Loc version.m300}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
 
                     </StackPanel>
 

@@ -115,11 +115,13 @@
 
             </ComboBox>
 
-            <CheckBox Content="{theme:Loc ver.filter_missing}" IsChecked="{Binding MissingPrerequisiteOnly}"
+            <ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding MissingPrerequisiteOnly}"
 
-                      VerticalAlignment="Center" Margin="12,0,0,0"
+                          VerticalAlignment="Center" Margin="12,0,0,0"/>
 
-                      Foreground="{DynamicResource SecondaryForeground}"/>
+            <TextBlock Text="{theme:Loc ver.filter_missing}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                       Foreground="{DynamicResource SecondaryForeground}"/>
 
             <Button Content="{theme:Loc ver.filter_reset}" Command="{Binding ResetFiltersCommand}"
 

@@ -418,9 +418,16 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked, Mode=TwoWay}"
-                                                  Margin="0,0,14,4" MinWidth="88"
-                                                  Foreground="{DynamicResource PrimaryForeground}"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,14,4" MinWidth="88">
+
+                                            <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                                          IsChecked="{Binding IsChecked, Mode=TwoWay}" VerticalAlignment="Center"/>
+
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                                        </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
