@@ -32,6 +32,16 @@ public class Track
 
     public string Display => string.IsNullOrWhiteSpace(Artist) ? Title : $"{Artist} - {Title}";
 
+    /// <summary>播放列表表格的「名称」列（对齐资源管理器详细信息视图）。</summary>
+    public string FileName
+    {
+        get
+        {
+            try { return System.IO.Path.GetFileName(Path); }
+            catch { return Path; }
+        }
+    }
+
     /// <summary>元数据副标题：歌手 · 专辑。</summary>
     public string MetaText
     {

@@ -201,12 +201,63 @@
 
         <Grid Grid.Row="3">
 
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+
+            </Grid.RowDefinitions>
+
+            <!-- 列头（对齐 problem/建议的音乐列表样式：资源管理器式详细信息表头）。
+                 列宽与行内表格逐列一致；右侧留出滚动条宽度，避免表头与数据行错位。 -->
+
+            <Border Grid.Row="0" Visibility="{Binding IsMcOst, Converter={StaticResource InvBoolToVisibility}}"
+
+                    Background="{DynamicResource ListViewHeaderBackground}"
+
+                    BorderBrush="{DynamicResource ListViewBorder}" BorderThickness="0,0,0,1"
+
+                    Margin="2,0,20,2" Padding="0" CornerRadius="4">
+
+                <Grid Margin="8,4">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="1.4*"/>
+
+                        <ColumnDefinition Width="1.4*"/><ColumnDefinition Width="64"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Column="0" Text="{theme:Loc music.col_name}" FontSize="12" FontWeight="SemiBold"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="1" Text="{theme:Loc music.col_title}" FontSize="12" FontWeight="SemiBold"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="2" Text="{theme:Loc music.col_artist}" FontSize="12" FontWeight="SemiBold"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="3" Text="{theme:Loc music.col_album}" FontSize="12" FontWeight="SemiBold"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                    <TextBlock Grid.Column="4" Text="{theme:Loc music.col_duration}" FontSize="12" FontWeight="SemiBold"
+
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                </Grid>
+
+            </Border>
+
             <!-- 本地 / 在线：统一播放列表。
                  滚动结构：把「自带滚动条 + 最大高度」直接交给 ListBox 自己管。
                  不要写成「外层 ScrollViewer 包住 ListBox、同时禁用 ListBox 自身滚动」——
                  ListBox 在这种嵌套里会吃掉鼠标滚轮事件，表现就是列表滚不动（用户反馈）。 -->
 
-            <ListBox Visibility="{Binding IsMcOst, Converter={StaticResource InvBoolToVisibility}}"
+            <ListBox Grid.Row="1" Visibility="{Binding IsMcOst, Converter={StaticResource InvBoolToVisibility}}"
 
                      ItemsSource="{Binding Tracks}"
 
@@ -242,11 +293,39 @@
 
                             <Button Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                    CommandParameter="{Binding}" HorizontalContentAlignment="Left" Padding="6,4"
+                                    CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Padding="0,4"
 
                                     Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}">
 
-                                <TextBlock Text="{Binding Display}" TextTrimming="CharacterEllipsis"/>
+                                <!-- 表格列：名称 / 标题 / 艺术家 / 专辑 / 时长（列宽与下方表头逐列一致） -->
+
+                                <Grid>
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="1.4*"/>
+
+                        <ColumnDefinition Width="1.4*"/><ColumnDefinition Width="64"/>
+
+                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="{Binding FileName}" TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+
+                                    <TextBlock Grid.Column="2" Text="{Binding Artist}" TextTrimming="CharacterEllipsis"
+
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                    <TextBlock Grid.Column="3" Text="{Binding Album}" TextTrimming="CharacterEllipsis"
+
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                    <TextBlock Grid.Column="4" Text="{Binding DurationText}"
+
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                </Grid>
 
                             </Button>
 
@@ -262,7 +341,7 @@
 
             <!-- MC 原声：按分类分组 -->
 
-            <ScrollViewer Visibility="{Binding IsMcOst, Converter={StaticResource BoolToVisibility}}"
+            <ScrollViewer Grid.Row="1" Visibility="{Binding IsMcOst, Converter={StaticResource BoolToVisibility}}"
 
                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
 
