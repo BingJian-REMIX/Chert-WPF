@@ -113,43 +113,41 @@
 
                 <StackPanel Orientation="Horizontal">
 
-                    <Button Content="⏮" Command="{Binding PreviousCommand}" Width="46" Height="40" FontSize="16" Margin="0,0,8,0"/>
-
-                    <Button Command="{Binding PlayPauseCommand}" Width="54" Height="40" FontSize="17"
-
-                            Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0" Margin="0,0,8,0">
-
-                        <Button.Style>
-
-                            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-
-                                <Setter Property="Content" Value="▶"/>
-
-                                <Style.Triggers>
-
-                                    <DataTrigger Binding="{Binding IsPlaying}" Value="True">
-
-                                        <Setter Property="Content" Value="⏸"/>
-
-                                    </DataTrigger>
-
-                                </Style.Triggers>
-
-                            </Style>
-
-                        </Button.Style>
-
+                    <Button Command="{Binding PreviousCommand}" Width="46" Height="40" Margin="0,0,8,0" Background="Transparent" BorderThickness="0">
+                        <theme:PngIcon Token="previous" Size="16"/>
                     </Button>
 
-                    <Button Content="⏭" Command="{Binding NextCommand}" Width="46" Height="40" FontSize="16" Margin="0,0,8,0"/>
+                    <Button Command="{Binding PlayPauseCommand}" Width="54" Height="40"
+                            Background="Transparent" BorderThickness="0" Margin="0,0,8,0">
+                        <theme:PngIcon Size="18">
+                            <theme:PngIcon.Style>
+                                <Style TargetType="theme:PngIcon">
+                                    <Setter Property="Token" Value="play"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsPlaying}" Value="True">
+                                            <Setter Property="Token" Value="pause"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </theme:PngIcon.Style>
+                        </theme:PngIcon>
+                    </Button>
 
-                    <Button Content="🔁" Command="{Binding SetModeCommand}" Width="46" Height="40" FontSize="15"
+                    <Button Command="{Binding NextCommand}" Width="46" Height="40" Margin="0,0,8,0" Background="Transparent" BorderThickness="0">
+                        <theme:PngIcon Token="next" Size="16"/>
+                    </Button>
 
-                            ToolTip="{Binding Mode}" Margin="0,0,12,0"/>
+                    <Button Command="{Binding SetModeCommand}" Width="46" Height="40"
+                            ToolTip="{Binding Mode}" Margin="0,0,12,0" Background="Transparent" BorderThickness="0">
+                        <Viewbox Width="18" Height="18" Stretch="Uniform" VerticalAlignment="Center">
+                            <Path Fill="{DynamicResource PrimaryForeground}"
+                                  Data="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/>
+                        </Viewbox>
+                    </Button>
 
                     <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
 
-                        <TextBlock Text="🔊" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <theme:PngIcon Token="mic" Size="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
 
                         <Slider Minimum="0" Maximum="100" Width="140" Value="{Binding Volume}"
 
@@ -283,17 +281,14 @@
 
                         <DockPanel>
 
-                            <Button DockPanel.Dock="Right" Content="✕" Width="32" Padding="0"
-
+                            <Button DockPanel.Dock="Right" Width="32" Padding="0"
                                     Command="{Binding DataContext.RemoveTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-
                                     CommandParameter="{Binding}" ToolTip="{theme:Loc music.m189}"
-
                                     Background="Transparent" BorderThickness="0"
-
-                                    Foreground="{DynamicResource SecondaryForeground}" VerticalAlignment="Center"
-
-                                    HorizontalAlignment="Right"/>
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Right">
+                                <theme:PngIcon Token="close" Size="12"/>
+                            </Button>
 
                             <Button Command="{Binding DataContext.PlayTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
