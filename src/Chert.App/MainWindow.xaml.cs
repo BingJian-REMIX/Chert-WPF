@@ -96,6 +96,9 @@ public partial class MainWindow : Window
     /// <summary>尝试开启系统级毛玻璃背板；成功返回 true（调用方据此决定窗体底色用半透明还是实色）。</summary>
     private bool TryEnableBackdrop()
     {
+        // 清单 #17：外观页「显示毛玻璃效果」关闭时不申请系统背板 —— 落回同色不透明底，
+        // 观感退化为普通半透明（不再向系统要虚化），避免用户在不想要模糊时仍被强制开启。
+        if (!ThemeManager.GlassBlurEnabled) return false;
         try
         {
             var hwnd = new WindowInteropHelper(this).Handle;
@@ -298,6 +301,11 @@ public partial class MainWindow : Window
 
         // 清单 #15：界面风格（安卓式 → 沉底导航）。风格字典由 App 层叠加，这里只管导航形态。
         ThemeManager.OnUiStyleChanged += _ => Dispatcher.Invoke(ApplyUiStyle);
+        // 清单 #17：外观页即时项（隐藏侧栏标签等）变化后重算外壳
+        ThemeManager.OnAppearanceChanged += () => Dispatcher.Invoke(() =>
+        {
+            if (_currentKind != (MainTabKind)(-1)) ApplyUiStyle();
+        });
         // 清单 #16：亮暗主题切换后重新套用外壳（玻璃/安卓的外壳配色取的是当次资源快照）
         ThemeManager.OnThemeChanged += _ => Dispatcher.Invoke(ApplyUiStyle);
         ApplyUiStyle();
@@ -942,7 +950,8 @@ public partial class MainWindow : Window
                 FontSize = 13,
                 Margin = new Thickness(10, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Visibility = (!glassBar && _sidebarState.Expanded) ? Visibility.Visible : Visibility.Collapsed
+                Visibility = (!glassBar && _sidebarState.Expanded && !ThemeManager.HideSidebarLabels)
+                    ? Visibility.Visible : Visibility.Collapsed
             };
             inner.Children.Add(icon);
             inner.Children.Add(title);
@@ -1238,14 +1247,16 @@ public partial class MainWindow : Window
         if (!AnimationsEnabled)
         {
             SidebarRoot.Width = width;
+            var showLabels0 = expanded && !ThemeManager.HideSidebarLabels;
             foreach (var p in _sidebarItems.Values)
-                p.Title.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+                p.Title.Visibility = showLabels0 ? Visibility.Visible : Visibility.Collapsed;
             return;
         }
         SidebarRoot.BeginAnimation(FrameworkElement.WidthProperty,
             new DoubleAnimation(width, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)));
+        var showLabels = expanded && !ThemeManager.HideSidebarLabels;
         foreach (var p in _sidebarItems.Values)
-            p.Title.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+            p.Title.Visibility = showLabels ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ===== 导航 =====
@@ -1394,6 +1405,9 @@ public partial class MainWindow : Window
         }
 
         ApplyBottomNavSelection(_currentKind);
+
+        // 清单 #17：主题字典刚被重载过，窗口背景色要重新套一遍（否则自定义色被主题默认值盖掉）
+        App.ReapplyCustomWindowBackground();
     }
 
     /// <summary>把标题栏 / 侧栏 / 状态栏的外壳复位到 XAML 默认，供风格切换时还原（含关闭毛玻璃背板）。</summary>

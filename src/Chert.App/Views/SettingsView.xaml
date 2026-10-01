@@ -927,6 +927,9 @@
 
                         <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
+                        <RowDefinition Height="Auto"/>   <!-- 9 窗口背景色 -->
+                        <RowDefinition Height="Auto"/>   <!-- 10 显示毛玻璃效果 -->
+                        <RowDefinition Height="Auto"/>   <!-- 11 隐藏侧边栏图标标签 -->
                         <RowDefinition Height="Auto"/>
 
                     </Grid.RowDefinitions>
@@ -982,6 +985,46 @@
 
                         </Border>
 
+                        <!-- 清单 #17：8 个预设主题色点（对齐 design/chert_layout.html 的 .theme-dot） -->
+
+                        <ItemsControl ItemsSource="{Binding ThemeSwatches}" Margin="90,6,0,0" HorizontalAlignment="Left">
+
+                            <ItemsControl.ItemsPanel>
+
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+
+                                <DataTemplate>
+
+                                    <Button Width="22" Height="22" Margin="0,0,8,0" Cursor="Hand"
+
+                                            ToolTip="{Binding Hex}"
+
+                                            Command="{Binding DataContext.PickThemeColorCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+
+                                            CommandParameter="{Binding Hex}">
+
+                                        <Button.Template>
+
+                                            <ControlTemplate TargetType="Button">
+
+                                                <Ellipse Fill="{Binding SwatchBrush}" Stroke="{DynamicResource ControlBorder}" StrokeThickness="1"/>
+
+                                            </ControlTemplate>
+
+                                        </Button.Template>
+
+                                    </Button>
+
+                                </DataTemplate>
+
+                            </ItemsControl.ItemTemplate>
+
+                        </ItemsControl>
+
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,3">
@@ -1001,6 +1044,10 @@
                         <TextBlock Text="{theme:Loc settings.font_scaling}" VerticalAlignment="Center" Width="90"/>
 
                         <Slider Minimum="0.8" Maximum="1.5" TickFrequency="0.1" Value="{Binding FontScale}" Width="200"/>
+
+                        <TextBlock Text="{Binding FontScale, StringFormat={}{0:P0}}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
 
                         <TextBlock Text="{Binding FontScale, StringFormat={}{0:F1}x}" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
@@ -1211,6 +1258,46 @@
                         </RadioButton>
                         </StackPanel>
                     </StackPanel>
+
+                    <!-- 清单 #17：窗口背景色（空 = 跟随主题） -->
+
+                    <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,3">
+
+                        <TextBlock Text="{theme:Loc settings.window_bg_color}" VerticalAlignment="Center" Width="90"/>
+
+                        <TextBox Text="{Binding WindowBackgroundColor, UpdateSourceTrigger=PropertyChanged}" Width="100"
+
+                                 Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+
+                        <Rectangle Width="24" Height="24" Margin="8,0,0,0" RadiusX="4" RadiusY="4"
+
+                                   Fill="{Binding WindowBackgroundColor, Converter={x:Static conv:StringToBrushConverter.Instance}}"/>
+
+                    </StackPanel>
+
+                    <WrapPanel Grid.Row="10" Margin="0,3">
+
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                      IsChecked="{Binding GlassBlurEnabled, Mode=TwoWay}"/>
+
+                        <TextBlock Text="{theme:Loc settings.glass_blur}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    </WrapPanel>
+
+                    <WrapPanel Grid.Row="11" Margin="0,3">
+
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                      IsChecked="{Binding HideSidebarLabels, Mode=TwoWay}"/>
+
+                        <TextBlock Text="{theme:Loc settings.hide_sidebar_labels}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    </WrapPanel>
 
                 </Grid>
 

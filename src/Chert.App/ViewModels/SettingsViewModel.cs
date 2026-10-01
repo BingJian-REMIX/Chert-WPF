@@ -456,6 +456,59 @@ public class SettingsViewModel : ObservableObject
         get => _defaultVersionIsolation;
         set => SetField(ref _defaultVersionIsolation, value);
     }
+    private string _windowBackgroundColor = "";
+    private bool _glassBlurEnabled = true;
+    private bool _hideSidebarLabels;
+
+    /// <summary>清单 #17：外观页——窗口背景色（空 = 跟随主题）。</summary>
+    public string WindowBackgroundColor
+    {
+        get => _windowBackgroundColor;
+        set
+        {
+            if (!SetField(ref _windowBackgroundColor, value ?? "")) return;
+            Chert.App.App.ApplyWindowBackgroundColor(string.IsNullOrWhiteSpace(value) ? null : value);
+        }
+    }
+
+    /// <summary>清单 #17：外观页——是否启用系统级毛玻璃背板。</summary>
+    public bool GlassBlurEnabled
+    {
+        get => _glassBlurEnabled;
+        set
+        {
+            if (!SetField(ref _glassBlurEnabled, value)) return;
+            ThemeManager.GlassBlurEnabled = value;
+            // 立刻重算外壳：玻璃风格下这一步决定要不要向系统申请背板
+            Chert.App.App.ApplyUiStyle(UiStyles.Parse(_uiStyle));
+        }
+    }
+
+    /// <summary>清单 #17：外观页——隐藏侧边栏图标标签。</summary>
+    public bool HideSidebarLabels
+    {
+        get => _hideSidebarLabels;
+        set
+        {
+            if (!SetField(ref _hideSidebarLabels, value)) return;
+            ThemeManager.HideSidebarLabels = value;
+            ThemeManager.NotifyAppearanceChanged();
+        }
+    }
+
+    /// <summary>清单 #17：外观页的 8 个预设主题色点（对齐 design/chert_layout.html 的 .theme-dot）。</summary>
+    public IReadOnlyList<ThemeSwatch> ThemeSwatches { get; } = new List<ThemeSwatch>
+    {
+        new("#3B82F6"), new("#10B981"), new("#8B5CF6"), new("#EC4899"),
+        new("#F59E0B"), new("#EF4444"), new("#06B6D4"), new("#EAB308")
+    };
+
+    private ICommand? _pickThemeColor;
+
+    /// <summary>点主题色点 → 直接设 ThemeColor。</summary>
+    public ICommand PickThemeColorCommand =>
+        _pickThemeColor ??= new RelayCommand(p => { if (p is string hex) ThemeColor = hex; });
+
     public string ThemeColor
     {
         get => _themeColor;
@@ -674,6 +727,9 @@ public class SettingsViewModel : ObservableObject
 
         // 外观
         ThemeColor = profile.ThemeColor;
+        WindowBackgroundColor = profile.WindowBackgroundColor ?? "";
+        GlassBlurEnabled = profile.GlassBlurEnabled;
+        HideSidebarLabels = profile.HideSidebarLabels;
         BackgroundImagePath = profile.BackgroundImagePath ?? "";
         FontScale = profile.FontScale;
         HighDpiEnabled = profile.HighDpiIcons;
@@ -962,6 +1018,9 @@ public class SettingsViewModel : ObservableObject
 
             // 外观
             ThemeColor = ThemeColor,
+            WindowBackgroundColor = string.IsNullOrWhiteSpace(WindowBackgroundColor) ? null : WindowBackgroundColor,
+            GlassBlurEnabled = GlassBlurEnabled,
+            HideSidebarLabels = HideSidebarLabels,
             BackgroundImagePath = string.IsNullOrWhiteSpace(BackgroundImagePath) ? null : BackgroundImagePath,
             FontScale = FontScale,
             HighDpiIcons = HighDpiEnabled,
@@ -1299,4 +1358,19 @@ public class SettingsViewModel : ObservableObject
         else
             UpdateMessage = $"已是最新版本（{result.CurrentVersion}）";
     }
+}
+
+/// <summary>外观页主题色点（清单 #17）。</summary>
+public sealed class ThemeSwatch
+{
+    public ThemeSwatch(string hex)
+    {
+        Hex = hex;
+        var c = Chert.App.Controls.ColorMath.TryParseHex(hex, out var parsed)
+            ? parsed : System.Windows.Media.Colors.Gray;
+        SwatchBrush = new System.Windows.Media.SolidColorBrush(c);
+    }
+
+    public string Hex { get; }
+    public System.Windows.Media.Brush SwatchBrush { get; }
 }

@@ -155,6 +155,18 @@ public class LauncherProfile
     [JsonPropertyName("themeColor")]
     public string ThemeColor { get; set; } = "#3a7b4f";
 
+    /// <summary>清单 #17：外观页——窗口背景色（覆盖主题的 WindowBackground）。空 = 跟随主题。</summary>
+    [JsonPropertyName("windowBackgroundColor")]
+    public string? WindowBackgroundColor { get; set; }
+
+    /// <summary>清单 #17：外观页——是否启用系统级毛玻璃背板（关闭时玻璃风格落回不透明底）。</summary>
+    [JsonPropertyName("glassBlurEnabled")]
+    public bool GlassBlurEnabled { get; set; } = true;
+
+    /// <summary>清单 #17：外观页——隐藏侧边栏图标标签（展开时也只显示图标）。</summary>
+    [JsonPropertyName("hideSidebarLabels")]
+    public bool HideSidebarLabels { get; set; }
+
     [JsonPropertyName("backgroundImagePath")]
     public string? BackgroundImagePath { get; set; }
 

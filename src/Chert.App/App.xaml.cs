@@ -348,6 +348,37 @@ public partial class App : Application
         }
     }
 
+    /// <summary>清单 #17：外观页「窗口背景色」。空 = 跟随主题（移除顶层覆盖，落回合并的主题字典）。</summary>
+    private static string? _customWindowBackground;
+
+    public static void ApplyWindowBackgroundColor(string? hex)
+    {
+        _customWindowBackground = hex;
+        ReapplyCustomWindowBackground();
+    }
+
+    /// <summary>
+    /// 重新套用自定义窗口背景色。
+    /// 必须同时用于两点：用户改色时、以及**主题字典重载之后**
+    /// （ApplyStyleDictionary 会重置 WindowBackground，不重套就会被主题默认值盖掉）。
+    /// </summary>
+    public static void ReapplyCustomWindowBackground()
+    {
+        try
+        {
+            var app = Application.Current;
+            if (app is null) return;
+            if (string.IsNullOrWhiteSpace(_customWindowBackground)
+                || !Controls.ColorMath.TryParseHex(_customWindowBackground, out var c))
+            {
+                app.Resources.Remove("WindowBackground");   // 跟随主题
+                return;
+            }
+            app.Resources["WindowBackground"] = new SolidColorBrush(c);
+        }
+        catch { /* 窗口/资源尚未就绪等异常静默忽略 */ }
+    }
+
     private static Color Darken(Color c, double amount)
     {
         var f = 1.0 - amount;

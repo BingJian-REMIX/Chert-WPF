@@ -11,8 +11,19 @@ public enum ThemeType
 /// 主题管理器：存储/读取当前主题偏好，通知 App 层切换 ResourceDictionary。
 /// Core 层只负责状态持久化，实际 UI 切换由 App 层处理。
 /// </summary>
-public static class ThemeManager
+public class ThemeManager
 {
+    /// <summary>清单 #17：外观页「显示毛玻璃效果」。关闭时 MainWindow 不申请系统背板，玻璃风格落回不透明底。</summary>
+    public static bool GlassBlurEnabled { get; set; } = true;
+
+    /// <summary>清单 #17：外观页「隐藏侧边栏图标标签」。开启后侧边栏即使展开也只显示图标。</summary>
+    public static bool HideSidebarLabels { get; set; }
+
+    /// <summary>清单 #17：外观页里「需要立刻重建 UI」的项发生变化时通知（MainWindow 订阅后重算外壳）。</summary>
+    public static event Action? OnAppearanceChanged;
+
+    public static void NotifyAppearanceChanged() => OnAppearanceChanged?.Invoke();
+
     private static ThemeType _current = ThemeType.Light;
 
     /// <summary>当前主题。</summary>
