@@ -12,8 +12,8 @@
           · 标题/状态栏 rgba(26,29,36,.55) → #8C1A1D24
           · 侧栏/列表 rgba(26,29,36,.40)   → #661A1D24
           · 细边/悬停 白 8%               → #14FFFFFF
-          · 强调色   --accent 蓝 #3B82F6  → #FF3B82F6
-          · 前景     --fg #FFFFFF / --fg2 #C8CDD6
+          · 强调色   accent 蓝 #3B82F6  → #FF3B82F6
+          · 前景     fg #FFFFFF / fg2 #C8CDD6
         因此本字典去掉旧的青色科技风（#4DD0E1 / #0E1620），全部取值回到设计稿中性玻璃。
     -->
 
@@ -37,7 +37,7 @@
     <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#2A2A2F3A"/>
 
-    <!-- 强调色：设计稿 --accent 蓝 -->
+    <!-- 强调色：设计稿 accent 蓝 -->
     <SolidColorBrush x:Key="AccentBrush" Color="#FF3B82F6"/>
     <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF2B6FE0"/>
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFFFF"/>
@@ -65,5 +65,22 @@
 
     <!-- 危险色 -->
     <SolidColorBrush x:Key="DangerBrush" Color="#FFE74C3C"/>
+
+    <!--
+        清单 #16：简约玻璃的「终端式」外壳（标题栏 / 侧栏 / 状态栏 / 浏览器式标签）。
+        这些 key 只在玻璃风格字典里存在，故仅供玻璃布局代码读取（TryFindResource 取不到时回退默认）。
+          · GlassChrome*    标题栏 / 状态栏底  rgba(26,29,36,.55)
+          · GlassSidebar*   窄侧栏底          rgba(26,29,36,.40)
+          · GlassContent*   内容区半透明底     rgba(15,17,21,.28)
+          · GlassTab*       浏览器式标签三态（常态 / 悬停 / 选中）+ 白 8% 描边
+    -->
+    <SolidColorBrush x:Key="GlassChromeBackground" Color="#8C1A1D24"/>
+    <SolidColorBrush x:Key="GlassSidebarBackground" Color="#661A1D24"/>
+    <SolidColorBrush x:Key="GlassContentBackground" Color="#470F1115"/>
+    <SolidColorBrush x:Key="GlassTabBackground" Color="#0AFFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabActiveBackground" Color="#B80F1115"/>
+    <SolidColorBrush x:Key="GlassTabHoverBackground" Color="#14FFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabBorder" Color="#14FFFFFF"/>
+    <SolidColorBrush x:Key="GlassSidebarBorder" Color="#2E3B82F6"/>
 
 </ResourceDictionary>

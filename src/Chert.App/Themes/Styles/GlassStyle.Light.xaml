@@ -9,7 +9,7 @@
           · 窗口底   大面积通透白 #D8F5F7FA
           · 面板     白 70%        #B3FFFFFF
           · 细边     白 35%        #59FFFFFF
-          · 强调色   --accent 蓝 #2563EB（设计稿亮色版对应值）
+          · 强调色   accent 蓝 #2563EB（设计稿亮色版对应值）
         去掉旧的冷调青蓝（#4FC3F7 / #0288D1 / #E6029688），统一为蓝系。
     -->
 
@@ -61,5 +61,18 @@
 
     <!-- 危险色 -->
     <SolidColorBrush x:Key="DangerBrush" Color="#FFC62828"/>
+
+    <!--
+        清单 #16：简约玻璃的「终端式」外壳（亮色版）。
+        与暗色版同构，只是把半透明深色映射成半透明浅色（白 80% / 白 60% / 白 25%）。
+    -->
+    <SolidColorBrush x:Key="GlassChromeBackground" Color="#CCF5F7FA"/>
+    <SolidColorBrush x:Key="GlassSidebarBackground" Color="#99FFFFFF"/>
+    <SolidColorBrush x:Key="GlassContentBackground" Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabBackground" Color="#33FFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabActiveBackground" Color="#E6FFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabHoverBackground" Color="#59FFFFFF"/>
+    <SolidColorBrush x:Key="GlassTabBorder" Color="#40FFFFFF"/>
+    <SolidColorBrush x:Key="GlassSidebarBorder" Color="#3D2563EB"/>
 
 </ResourceDictionary>

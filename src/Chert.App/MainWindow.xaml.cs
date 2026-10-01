@@ -43,6 +43,131 @@ public partial class MainWindow : Window
         catch { /* 非 Win11 或失败则忽略，保持直角 */ }
     }
 
+    // ===== 清单 #16：玻璃风格 —— 系统级毛玻璃背板 =====
+    // Win11 22H2+：DwmSetWindowAttribute(DWMWA_SYSTEMBACKDROP_TYPE) 真实亚克力背景模糊；
+    // Win10 1803+：SetWindowCompositionAttribute(ACCENT_ENABLE_ACRYLICBLURBEHIND) 降级亚克力。
+    // 两者皆不可用时返回 false，调用方落回不透底的静态玻璃底，避免半透明层叠在无背板的黑底上发灰。
+    private const int DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
+    private const int DWMWA_SYSTEMBACKDROP_TYPE = 38;
+    private const int DWMSBT_NONE = 1;
+    private const int DWMSBT_TRANSIENTWINDOW = 3;   // 亚克力（Acrylic）
+
+    [DllImport("user32.dll")]
+    private static extern int SetWindowCompositionAttribute(IntPtr hwnd, ref WindowCompositionAttributeData data);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WindowCompositionAttributeData
+    {
+        public int Attribute;
+        public IntPtr Data;
+        public int SizeOfData;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct AccentPolicy
+    {
+        public int AccentState;
+        public int AccentFlags;
+        public int GradientColor;   // ABGR
+        public int AnimationId;
+    }
+
+    private const int WCA_ACCENT_POLICY = 19;
+    private const int ACCENT_ENABLE_ACRYLICBLURBEHIND = 4;
+
+    /// <summary>当前是否已开启系统级背板（用于切出玻璃风格时关闭）。</summary>
+    private bool _backdropActive;
+
+    /// <summary>清单 #16：玻璃风格的等宽字体（终端观感），带回退字族。</summary>
+    private static readonly FontFamily MonoFont = new("Consolas, Menlo, Courier New");
+
+    // 清单 #16：外壳原始值快照（构造时记录，风格切出时逐项还原）
+    private GridLength _titleBarRowHeight;
+    private GridLength _statusBarRowHeight;
+    private string _brandTextDefault = "";
+    private FontFamily _brandFontDefault = null!;
+    private double _brandFontSizeDefault;
+    private FontFamily _statusFontDefault = null!;
+    private double _statusFontSizeDefault;
+
+    /// <summary>尝试开启系统级毛玻璃背板；成功返回 true（调用方据此决定窗体底色用半透明还是实色）。</summary>
+    private bool TryEnableBackdrop()
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return false;
+
+            // 系统绘制的窗框 / 标题栏按钮跟随亮暗主题
+            int useDark = ThemeManager.Current == ThemeType.Dark ? 1 : 0;
+            DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, ref useDark, sizeof(int));
+
+            // Win11 22H2+：系统亚克力背板（返回 S_OK 才算成功）
+            if (!AllowsTransparency)
+            {
+                int type = DWMSBT_TRANSIENTWINDOW;
+                if (DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref type, sizeof(int)) == 0)
+                {
+                    _backdropActive = true;
+                    return true;
+                }
+            }
+
+            // Win10 1803+：ACCENT_ENABLE_ACRYLICBLURBEHIND 降级
+            var accent = new AccentPolicy
+            {
+                AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND,
+                AccentFlags = 2,
+                GradientColor = unchecked((int)0x99000000)   // ABGR：A=0x99
+            };
+            var size = Marshal.SizeOf<AccentPolicy>();
+            var ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                Marshal.StructureToPtr(accent, ptr, false);
+                var data = new WindowCompositionAttributeData
+                {
+                    Attribute = WCA_ACCENT_POLICY,
+                    Data = ptr,
+                    SizeOfData = size
+                };
+                _backdropActive = SetWindowCompositionAttribute(hwnd, ref data) != 0;
+                return _backdropActive;
+            }
+            finally { Marshal.FreeHGlobal(ptr); }
+        }
+        catch { return false; }
+    }
+
+    /// <summary>关闭系统级背板（切出玻璃风格时），恢复普通不透底窗口。</summary>
+    private void DisableBackdrop()
+    {
+        _backdropActive = false;
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero) return;
+            int none = DWMSBT_NONE;
+            DwmSetWindowAttribute(hwnd, DWMWA_SYSTEMBACKDROP_TYPE, ref none, sizeof(int));
+            var accent = new AccentPolicy { AccentState = 0, AccentFlags = 0, GradientColor = 0 };
+            var size = Marshal.SizeOf<AccentPolicy>();
+            var ptr = Marshal.AllocHGlobal(size);
+            try
+            {
+                Marshal.StructureToPtr(accent, ptr, false);
+                var data = new WindowCompositionAttributeData
+                {
+                    Attribute = WCA_ACCENT_POLICY,
+                    Data = ptr,
+                    SizeOfData = size
+                };
+                SetWindowCompositionAttribute(hwnd, ref data);
+            }
+            finally { Marshal.FreeHGlobal(ptr); }
+        }
+        catch { /* 忽略：关闭失败不影响功能 */ }
+    }
+
     // ===== 最大化：限制到当前工作区，避免覆盖任务栏 =====
     private const int WM_GETMINMAXINFO = 0x0024;
 
@@ -140,6 +265,15 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // 清单 #16：快照外壳默认值（标题栏/状态栏行高、品牌文案、状态栏字体），供玻璃风格切出时还原
+        _titleBarRowHeight = TitleBarRow.Height;
+        _statusBarRowHeight = StatusBarRow.Height;
+        _brandTextDefault = BrandText.Text;
+        _brandFontDefault = BrandText.FontFamily;
+        _brandFontSizeDefault = BrandText.FontSize;
+        _statusFontDefault = StatusBarRoot.FontFamily;
+        _statusFontSizeDefault = StatusBarRoot.FontSize;
+
         _pages[MainTabKind.Game] = new GameView();
         _pages[MainTabKind.Download] = new DownloadPageView();
         _pages[MainTabKind.Toolbox] = new ToolboxView();
@@ -159,6 +293,8 @@ public partial class MainWindow : Window
 
         // 清单 #15：界面风格（安卓式 → 沉底导航）。风格字典由 App 层叠加，这里只管导航形态。
         ThemeManager.OnUiStyleChanged += _ => Dispatcher.Invoke(ApplyUiStyle);
+        // 清单 #16：亮暗主题切换后重新套用外壳（玻璃/安卓的外壳配色取的是当次资源快照）
+        ThemeManager.OnThemeChanged += _ => Dispatcher.Invoke(ApplyUiStyle);
         ApplyUiStyle();
 
         _sidebarState.SwitchOwner(MainTabKind.Game);
@@ -170,6 +306,8 @@ public partial class MainWindow : Window
         Loaded += (_, _) => EnableWin11Corners();
         // bug #86：最大化按钮 + 限制到工作区（不覆盖任务栏）
         SourceInitialized += (_, _) => AttachMaximizeHook();
+        // 清单 #16：窗口句柄就绪后再尝试开启毛玻璃背板（构造期 Handle 尚未创建）
+        SourceInitialized += (_, _) => { if (IsGlassStyle()) ApplyUiStyle(); };
         Loaded += (_, _) => RefreshMaximizeIcon();
         // 窗口尺寸变化时（侧边栏可视高度改变）→ 重新把当前选中项居中
         SizeChanged += (_, _) => RequestSidebarCenter();
@@ -548,6 +686,10 @@ public partial class MainWindow : Window
 
             // 选中贴抬到最上层（ZIndex=20），避免被左侧未选中贴的圆角/色块遮住展开后的文字
             Panel.SetZIndex(p.Root, isSel ? 20 : def.ZIndex);
+
+            // 清单 #16：玻璃风格标签走「浏览器式」中性外观；其余风格恢复四色贴纸原貌
+            if (IsGlassStyle()) ApplyGlassTabChrome(p, isSel);
+            else ApplyDefaultTabChrome(p, i, list.Count);
         }
     }
 
@@ -685,8 +827,9 @@ public partial class MainWindow : Window
         }
         if (IsGlassStyle())
         {
-            // 玻璃：内容区半透明深色（对齐 HTML rgba(15,17,21,.28)），不挂索引贴色带
-            PageBorder.Background = new SolidColorBrush(Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
+            // 玻璃：内容区半透明底（对齐 HTML .content rgba(15,17,21,.28)），不挂索引贴色带
+            PageBorder.Background = TryFindResource("GlassContentBackground") as Brush
+                ?? new SolidColorBrush(Color.FromArgb(0x47, 0x0F, 0x11, 0x15));
             return;
         }
         var winBg = (FindResource("WindowBackground") as SolidColorBrush)?.Color ?? Colors.White;
@@ -751,7 +894,7 @@ public partial class MainWindow : Window
                 FontSize = 13,
                 Margin = new Thickness(10, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
-                Visibility = _sidebarState.Expanded ? Visibility.Visible : Visibility.Collapsed
+                Visibility = (!IsGlassStyle() && _sidebarState.Expanded) ? Visibility.Visible : Visibility.Collapsed
             };
             inner.Children.Add(icon);
             inner.Children.Add(title);
@@ -920,6 +1063,8 @@ public partial class MainWindow : Window
 
     private void Sidebar_MouseEnter(object sender, MouseEventArgs e)
     {
+        // 清单 #16：玻璃风格侧栏恒为 42px 窄图标栏，不随悬浮展开
+        if (IsGlassStyle()) return;
         _collapseTimer?.Stop();
         if (_sidebarState.Expanded)
         {
@@ -939,6 +1084,7 @@ public partial class MainWindow : Window
 
     private void Sidebar_MouseLeave(object sender, MouseEventArgs e)
     {
+        if (IsGlassStyle()) return;
         _expandTimer?.Stop();
         _collapseTimer?.Stop();
         _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SidebarState.HoverCollapseDelayMs) };
@@ -991,7 +1137,10 @@ public partial class MainWindow : Window
 
         _sidebarState.SwitchOwner(kind);
         BuildSidebar(kind);
-        AnimateSidebar(Sidebar.Has(kind) ? _sidebarState.Width : 0, _sidebarState.Expanded);
+        // 清单 #16：玻璃风格侧栏恒为 42px 且不展开
+        var glassNav = IsGlassStyle();
+        AnimateSidebar(Sidebar.Has(kind) ? (glassNav ? 42 : _sidebarState.Width) : 0,
+            glassNav ? false : _sidebarState.Expanded);
 
         // 进入各主视图时同步加载当前选中的副标签内容（规格 1.4 / 2.2）
         RouteSidebar(_sidebarState.SelectedId);
@@ -1043,6 +1192,11 @@ public partial class MainWindow : Window
         var kind = UiStyles.Parse(ThemeManager.UiStyle);
         var android = kind == UiStyleKind.Android;
         var dynamic = kind == UiStyleKind.Dynamic;
+        var glass = kind == UiStyleKind.Glass;
+
+        // 先复位「外壳」到 XAML 默认（标题栏/状态栏行高、品牌文案、搜索栏、侧栏、毛玻璃背板），
+        // 再由下方各风格分支按需重设——保证任意风格互切后状态干净。
+        RestoreDefaultChrome();
 
         // 顶部四色索引贴：安卓隐藏（改沉底导航），标准/灵动保留（灵动让贴浮在彩色卡片上）
         TabPanel.Visibility = android ? Visibility.Collapsed : Visibility.Visible;
@@ -1067,18 +1221,115 @@ public partial class MainWindow : Window
             BottomNavBar.Height = 64;
             SetDynamicCard(false);
         }
+        else if (glass)
+        {
+            // 玻璃：终端式标题栏 / 状态栏 + 窄半透明侧栏 + 系统级毛玻璃背板
+            ApplyGlassChrome();
+        }
         else
         {
-            // 恢复默认：清除本地值以恢复 XAML 的 DynamicResource（标题栏随主标签变色、侧栏随主题）
-            TitleBar.ClearValue(Grid.BackgroundProperty);
-            SidebarRoot.Visibility = Visibility.Visible;
-            SidebarRoot.Width = 56;
-            SidebarRoot.ClearValue(Border.BackgroundProperty);
-            SidebarRoot.ClearValue(Border.BorderThicknessProperty);
+            // 标准：外壳已由 RestoreDefaultChrome 复位（标题栏随主标签变色、侧栏随主题）
             BottomNavBar.ClearValue(Border.HeightProperty);
             SetDynamicCard(false);
         }
         ApplyBottomNavSelection(_currentKind);
+    }
+
+    /// <summary>把标题栏 / 侧栏 / 状态栏的外壳复位到 XAML 默认，供风格切换时还原（含关闭毛玻璃背板）。</summary>
+    private void RestoreDefaultChrome()
+    {
+        TitleBarRow.Height = _titleBarRowHeight;
+        StatusBarRow.Height = _statusBarRowHeight;
+
+        BrandText.Text = _brandTextDefault;
+        BrandText.FontFamily = _brandFontDefault;
+        BrandText.FontSize = _brandFontSizeDefault;
+        SearchArea.Visibility = Visibility.Visible;
+
+        TitleBar.SetResourceReference(Panel.BackgroundProperty, "TitleBarBrush");
+
+        SidebarRoot.Visibility = Visibility.Visible;
+        SidebarRoot.Width = 56;
+        SidebarRoot.SetResourceReference(Border.BackgroundProperty, "ControlBackground");
+        SidebarRoot.SetResourceReference(Border.BorderBrushProperty, "SidebarEdgeBrush");
+        SidebarRoot.BorderThickness = new Thickness(0, 0, 1, 0);
+
+        StatusBarRoot.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
+        StatusBarRoot.FontFamily = _statusFontDefault;
+        StatusBarRoot.FontSize = _statusFontSizeDefault;
+
+        if (_backdropActive) DisableBackdrop();
+        SetResourceReference(BackgroundProperty, "WindowBackground");
+    }
+
+    /// <summary>清单 #16：玻璃外壳——40px 终端标题栏（&gt; Chert、隐藏搜索）+ 42px 半透明侧栏 + 26px 终端状态栏。</summary>
+    private void ApplyGlassChrome()
+    {
+        TitleBarRow.Height = new GridLength(40);
+        StatusBarRow.Height = new GridLength(26);
+
+        TitleBar.Background = TryFindResource("GlassChromeBackground") as Brush ?? Brushes.Transparent;
+        BrandText.Text = "> Chert";
+        BrandText.FontFamily = MonoFont;
+        BrandText.FontSize = 14;
+        SearchArea.Visibility = Visibility.Collapsed;
+
+        SidebarRoot.Visibility = Visibility.Visible;
+        SidebarRoot.Width = 42;
+        SidebarRoot.Background = TryFindResource("GlassSidebarBackground") as Brush ?? Brushes.Transparent;
+        SidebarRoot.BorderThickness = new Thickness(0, 0, 1, 0);
+        SidebarRoot.BorderBrush = TryFindResource("GlassSidebarBorder") as Brush ?? Brushes.Transparent;
+        // 玻璃侧栏恒为窄图标栏：收起所有文字标签
+        foreach (var p in _sidebarItems.Values) p.Title.Visibility = Visibility.Collapsed;
+
+        StatusBarRoot.Background = TryFindResource("GlassChromeBackground") as Brush ?? Brushes.Transparent;
+        StatusBarRoot.FontFamily = MonoFont;
+        StatusBarRoot.FontSize = 11;
+
+        BottomNavBar.ClearValue(Border.HeightProperty);
+        SetDynamicCard(false);
+        ApplyGlassSurface(TryEnableBackdrop());
+    }
+
+    /// <summary>玻璃窗体底色：背板可用时用风格字典的半透明底（透出桌面虚化）；
+    /// 不可用时换成同色不透明底，避免半透明层叠在无背板的黑底上发灰。</summary>
+    private void ApplyGlassSurface(bool backdropActive)
+    {
+        if (!backdropActive && TryFindResource("WindowBackground") is SolidColorBrush bg)
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0xFF, bg.Color.R, bg.Color.G, bg.Color.B));
+            return;
+        }
+        SetResourceReference(BackgroundProperty, "WindowBackground");
+    }
+
+    /// <summary>清单 #16：玻璃标签改「浏览器式」外观——顶部圆角、白 8% 描边、中性半透明底、等宽字、无下划线。</summary>
+    private void ApplyGlassTabChrome(TabParts p, bool isSel)
+    {
+        var baseBg = (TryFindResource("GlassTabBackground") as SolidColorBrush)?.Color ?? Colors.Transparent;
+        var activeBg = (TryFindResource("GlassTabActiveBackground") as SolidColorBrush)?.Color ?? baseBg;
+        var hoverBg = (TryFindResource("GlassTabHoverBackground") as SolidColorBrush)?.Color ?? baseBg;
+
+        p.Brush.Color = isSel ? activeBg : baseBg;
+        p.BaseColor = p.Brush.Color;
+        p.HoverColor = hoverBg;
+        p.Bg.Background = p.Brush;
+        p.Bg.CornerRadius = new CornerRadius(8, 8, 0, 0);
+        p.Bg.BorderThickness = new Thickness(1, 1, 1, 0);
+        p.Bg.BorderBrush = TryFindResource("GlassTabBorder") as Brush;
+        p.Title.FontFamily = MonoFont;
+        p.Title.FontSize = 12;
+        p.Underline.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>恢复四色索引贴默认外观（玻璃 → 其他风格切换时）。</summary>
+    private static void ApplyDefaultTabChrome(TabParts p, int index, int last)
+    {
+        p.Bg.CornerRadius = TabCornerRadius(index, last);
+        p.Bg.BorderThickness = new Thickness(0);
+        p.Bg.BorderBrush = null;
+        p.Title.ClearValue(TextBlock.FontFamilyProperty);
+        p.Title.FontSize = 13;
     }
 
     /// <summary>清单 #17：灵动风格判定（透明标题栏 + 整页圆角彩色卡片 + 卡片横向滑动）。</summary>
@@ -1180,6 +1431,15 @@ public partial class MainWindow : Window
             var dur = TimeSpan.FromMilliseconds(120);
             PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, dur));
             PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(40, 0, dur));
+            return;
+        }
+        // 玻璃：内容横向滑动（对齐 HTML .page.leave/enter 的左右平移，180ms）
+        if (IsGlassStyle())
+        {
+            var gdur = TimeSpan.FromMilliseconds(180);
+            PageTransform.Y = 0;
+            PageBorder.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(0, 1, gdur));
+            PageTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(28, 0, gdur));
             return;
         }
         // 安卓：内容横向滑动（对齐 HTML .page.leave/enter 的左右平移）

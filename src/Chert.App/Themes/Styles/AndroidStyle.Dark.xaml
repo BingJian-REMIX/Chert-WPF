@@ -8,13 +8,13 @@
         设计稿里安卓布局与经典布局**共用同一套配色**，差异只在布局形态：
           · 底部四色导航（64px，选中项用该标签自身的四色 + 12% 同色底）
           · 顶部横向子标签（42px，下载/工具箱/设置）
-          · 标题栏用 --accent 蓝（而非随主标签变色）
+          · 标题栏用 accent 蓝（而非随主标签变色）
           · 隐藏侧边栏，内容整宽
         因此本字典不再自造 Material You 配色，取值与 DarkTheme.xaml 一致：
-          --win:#0F1115 / --ctrl:#1A1D24 / --ctrl-border:#2A2F3A / --ctrl-hover:#252830
-          --accent:#3B82F6 / --accent-hover:#2B6FE0 / --danger:#E74C3C
-          --input:#14161C / --input-border:#2A2F3A / --toggle-off:#3A3F4A
-          --fg:#FFFFFF / --fg2:#C8CDD6
+          win:#0F1115 / ctrl:#1A1D24 / ctrl-border:#2A2F3A / ctrl-hover:#252830
+          accent:#3B82F6 / accent-hover:#2B6FE0 / danger:#E74C3C
+          input:#14161C / input-border:#2A2F3A / toggle-off:#3A3F4A
+          fg:#FFFFFF / fg2:#C8CDD6
     -->
 
     <!-- 背景 -->
@@ -37,7 +37,7 @@
     <SolidColorBrush x:Key="ButtonForeground" Color="#FFFFFFFF"/>
     <SolidColorBrush x:Key="ButtonDisabledBackground" Color="#FF3A3F4A"/>
 
-    <!-- 强调色：设计稿 --accent 蓝（底部导航选中项另取该标签四色） -->
+    <!-- 强调色：设计稿 accent 蓝（底部导航选中项另取该标签四色） -->
     <SolidColorBrush x:Key="AccentBrush" Color="#FF3B82F6"/>
     <SolidColorBrush x:Key="AccentHoverBrush" Color="#FF2B6FE0"/>
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFFFF"/>

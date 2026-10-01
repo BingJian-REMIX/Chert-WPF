@@ -50,13 +50,13 @@
 
         <Grid.RowDefinitions>
 
-            <RowDefinition Height="52"/>     <!-- 标题栏（跟随主标签变色） -->
+            <RowDefinition x:Name="TitleBarRow" Height="52"/>     <!-- 标题栏（跟随主标签变色；玻璃风格压到 40） -->
 
             <RowDefinition Height="*"/>      <!-- 主体：侧边栏 + 内容 -->
 
             <RowDefinition x:Name="BottomNavRow" Height="Auto"/>  <!-- 沉底导航（清单 #15：仅简约安卓式显示） -->
 
-            <RowDefinition Height="30"/>     <!-- 状态栏 -->
+            <RowDefinition x:Name="StatusBarRow" Height="30"/>     <!-- 状态栏（玻璃风格压到 26） -->
 
         </Grid.RowDefinitions>
 
@@ -82,7 +82,7 @@
 
 
 
-            <TextBlock Grid.Column="0" Text="Chert Launcher" FontSize="17" FontWeight="Bold"
+            <TextBlock x:Name="BrandText" Grid.Column="0" Text="Chert Launcher" FontSize="17" FontWeight="Bold"
 
                        Foreground="{DynamicResource TitleBarForeground}" VerticalAlignment="Center" Margin="16,0,0,0"/>
 
@@ -90,7 +90,7 @@
 
             <!-- 全局搜索栏 + 下载进度入口（bug #14：下载队列合并至搜索栏右侧弹窗） -->
 
-            <Grid Grid.Column="1" Margin="12,0">
+            <Grid x:Name="SearchArea" Grid.Column="1" Margin="12,0">
 
                 <Grid.ColumnDefinitions>
 
@@ -588,7 +588,7 @@
 
         <!-- ===== 状态栏 ===== -->
 
-        <StatusBar Grid.Row="3" Background="{DynamicResource ControlBackground}"
+        <StatusBar x:Name="StatusBarRoot" Grid.Row="3" Background="{DynamicResource ControlBackground}"
 
                    Foreground="{DynamicResource StatusForeground}">
 
