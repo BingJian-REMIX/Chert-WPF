@@ -4,29 +4,68 @@ using Chert.Core.Save;
 namespace Chert.Core.Servers;
 
 /// <summary>服务器列表条目（对应 servers.dat 中的一项）。</summary>
-public class ServerEntry
+public class ServerEntry : Chert.Core.Mvvm.ObservableObject
 {
     /// <summary>服务器显示名。</summary>
-    public string Name { get; set; } = "";
+    // ★ 必须走 SetField 抛 PropertyChanged：编辑服务器是**直接改这几项属性**，
+    //   而 ServerEntry 原先是纯 POCO 无 INPC —— 删除能生效（集合移除触发刷新），
+    //   但编辑后 UI 完全不知情，卡片仍显示旧名称/地址，表现为「编辑没反应」。
+    public string Name { get => _name; set => SetField(ref _name, value); }
+    private string _name = "";
 
     /// <summary>地址（host 或 host:port）。</summary>
-    public string Address { get; set; } = "";
+    public string Address
+    {
+        get => _address;
+        set
+        {
+            if (!SetField(ref _address, value)) return;
+            // 派生自 Address，地址改了要连带通知
+            OnPropertyChanged(nameof(Host));
+            OnPropertyChanged(nameof(Port));
+        }
+    }
+    private string _address = "";
 
     /// <summary>Base64 的服务器图标（可空）。</summary>
-    public string? Icon { get; set; }
+    public string? Icon { get => _icon; set => SetField(ref _icon, value); }
+    private string? _icon;
 
     /// <summary>资源包策略：prompt / enabled / disabled。</summary>
-    public string? AcceptTextures { get; set; }
+    public string? AcceptTextures { get => _acceptTextures; set => SetField(ref _acceptTextures, value); }
+    private string? _acceptTextures;
 
     // ---- 运行时状态（ping 后填充，不写回 servers.dat）----
 
     /// <summary>延迟（毫秒），-1 表示不可达 / 未测。</summary>
-    public int PingMs { get; set; } = -1;
+    // ★ PingMs 变化时必须连带通知派生的 Online / LatencyLevel，否则 ping 完成后
+    //   卡片上的延迟/在线状态不会刷新。
+    public int PingMs
+    {
+        get => _pingMs;
+        set
+        {
+            if (_pingMs == value) return;
+            _pingMs = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Online));
+            OnPropertyChanged(nameof(LatencyLevel));
+        }
+    }
+    private int _pingMs = -1;
 
-    public int OnlinePlayers { get; set; }
-    public int MaxPlayers { get; set; }
-    public string? Motd { get; set; }
-    public string? VersionName { get; set; }
+    public int OnlinePlayers { get => _onlinePlayers; set => SetField(ref _onlinePlayers, value); }
+    private int _onlinePlayers;
+
+    public int MaxPlayers { get => _maxPlayers; set => SetField(ref _maxPlayers, value); }
+    private int _maxPlayers;
+
+    public string? Motd { get => _motd; set => SetField(ref _motd, value); }
+    private string? _motd;
+
+    public string? VersionName { get => _versionName; set => SetField(ref _versionName, value); }
+    private string? _versionName;
+
     public bool Online => PingMs >= 0;
 
     // ★ 值语义：ServerEntry 若沿用默认引用相等，ObservableCollection.Remove / Contains
@@ -65,6 +104,7 @@ public class ServerEntry
 
     /// <summary>拆出端口，缺省 25565。</summary>
     public int Port => SplitAddress(Address).Port;
+
 
     /// <summary>延迟等级：0 好(&lt;100) / 1 一般(&lt;300) / 2 差 / 3 不可达。</summary>
     public int LatencyLevel => PingMs < 0 ? 3 : PingMs < 100 ? 0 : PingMs < 300 ? 1 : 2;
