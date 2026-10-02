@@ -89,6 +89,10 @@
 
                 <RowDefinition Height="*"/>
 
+                <!-- P11：聊天记录页签 -->
+
+                <RowDefinition Height="Auto"/>
+
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
@@ -113,7 +117,13 @@
 
             </StackPanel>
 
-            <ListBox Grid.Row="1" ItemsSource="{Binding Lines}"
+            <!-- P11：日志正文 / 聊天记录 两个页签 -->
+
+            <TabControl Grid.Row="1">
+
+                <TabItem Header="日志正文">
+
+                    <ListBox ItemsSource="{Binding Lines}"
 
                      Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
 
@@ -121,19 +131,109 @@
 
                      ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12">
 
-                <ListBox.ItemTemplate>
+                        <ListBox.ItemTemplate>
 
-                    <DataTemplate>
+                            <DataTemplate>
 
-                        <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
 
-                                   Foreground="{Binding Severity, Converter={x:Static conv:LogSeverityToColor.Instance}}"/>
+                                           Foreground="{Binding Severity, Converter={x:Static conv:LogSeverityToColor.Instance}}"/>
 
-                    </DataTemplate>
+                            </DataTemplate>
 
-                </ListBox.ItemTemplate>
+                        </ListBox.ItemTemplate>
 
-            </ListBox>
+                    </ListBox>
+
+                </TabItem>
+
+                <TabItem Header="聊天记录">
+
+                    <Grid Margin="4">
+
+                        <Grid.RowDefinitions>
+
+                            <RowDefinition Height="*"/>
+
+                            <RowDefinition Height="Auto"/>
+
+                        </Grid.RowDefinitions>
+
+                        <ListBox Grid.Row="0" ItemsSource="{Binding ChatEntries}"
+
+                                 Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
+
+                                 HorizontalContentAlignment="Stretch"
+
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+
+                                 VirtualizingPanel.IsVirtualizing="True"
+
+                                 VirtualizingPanel.VirtualizationMode="Recycling">
+
+                            <ListBox.ItemTemplate>
+
+                                <DataTemplate>
+
+                                    <TextBlock TextWrapping="Wrap" Margin="0,1,0,1"
+
+                                               Foreground="{DynamicResource ChatForeground}">
+
+                                        <Run Text="{Binding Time, Mode=OneWay}"/>
+
+                                        <Run Text=" "/>
+
+                                        <Run Text="{Binding Player, Mode=OneWay}" FontWeight="SemiBold"/>
+
+                                        <Run Text=": "/>
+
+                                        <Run Text="{Binding Message, Mode=OneWay}"/>
+
+                                    </TextBlock>
+
+                                </DataTemplate>
+
+                            </ListBox.ItemTemplate>
+
+                        </ListBox>
+
+                        <Grid Grid.Row="1" Margin="0,6,0,0">
+
+                            <Grid.ColumnDefinitions>
+
+                                <ColumnDefinition Width="*"/>
+
+                                <ColumnDefinition Width="Auto"/>
+
+                                <ColumnDefinition Width="Auto"/>
+
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding ChatStatus}" FontSize="11"
+
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+
+                            <Button Grid.Column="1" Content="导出 .txt" Width="82" Padding="0,3" Margin="6,0,0,0"
+
+                                    Command="{Binding ExportChatCommand}" CommandParameter="txt"
+
+                                    IsEnabled="{Binding HasChat}" ToolTip="导出为纯文本"/>
+
+                            <Button Grid.Column="2" Content="导出 .md" Width="82" Padding="0,3" Margin="6,0,0,0"
+
+                                    Command="{Binding ExportChatCommand}" CommandParameter="md"
+
+                                    IsEnabled="{Binding HasChat}" ToolTip="导出为 Markdown 表格"/>
+
+                        </Grid>
+
+                    </Grid>
+
+                </TabItem>
+
+            </TabControl>
 
         </Grid>
 

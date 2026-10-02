@@ -25,7 +25,12 @@ public class NetworkDiagViewModel : ObservableObject
         get => _isBusy;
         set
         {
-            if (SetField(ref _isBusy, value)) OnPropertyChanged(nameof(CanSpeedTest));
+            if (!SetField(ref _isBusy, value)) return;
+            OnPropertyChanged(nameof(CanSpeedTest));
+            // ★ ICommand 的 CanExecuteChanged 是**独立**于 PropertyChanged 的事件。
+            //   只发 PropertyChanged 不会让 WPF 重新查询 CanExecute，
+            //   按钮就会一直停在「禁用」外观（本次症状：测速按钮永久置灰）。
+            SpeedTestCommand?.RaiseCanExecuteChanged();
         }
     }
 
@@ -54,7 +59,9 @@ public class NetworkDiagViewModel : ObservableObject
         get => _isSpeedTesting;
         set
         {
-            if (SetField(ref _isSpeedTesting, value)) OnPropertyChanged(nameof(CanSpeedTest));
+            if (!SetField(ref _isSpeedTesting, value)) return;
+            OnPropertyChanged(nameof(CanSpeedTest));
+            SpeedTestCommand?.RaiseCanExecuteChanged();
         }
     }
 
@@ -89,7 +96,9 @@ public class NetworkDiagViewModel : ObservableObject
         set => SetField(ref _speedTestSource, value);
     }
 
-    public ICommand SpeedTestCommand { get; }
+    // 类型必须是 AsyncRelayCommand（而非 ICommand）——
+    // IsBusy / IsSpeedTesting 变化时要调它的 RaiseCanExecuteChanged() 让按钮重新评估可用性。
+    public AsyncRelayCommand SpeedTestCommand { get; }
 
     /// <summary>页面顶部提示文案（bug #4：此前无任何说明）。</summary>
     public string Hint =>
@@ -103,6 +112,8 @@ public class NetworkDiagViewModel : ObservableObject
 
     public NetworkDiagViewModel()
     {
+        // 先建命令再建 IsBusy：否则 DiagnoseAsync 里的 RaiseCanExecuteChanged
+        // 会在 SpeedTestCommand 还是 null 时被调用（已用 ?. 兜住，但顺序更清晰）。
         DiagnoseCommand = new AsyncRelayCommand(_ => DiagnoseAsync(), _ => !IsBusy);
         SpeedTestCommand = new AsyncRelayCommand(_ => SpeedTestAsync(), _ => CanSpeedTest);
         _ = DiagnoseAsync();

@@ -410,17 +410,22 @@
 
                                 <ContentControl.ContextMenu>
 
-                                    <ContextMenu>
+                                    <!-- ContextMenu 挂在独立的 Popup 视觉树里，不在 ItemsControl 的
+                                         视觉树中，因此 RelativeSource AncestorType=ItemsControl
+                                         找不到祖先、Command 恒为 null（表现为编辑/删除永远点不动）。
+                                         显式把 DataContext 指向 PlacementTarget（卡片自身）即可。 -->
 
-                                        <MenuItem Header="{theme:Loc game.edit}" Command="{Binding DataContext.EditServerCommand,
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
 
-                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        <MenuItem Header="{theme:Loc game.edit}"
+
+                                                  Command="{Binding EditServerCommand}"
 
                                                   CommandParameter="{Binding}"/>
 
-                                        <MenuItem Header="{theme:Loc btn.delete}" Command="{Binding DataContext.DeleteServerCommand,
+                                        <MenuItem Header="{theme:Loc btn.delete}"
 
-                                            RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                  Command="{Binding DeleteServerCommand}"
 
                                                   CommandParameter="{Binding}"/>
 

@@ -17,6 +17,40 @@ public class LogViewModel : ObservableObject
     private bool _onlyErrors;
     private string _statusMessage = "";
 
+    // ===== P11：聊天记录（与崩溃报告共用 ChatExtractor）=====
+
+    private ObservableCollection<ChatEntry> _chatEntries = new();
+    private bool _hasChat;
+    private string _chatStatus = "未选择文件";
+
+    /// <summary>当前选中日志里提取到的聊天记录（绿色染色展示）。</summary>
+    public ObservableCollection<ChatEntry> ChatEntries
+    {
+        get => _chatEntries;
+        set => SetField(ref _chatEntries, value);
+    }
+
+    /// <summary>是否提取到聊天记录。</summary>
+    public bool HasChat
+    {
+        get => _hasChat;
+        set
+        {
+            if (SetField(ref _hasChat, value)) ExportChatCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>聊天区状态文案。</summary>
+    public string ChatStatus
+    {
+        get => _chatStatus;
+        set => SetField(ref _chatStatus, value);
+    }
+
+    /// <summary>导出聊天记录（txt / md）。</summary>
+    // 类型必须是 RelayCommand（HasChat 变化时要调 RaiseCanExecuteChanged 让导出按钮启用/禁用）
+    public RelayCommand ExportChatCommand { get; }
+
     public ObservableCollection<LogFileInfo> Files
     {
         get => _files;
@@ -72,6 +106,7 @@ public class LogViewModel : ObservableObject
     {
         RefreshCommand = new RelayCommand(_ => Refresh());
         ExportCommand = new RelayCommand(_ => Export());
+        ExportChatCommand = new RelayCommand(p => ExportChat(p as string ?? "txt"), _ => HasChat);
         Refresh();
     }
 
@@ -102,10 +137,51 @@ public class LogViewModel : ObservableObject
 
     private void LoadSelected()
     {
-        if (SelectedFile is null) { Lines = new(); return; }
+        if (SelectedFile is null)
+        {
+            Lines = new();
+            ChatEntries = new();
+            HasChat = false;
+            ChatStatus = "未选择文件";
+            return;
+        }
         var text = LogManager.ReadLog(SelectedFile.FullPath);
         var all = LogManager.ParseLines(text);
         Lines = new ObservableCollection<LogLine>(LogManager.Filter(all, Keyword, OnlyErrors));
+
+        // P11：聊天记录与日志正文同源，一次读取同时提取
+        var chat = ChatExtractor.Extract(text);
+        ChatEntries = new ObservableCollection<ChatEntry>(chat);
+        HasChat = chat.Count > 0;
+        ChatStatus = chat.Count > 0
+            ? $"从 {SelectedFile.Name} 提取到 {chat.Count} 条聊天记录。"
+            : $"未在 {SelectedFile.Name} 中找到聊天记录。";
+    }
+
+    /// <summary>P11：把聊天记录导出为 txt / md。</summary>
+    private void ExportChat(string format)
+    {
+        if (!HasChat || ChatEntries.Count == 0) return;
+        try
+        {
+            var isMd = format.Equals("md", StringComparison.OrdinalIgnoreCase);
+            var baseName = Path.GetFileNameWithoutExtension(SelectedFile?.Name ?? "chat");
+            var dest = UIService.PickFolder("选择导出目录");
+            if (string.IsNullOrEmpty(dest)) return;
+
+            var ext = isMd ? "md" : "txt";          // 预取，避免在插值串里放带引号的三元
+            var path = Path.Combine(dest, $"{baseName}-chat.{ext}");
+            File.WriteAllText(path, isMd
+                ? ChatExtractor.ToMarkdown(ChatEntries)
+                : ChatExtractor.ToPlainText(ChatEntries));
+            StatusMessage = $"聊天记录已导出到 {path}";
+            ToastService.Show("聊天记录已导出", path);
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "导出失败：" + ex.Message;
+            ToastService.Show("导出失败", ex.Message, ToastKind.Error);
+        }
     }
 
     private Task LoadSelectedAsync()
