@@ -86,7 +86,16 @@ public class ThemeManager
             {
                 FollowSystem = pref.FollowSystem;
                 UiStyle = string.IsNullOrWhiteSpace(pref.UiStyle) ? "standard" : pref.UiStyle.Trim().ToLowerInvariant();
-                if (Enum.TryParse<ThemeType>(pref.Theme, true, out var t)) _current = t;
+                var changed = false;
+                if (Enum.TryParse<ThemeType>(pref.Theme, true, out var t) && _current != t)
+                {
+                    _current = t;
+                    changed = true;
+                }
+                // 上面直接写 _current 绕过了 setter，OnThemeChanged 不会触发。
+                // PngIcon 靠该事件按亮/暗重新挑图标（light=纯黑 / dark=纯白），
+                // 不广播就会让它们停在默认 Light 的黑图标上——深色界面里等于隐形。
+                if (changed) OnThemeChanged?.Invoke(_current);
             }
         }
         catch { }

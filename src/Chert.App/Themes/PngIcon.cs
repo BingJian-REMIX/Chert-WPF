@@ -44,6 +44,9 @@ public sealed class PngIcon : Image
         ThemeManager.OnThemeChanged += OnThemeChanged;
         IconManager.HighDpiChanged += OnHighDpiChanged;
         Reload();
+        // 构造期可能早于 ThemeManager.LoadPreference（读到默认 Light → 挑到纯黑图标），
+        // 故在 Loaded 时按已确定的主题再重载一次，避免深色界面里图标隐形。
+        Loaded += (_, _) => Reload();
     }
 
     private void OnThemeChanged(ThemeType _) => Reload();
