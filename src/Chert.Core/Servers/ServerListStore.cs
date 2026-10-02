@@ -29,6 +29,37 @@ public class ServerEntry
     public string? VersionName { get; set; }
     public bool Online => PingMs >= 0;
 
+    // ★ 值语义：ServerEntry 若沿用默认引用相等，ObservableCollection.Remove / Contains
+    //   在「外部传入对象与集合内对象不是同一实例」时会**静默失败**（返回 false 且不报错）。
+    //   这在 RefreshServers() 之后必然发生：它 Clear 后从磁盘重新 Load，产出全新实例，
+    //   而 DataTemplate 绑定的 DataContext 可能仍握着旧实例
+    //   （实测：传入 13(hash 300729008) vs 集合内 13(hash 25599776) → 删除无效、
+    //     编辑时被「s != server」误判为重名而拦截）。
+    //   业务主键是 Address（servers.dat 本身就按地址区分条目），地址相同时视为同一条。
+    /// <inheritdoc/>
+    public override bool Equals(object? obj)
+        => obj is ServerEntry other && SameEntry(this, other);
+
+    /// <summary>哈希必须与 <see cref="Equals"/> 判「同一条」的依据一致，否则
+    /// HashSet / Dictionary 会漏（Equals 为真但 HashCode 不同 = 契约破坏）。</summary>
+    public override int GetHashCode()
+    {
+        var addr = (Address ?? "").Trim();
+        return addr.Length > 0
+            ? StringComparer.OrdinalIgnoreCase.GetHashCode(addr)
+            : StringComparer.Ordinal.GetHashCode(Name ?? "");
+    }
+
+    /// <summary>按地址（业务主键）判断两条记录是否同一条服务器。</summary>
+    public static bool SameEntry(ServerEntry a, ServerEntry b)
+    {
+        var aa = (a.Address ?? "").Trim();
+        var bb = (b.Address ?? "").Trim();
+        if (aa.Length == 0 || bb.Length == 0)
+            return string.Equals(a.Name, b.Name, StringComparison.Ordinal);
+        return string.Equals(aa, bb, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>拆出 host（无端口）。</summary>
     public string Host => SplitAddress(Address).Host;
 

@@ -403,6 +403,32 @@ public class GameViewModel : ObservableObject
 
     // ---- 服务器管理 ----
 
+    /// <summary>
+    /// 把外部传入的 ServerEntry 解析为 <see cref="Servers"/> 集合内的**真实实例**。
+    /// ★ ServerEntry 未重写 Equals/GetHashCode，是纯引用相等；而菜单传入的对象来自
+    ///   DataTemplate 的 DataContext，在 RefreshServers() 重新 LoadServers()（Clear + 重新
+    ///   Load，产出全新实例）之后与集合里的实例不同 → ObservableCollection.Remove 找不到、
+    ///   返回 false（删除无效），且「s != server」把自己也当成别人（编辑被误判重名）。
+    /// 因此这里按业务键（地址优先、名称兜底）解析，绝不依赖引用相等。
+    /// </summary>
+    private ServerEntry? ResolveServer(ServerEntry? entry)
+    {
+        if (entry is null) return null;
+        if (Servers.Contains(entry)) return entry;
+
+        var addr = entry.Address?.Trim() ?? "";
+        if (addr.Length > 0)
+        {
+            var byAddr = Servers.FirstOrDefault(s =>
+                string.Equals(s.Address?.Trim(), addr, StringComparison.OrdinalIgnoreCase));
+            if (byAddr is not null) return byAddr;
+        }
+        var name = entry.Name?.Trim() ?? "";
+        if (name.Length > 0)
+            return Servers.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.Ordinal));
+        return null;
+    }
+
     private void AddServer()
     {
         var result = ShowServerDialog(null, null);
@@ -416,7 +442,12 @@ public class GameViewModel : ObservableObject
         }
 
         Servers.Add(result);
-        ServerListStore.Save(Servers.ToList(), _gameRoot);
+        if (!ServerListStore.Save(Servers.ToList(), _gameRoot))
+        {
+            ToastService.Show("服务器", "已添加到列表，但写入 servers.dat 失败", ToastKind.Warning);
+            return;
+        }
+        ServersEmpty = Servers.Count == 0;
         ToastService.Show("服务器", $"已添加 {result.Name}", ToastKind.Success);
     }
 
@@ -426,18 +457,40 @@ public class GameViewModel : ObservableObject
         var result = ShowServerDialog(server.Name, server.Address);
         if (result is null) return;
 
-        // bug2.txt #82：改名时若与别的服务器重名，提示并放弃保存
-        if (Servers.Any(s => s != server && s.Name == result.Name))
+        // ★ 解析成集合内的真实实例 —— 见 ResolveServer 注释。
+        //   旧代码用「s != server」排除自己，但传入对象与集合内对象**不是同一实例**，
+        //   条件恒为 true → 自己被当成重名 → 编辑被无端拦截。
+        var target = ResolveServer(server);
+        if (target is null)
+        {
+            ToastService.Show("服务器", "该服务器已不在列表中，请刷新后重试", ToastKind.Warning);
+            return;
+        }
+
+        // bug2.txt #82：改名时若与**别的**服务器重名，提示并放弃保存
+        if (Servers.Any(s => !ReferenceEquals(s, target) && s.Name == result.Name))
         {
             ToastService.Show("服务器", $"已存在同名服务器「{result.Name}」", ToastKind.Warning);
             return;
         }
 
-        server.Name = result.Name;
-        server.Address = result.Address;
-        ServerListStore.Save(Servers.ToList(), _gameRoot);
+        // 地址改了还要检查是否与别的服务器撞地址（地址是 servers.dat 的业务主键）
+        if (Servers.Any(s => !ReferenceEquals(s, target) &&
+            string.Equals(s.Address, result.Address, StringComparison.OrdinalIgnoreCase)))
+        {
+            ToastService.Show("服务器", $"已存在同地址服务器「{result.Address}」", ToastKind.Warning);
+            return;
+        }
+
+        target.Name = result.Name;
+        target.Address = result.Address;
+        if (!ServerListStore.Save(Servers.ToList(), _gameRoot))
+        {
+            ToastService.Show("服务器", "保存失败：无法写入 servers.dat", ToastKind.Warning);
+            return;
+        }
         ServersEmpty = Servers.Count == 0;
-        ToastService.Show("服务器", $"已更新 {server.Name}", ToastKind.Success);
+        ToastService.Show("服务器", $"已更新 {target.Name}", ToastKind.Success);
     }
 
     private void DeleteServer(ServerEntry? server)
@@ -445,10 +498,25 @@ public class GameViewModel : ObservableObject
         if (server is null) return;
         if (!UIService.Confirm($"删除服务器「{server.Name}」？", "确认删除")) return;
 
-        Servers.Remove(server);
-        ServerListStore.Save(Servers.ToList(), _gameRoot);
+        // ★ 解析成集合内的真实实例 —— 见 ResolveServer 注释。
+        //   旧代码直接 Servers.Remove(server)，而传入对象与集合内对象不是同一实例，
+        //   Remove 找不到就静默返回 false（实测：Toast 说「已删除」，卡片却还在）。
+        var target = ResolveServer(server);
+        if (target is null)
+        {
+            ToastService.Show("服务器", "该服务器已不在列表中，请刷新后重试", ToastKind.Warning);
+            return;
+        }
+
+        var name = target.Name;
+        Servers.Remove(target);
+        if (!ServerListStore.Save(Servers.ToList(), _gameRoot))
+        {
+            ToastService.Show("服务器", "已从列表移除，但写入 servers.dat 失败", ToastKind.Warning);
+            return;
+        }
         ServersEmpty = Servers.Count == 0;
-        ToastService.Show("服务器", $"已删除 {server.Name}", ToastKind.Info);
+        ToastService.Show("服务器", $"已删除 {name}", ToastKind.Success);
     }
 
     /// <summary>bug #14：游戏页触发挂机工作流——打开独立窗口承载 AfkWorkflowView，运行器自动接管正在运行的 MC 实例。</summary>
