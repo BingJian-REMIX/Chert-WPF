@@ -23,6 +23,10 @@
 
             <RowDefinition Height="*"/>
 
+            <!-- P05：本地带宽测速区块 -->
+
+            <RowDefinition Height="Auto"/>
+
         </Grid.RowDefinitions>
 
 
@@ -98,6 +102,52 @@
             </ListBox.ItemTemplate>
 
         </ListBox>
+
+        <!-- ===== P05：本地带宽测速（单线程平均速率 + 多线程峰值带宽，两种都跑、分开标注） ===== -->
+
+        <Border Grid.Row="3" Margin="0,10,0,0" Padding="10" CornerRadius="8"
+                Background="{DynamicResource ControlBackground}"
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+            <StackPanel>
+                <TextBlock Text="本地带宽测速" FontWeight="Bold" Margin="0,0,0,6"/>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="测速时长" VerticalAlignment="Center" Margin="0,0,6,0"
+                               Foreground="{DynamicResource SecondaryForeground}"/>
+                    <ComboBox Width="72" ItemsSource="{Binding SpeedTestSecondOptions}"
+                              SelectedItem="{Binding SpeedTestSeconds}"/>
+                    <Button Content="开始测速" Margin="8,0,0,0" Padding="12,3"
+                            Command="{Binding SpeedTestCommand}"/>
+                </StackPanel>
+
+                <!-- 两种结果同时呈现、分开标注 -->
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                        <TextBlock Text="单线程平均速率" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                        <TextBlock Text="{Binding SingleRateText}" FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                        <TextBlock Text="贴近单个文件的下载体验" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                        <TextBlock Text="多线程峰值带宽" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                        <TextBlock Text="{Binding MultiRateText}" FontSize="20" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="贴近启动器实际的多线程下载" FontSize="11"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="{Binding SpeedTestSummary}" Margin="0,8,0,0" FontSize="11"
+                           TextWrapping="Wrap" Foreground="{DynamicResource SecondaryForeground}"/>
+            </StackPanel>
+        </Border>
 
     </Grid>
 

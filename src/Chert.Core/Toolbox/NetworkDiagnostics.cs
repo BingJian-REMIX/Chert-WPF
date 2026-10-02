@@ -24,6 +24,8 @@ public static class NetworkDiagnostics
         ("Mojang 官方元数据 (Piston v2)", "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"),
         ("BMCLAPI 镜像 (v2)", "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json"),
         ("Modrinth API", "https://api.modrinth.com/v2/search?limit=1"),
+        // P05：CurseForge API —— 整合包 / 模组下载链路是否可达
+        ("CurseForge API", "https://api.curseforge.com/v1/games/432"),
         ("Minecraft 资源", "https://resources.download.minecraft.net/")
     };
 
