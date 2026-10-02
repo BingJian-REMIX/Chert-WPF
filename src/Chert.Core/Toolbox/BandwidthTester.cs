@@ -1,9 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
-using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,6 +23,9 @@ public class BandwidthResult
 
     /// <summary>实际耗时（秒）。</summary>
     public double ElapsedSeconds { get; init; }
+
+    /// <summary>测速实际使用的源名称。</summary>
+    public string SourceName { get; init; } = "";
 
     /// <summary>是否成功完成（任一模式有结果即算成功）。</summary>
     public bool Ok => SingleThreadBytesPerSec > 0 || MultiThreadBytesPerSec > 0;
@@ -46,50 +49,81 @@ public class BandwidthResult
 }
 
 /// <summary>
-/// 本地带宽测速（规格 P05）：真实下载固定大小文件并计时。
+/// 本地带宽测速（P05）：真实下载 Minecraft 客户端 jar 并计时。
 /// <para>两种模式同时跑、分开呈现：</para>
 /// <list type="bullet">
 ///   <item><b>单线程连续下载</b> → 平均速率，贴近「单个文件下载」的真实体验；</item>
 ///   <item><b>多线程并发下载</b> → 峰值带宽，贴近启动器实际的多线程下载行为。</para>
-/// <para>被测源优先用启动器真实会拉取的地址（Mojang 资源 / BMCLAPI 镜像），
-/// 避免用第三方测速站导致结果不可复现。</para>
+/// <para>★ 测速源是**动态解析出的真实 client.jar 直链**（约 40MB，走 piston-data）：
+/// 版本清单 → 最新正式版元数据 → client.jar 的 url 与大小。
+/// 早前版本用 <c>resources.download.minecraft.net/</c>（实测 **404**）或
+/// <c>version_manifest_v2.json</c>（仅几 KB，秒传完算出的速率接近 0），故均已废弃。</para>
 /// </summary>
 public static class BandwidthTester
 {
-    /// <summary>可选用作测速源的候选（按优先级排列，前面的更贴近真实下载体验）。</summary>
-    public static IReadOnlyList<(string Name, string Url)> SpeedTestSources => new[]
-    {
-        ("Minecraft 资源 (Mojang)", "https://resources.download.minecraft.net/"),
-        ("BMCLAPI 镜像",           "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json"),
-        ("Mojang 版本清单",        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"),
-    };
+    /// <summary>版本清单地址（用于解析出真实 jar 直链）。</summary>
+    private const string VersionManifestUrl =
+        "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 
-    /// <summary>单线程模式的默认下载上限（字节），避免测速跑满带宽拖太久。</summary>
+    /// <summary>单线程模式下载上限（字节）。</summary>
     public const long SingleThreadMaxBytes = 32L * 1024 * 1024;
 
-    /// <summary>多线程模式的单线程下载上限（每线程）。</summary>
+    /// <summary>多线程模式每线程下载上限（字节）。</summary>
     public const long PerThreadMaxBytes = 8L * 1024 * 1024;
+
+    /// <summary>解析真实可下载的测速目标。</summary>
+    /// <returns>源名称、jar 直链、jar 大小（字节，失败为 0）。</returns>
+    public static async Task<(string Name, string Url, long Size)> ResolveTargetAsync(
+        HttpClient client, CancellationToken ct = default)
+    {
+        var manifest = await client.GetStringAsync(VersionManifestUrl, ct).ConfigureAwait(false);
+        using var mfDoc = JsonDocument.Parse(manifest);
+        var mfRoot = mfDoc.RootElement;
+        var versionId = mfRoot.GetProperty("latest").GetProperty("release").GetString() ?? "";
+
+        string metaUrl = "";
+        foreach (var v in mfRoot.GetProperty("versions").EnumerateArray())
+        {
+            if (v.TryGetProperty("id", out var id) && id.GetString() == versionId)
+            {
+                metaUrl = v.GetProperty("url").GetString() ?? "";
+                break;
+            }
+        }
+        if (string.IsNullOrEmpty(metaUrl))
+            throw new InvalidOperationException("无法从版本清单解析出最新版本地址。");
+
+        var meta = await client.GetStringAsync(metaUrl, ct).ConfigureAwait(false);
+        using var metaDoc = JsonDocument.Parse(meta);
+        var clientJar = metaDoc.RootElement.GetProperty("downloads").GetProperty("client");
+        var jarUrl = clientJar.GetProperty("url").GetString() ?? "";
+        var jarSize = clientJar.TryGetProperty("size", out var sz) ? sz.GetInt64() : 0L;
+        if (string.IsNullOrEmpty(jarUrl))
+            throw new InvalidOperationException("无法从版本元数据解析出 client.jar 地址。");
+
+        return ($"Mojang client.jar {versionId}", jarUrl, jarSize);
+    }
 
     /// <summary>执行测速。</summary>
     /// <param name="seconds">测速时长上限（秒）。用户已定：5 / 10 / 15 / 30，默认 10。</param>
     /// <param name="multiThreadCount">多线程并发数。</param>
-    /// <param name="sourceIndex">使用 <see cref="SpeedTestSources"/> 的第几个源；越界则自动挑第一个可用源。</param>
     public static async Task<BandwidthResult> RunAsync(
-        int seconds = 10, int multiThreadCount = 4, int sourceIndex = 0, CancellationToken ct = default)
+        int seconds = 10, int multiThreadCount = 4, CancellationToken ct = default)
     {
         if (seconds <= 0) seconds = 10;
         if (multiThreadCount <= 0) multiThreadCount = 4;
 
-        var (sourceName, sourceUrl) = ResolveSource(sourceIndex);
         using var client = CreateClient();
+        var (name, url, size) = await ResolveTargetAsync(client, ct).ConfigureAwait(false);
 
-        var single = await MeasureAsync(client, sourceUrl, seconds, 1, SingleThreadMaxBytes, ct)
+        var single = await MeasureAsync(client, url, seconds, 1, SingleThreadMaxBytes, ct)
             .ConfigureAwait(false);
-        var multi = await MeasureAsync(client, sourceUrl, seconds, multiThreadCount, PerThreadMaxBytes, ct)
+        var multi = await MeasureAsync(client, url, seconds, multiThreadCount, PerThreadMaxBytes, ct)
             .ConfigureAwait(false);
 
         return new BandwidthResult
         {
+            SourceName = name,
             SingleThreadBytesPerSec = single.bytesPerSec,
             MultiThreadBytesPerSec = multi.bytesPerSec,
             BytesDownloaded = single.bytes + multi.bytes,
@@ -97,32 +131,17 @@ public static class BandwidthTester
         };
     }
 
-    /// <summary>测试源名称（供 UI 显示）。</summary>
-    public static string SourceName(int index = 0)
-    {
-        var list = SpeedTestSources;
-        return index >= 0 && index < list.Count ? list[index].Name : list[0].Name;
-    }
-
-    private static (string Name, string Url) ResolveSource(int index)
-    {
-        var list = SpeedTestSources;
-        if (index >= 0 && index < list.Count) return list[index];
-        return list[0];
-    }
-
     private static HttpClient CreateClient() => new(new HttpClientHandler
     {
-        AutomaticDecompression = System.Net.DecompressionMethods.All
+        AutomaticDecompression = System.Net.DecompressionMethods.None
     })
     {
-        // 由我们自己的时长 / 字节上限控制，不用 HttpClient 的超时
         Timeout = Timeout.InfiniteTimeSpan
     };
 
     /// <summary>
-    /// 核心下载计时：<paramref name="concurrency"/> 个并发任务各自持续下载，
-    /// 到时长上限或字节上限即止。返回聚合速率。
+    /// 核心下载计时。速率用**实际耗时**而非配置的 seconds 计算 ——
+    /// 否则小文件秒传完会被算成接近 0 的速率。
     /// </summary>
     private static async Task<(long bytes, double elapsed, double bytesPerSec)> MeasureAsync(
         HttpClient client, string url, int seconds, int concurrency, long maxBytesPerTask, CancellationToken ct)
@@ -131,46 +150,52 @@ public static class BandwidthTester
         timeoutCts.CancelAfter(TimeSpan.FromSeconds(seconds));
 
         var buffer = new byte[64 * 1024];
-        var tasks = new Task<long>[concurrency];
-
+        var tasks = new Task<(long Bytes, double Elapsed)>[concurrency];
         for (var i = 0; i < concurrency; i++)
             tasks[i] = DownloadOneAsync();
 
-        long total;
+        long total = 0;
+        var maxElapsed = 0.001;
         try
         {
             var all = await Task.WhenAll(tasks).ConfigureAwait(false);
-            total = all.Sum();
+            foreach (var t in all)
+            {
+                total += t.Bytes;
+                if (t.Elapsed > maxElapsed) maxElapsed = t.Elapsed;
+            }
         }
         catch (OperationCanceledException)
         {
-            // 到时取消是正常结束路径：把已完成的部分计入
-            total = 0;
+            // 到时取消是正常路径：把已产出的部分计入
             foreach (var t in tasks)
-                if (t.Status == TaskStatus.RanToCompletion) total += t.Result;
+            {
+                if (t.Status == TaskStatus.RanToCompletion)
+                {
+                    total += t.Result.Bytes;
+                    if (t.Result.Elapsed > maxElapsed) maxElapsed = t.Result.Elapsed;
+                }
+            }
         }
         catch (HttpRequestException)
         {
             total = 0;
-            foreach (var t in tasks)
-                if (t.Status == TaskStatus.RanToCompletion) total += t.Result;
         }
 
-        // 用实际用时算速率：各任务并行，总速率 = 总字节 / 最大单任务用时
-        var elapsed = Math.Max(0.001, seconds);
-        var rate = concurrency > 0 ? total / elapsed : 0;
-        return (total, elapsed, rate);
+        return (total, maxElapsed, total / maxElapsed);
 
-        async Task<long> DownloadOneAsync()
+        async Task<(long, double)> DownloadOneAsync()
         {
             long got = 0;
+            var sw = Stopwatch.StartNew();
             try
             {
                 using var resp = await client
                     .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token)
                     .ConfigureAwait(false);
                 resp.EnsureSuccessStatusCode();
-                await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token).ConfigureAwait(false);
+                await using var stream = await resp.Content.ReadAsStreamAsync(timeoutCts.Token)
+                    .ConfigureAwait(false);
 
                 while (got < maxBytesPerTask)
                 {
@@ -183,7 +208,11 @@ public static class BandwidthTester
             catch (OperationCanceledException) { /* 正常超时 */ }
             catch (HttpRequestException) { /* 网络问题，忽略该任务 */ }
             catch (IOException) { /* 连接中断 */ }
-            return got;
+            finally
+            {
+                sw.Stop();
+            }
+            return (got, sw.Elapsed.TotalSeconds);
         }
     }
 }

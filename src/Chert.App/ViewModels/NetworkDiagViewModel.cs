@@ -131,12 +131,14 @@ public class NetworkDiagViewModel : ObservableObject
         try
         {
             var r = await BandwidthTester.RunAsync(SpeedTestSeconds);
-            SpeedTestSource = BandwidthTester.SourceName();
+            // 源是动态解析出来的（随最新正式版变化），由结果带回
+            SpeedTestSource = r.SourceName;
             SingleRateText = r.SingleText;
             MultiRateText = r.MultiText;
+            var mb = r.BytesDownloaded / 1024.0 / 1024.0;
             SpeedTestSummary = r.Ok
-                ? $"源：{SpeedTestSource}　耗时 {r.ElapsedSeconds:0.#} 秒　下载 {BandwidthResult.FormatRate(r.BytesDownloaded / Math.Max(0.001, r.ElapsedSeconds))}"
-                : "测速失败：未能下载到数据，请检查网络连接。";
+                ? $"源：{SpeedTestSource}　实际下载 {mb:0.0} MB / 耗时 {r.ElapsedSeconds:0.#} 秒"
+                : "测速失败：未能下载到数据，请检查网络连接或代理设置。";
         }
         catch (Exception ex)
         {
