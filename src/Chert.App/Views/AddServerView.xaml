@@ -11,8 +11,9 @@
          页面本身承担），遮罩只作为**卡片背后**一层同样圆角的容器 —— 圆角外无任何绘制。
          Effect 置空：DropShadowEffect 在透明窗口里会渲染成方形硬边。 -->
     <Grid Background="Transparent">
-        <Border Background="{StaticResource ModalScrimBrush}" CornerRadius="14"
-                Padding="1" Margin="-1"
+        <!-- 垫底：与卡片同色并外扩 1px，圆角外不再透出黑色（半透明黑遮罩会形成深色弧线） -->
+        <Border Background="{DynamicResource ControlBackground}" CornerRadius="15"
+                Padding="0" Margin="-1"
                 HorizontalAlignment="Center" VerticalAlignment="Center">
             <Border Style="{StaticResource ModalCardStyle}" MaxWidth="440"
                     HorizontalAlignment="Center" VerticalAlignment="Center"
