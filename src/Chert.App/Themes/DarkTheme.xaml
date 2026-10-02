@@ -18,6 +18,8 @@
     <!-- Foreground -->
     <SolidColorBrush x:Key="PrimaryForeground" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="SecondaryForeground" Color="#C8CDD6"/>
+    <!-- P11：聊天记录前景（深色主题用更亮的 #7BD97B，避免深底上偏暗） -->
+    <SolidColorBrush x:Key="ChatForeground" Color="#7BD97B"/>
     <SolidColorBrush x:Key="AccentForeground" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="StatusForeground" Color="#C8CDD6"/>
 

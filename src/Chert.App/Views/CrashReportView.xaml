@@ -118,6 +118,54 @@
                     <TextBox Text="{Binding RawReport, Mode=OneWay}" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"/>
                 </TabItem>
+
+                <!-- P11：聊天记录（绿色染色 + 导出 txt / md） -->
+                <TabItem Header="聊天记录">
+                    <Grid Margin="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding ChatStatus}" FontSize="11"
+                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <Button Grid.Column="1" Content="导出 .txt" Width="82" Padding="0,3" Margin="6,0,0,0"
+                                    Command="{Binding ExportChatCommand}" CommandParameter="txt"
+                                    IsEnabled="{Binding HasChat}" ToolTip="导出为纯文本"/>
+                            <Button Grid.Column="2" Content="导出 .md" Width="82" Padding="0,3" Margin="6,0,0,0"
+                                    Command="{Binding ExportChatCommand}" CommandParameter="md"
+                                    IsEnabled="{Binding HasChat}" ToolTip="导出为 Markdown 表格"/>
+                        </Grid>
+
+                        <!-- 聊天行整体染成 ChatForeground（主题资源，深浅色各自适配） -->
+                        <ListBox Grid.Row="1" ItemsSource="{Binding ChatEntries}"
+                                 Background="Transparent" BorderThickness="0"
+                                 HorizontalContentAlignment="Stretch"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 VirtualizingPanel.IsVirtualizing="True"
+                                 VirtualizingPanel.VirtualizationMode="Recycling">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock TextWrapping="Wrap" Margin="0,1,0,1"
+                                               Foreground="{DynamicResource ChatForeground}">
+                                        <Run Text="{Binding Time, Mode=OneWay}"/>
+                                        <Run Text=" "/>
+                                        <Run Text="{Binding Player, Mode=OneWay}" FontWeight="SemiBold"/>
+                                        <Run Text=": "/>
+                                        <Run Text="{Binding Message, Mode=OneWay}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </TabItem>
             </TabControl>
 
             <Grid Grid.Row="4" Margin="0,8,0,0">

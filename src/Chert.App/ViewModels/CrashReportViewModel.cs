@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Windows.Input;
 using Chert.Core.Launcher;
 using Chert.Core.Localization;
 using Chert.Core.Mvvm;
 using Chert.Core.Save;
+using Chert.Core.Toolbox;
+using Chert.App.Services;
 
 namespace Chert.App.ViewModels;
 
@@ -48,6 +51,36 @@ public class CrashReportViewModel : ObservableObject
     private bool _isMissingDepPlan;
     private ObservableCollection<ModConflictChoice> _conflictingMods = new();
     private ObservableCollection<string> _missingDependencies = new();
+
+    // ===== P11：聊天记录提取 / 导出 =====
+
+    private ObservableCollection<ChatEntry> _chatEntries = new();
+    private bool _hasChat;
+    private string _chatStatus = "";
+
+    /// <summary>从崩溃报告里提取到的聊天记录（绿色染色展示）。</summary>
+    public ObservableCollection<ChatEntry> ChatEntries
+    {
+        get => _chatEntries;
+        set => SetField(ref _chatEntries, value);
+    }
+
+    /// <summary>是否提取到聊天记录（决定页签是否有内容 / 是否显示空态提示）。</summary>
+    public bool HasChat
+    {
+        get => _hasChat;
+        set => SetField(ref _hasChat, value);
+    }
+
+    /// <summary>聊天区状态文案（未找到日志 / 无聊天 / 成功提取 N 条）。</summary>
+    public string ChatStatus
+    {
+        get => _chatStatus;
+        set => SetField(ref _chatStatus, value);
+    }
+
+    /// <summary>导出聊天记录（txt / md）。</summary>
+    public ICommand ExportChatCommand { get; }
 
     public string ExceptionType
     {
@@ -184,6 +217,7 @@ public class CrashReportViewModel : ObservableObject
         TryRepairCommand = new AsyncRelayCommand(_ => TryRepairAsync(null), _ => CanRepair && !IsRepairing);
         DowngradeRecoveryCommand = new AsyncRelayCommand(p => TryRepairAsync(p),
             _ => HasDowngradeRecovery && !IsRepairing);
+        ExportChatCommand = new RelayCommand(p => ExportChat(p as string ?? "txt"), _ => HasChat);
         ApplyResult(result);
     }
 
@@ -244,6 +278,81 @@ public class CrashReportViewModel : ObservableObject
         StatusMessage = CanRepair
             ? LocaleManager.T("crash.repairable")
             : LocaleManager.T("crash.not_repairable");
+
+        ExtractChat();
+    }
+
+    /// <summary>
+    /// P11：从本次会话的游戏日志中提取聊天记录。
+    /// 崩溃报告本身不含聊天，日志在 &lt;游戏目录&gt;/logs/latest.log（崩溃前那份通常是
+    /// latest-*.log.gz，按修改时间取最近的一个即可）。
+    /// </summary>
+    private void ExtractChat()
+    {
+        try
+        {
+            var root = LauncherService.Instance.GameRoot;
+            var logsDir = LogManager.LogsDir(root);
+            if (!Directory.Exists(logsDir))
+            {
+                ChatEntries = new ObservableCollection<ChatEntry>();
+                HasChat = false;
+                ChatStatus = "未找到游戏日志目录，无法提取聊天记录。";
+                return;
+            }
+
+            // 取最近写入的 .log（优先 latest.log，其次按时间倒序的压缩包）
+            var candidates = Directory.GetFiles(logsDir, "*.log")
+                .Concat(Directory.GetFiles(logsDir, "*.log.gz"))
+                .Select(p => new FileInfo(p))
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .ToList();
+            if (candidates.Count == 0)
+            {
+                ChatEntries = new ObservableCollection<ChatEntry>();
+                HasChat = false;
+                ChatStatus = "日志目录为空，无法提取聊天记录。";
+                return;
+            }
+
+            var text = LogManager.ReadLog(candidates[0].FullName);
+            var list = ChatExtractor.Extract(text);
+            ChatEntries = new ObservableCollection<ChatEntry>(list);
+            HasChat = list.Count > 0;
+            ChatStatus = list.Count > 0
+                ? $"已从 {candidates[0].Name} 提取 {list.Count} 条聊天记录。"
+                : $"未在 {candidates[0].Name} 中找到聊天记录。";
+        }
+        catch (Exception ex)
+        {
+            ChatEntries = new ObservableCollection<ChatEntry>();
+            HasChat = false;
+            ChatStatus = "提取聊天记录失败：" + ex.Message;
+        }
+    }
+
+    /// <summary>把聊天记录导出为 txt / md。</summary>
+    private void ExportChat(string format)
+    {
+        if (!HasChat || ChatEntries.Count == 0) return;
+        try
+        {
+            var isMd = format.Equals("md", StringComparison.OrdinalIgnoreCase);
+            var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var path = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                $"minecraft-chat-{stamp}.{(isMd ? "md" : "txt")}");
+
+            File.WriteAllText(path, isMd
+                ? ChatExtractor.ToMarkdown(ChatEntries)
+                : ChatExtractor.ToPlainText(ChatEntries));
+
+            ToastService.Show("聊天记录已导出", path);
+        }
+        catch (Exception ex)
+        {
+            ToastService.Show("导出失败", ex.Message, ToastKind.Error);
+        }
     }
 
     private static string CategoryLabel(CrashCategory category) => category switch
