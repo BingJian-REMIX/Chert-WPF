@@ -90,7 +90,7 @@ public class MusicPlayerViewModel : ObservableObject
         SetModeCommand = new RelayCommand(_ => CycleMode());
         AddOnlineCommand = new RelayCommand(_ => AddOnline());
         ScanMcOstCommand = new RelayCommand(_ => ScanMcOst());
-        PlayTrackCommand = new RelayCommand(p => PlayTrack(p as Track));
+        PlayTrackCommand = new RelayCommand(PlayTrack);
         ExpandCommand = new RelayCommand(_ => Expanded = !Expanded);
         SeekCommand = new RelayCommand(p => Seek(p));
         RemoveTrackCommand = new RelayCommand(p => RemoveTrack(p as Track));
@@ -524,8 +524,14 @@ public class MusicPlayerViewModel : ObservableObject
     }
 
     /// <summary>直接播放指定曲目（来自 MC 原声列表或本地列表）。</summary>
-    private void PlayTrack(Track? track)
+    private void PlayTrack(object? param)
     {
+        Track? track = param switch
+        {
+            Track t => t,
+            McOstTrack m => m.ToTrack(),
+            _ => null
+        };
         if (track is null) return;
         int idx = _playlist.Tracks.ToList().IndexOf(track);
         if (idx < 0)
