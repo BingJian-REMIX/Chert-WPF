@@ -1683,7 +1683,9 @@ public partial class MainWindow : Window
         SidebarRoot.Visibility = Visibility.Visible;
         SidebarRoot.Width = 56;
         SidebarRoot.SetResourceReference(Border.BackgroundProperty, "ControlBackground");
-        SidebarRoot.SetResourceReference(Border.BorderBrushProperty, "SidebarEdgeBrush");
+        // 侧边栏右边线跟随主题/强调色（AccentBrush）：换主题或改强调色都会更新它，
+        // 不再像此前那样固定为 SidebarEdgeBrush 的静态绿（无自定义强调色时永远不变）。
+        SidebarRoot.SetResourceReference(Border.BorderBrushProperty, "AccentBrush");
         SidebarRoot.BorderThickness = new Thickness(0, 0, 1, 0);
 
         StatusBarRoot.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
