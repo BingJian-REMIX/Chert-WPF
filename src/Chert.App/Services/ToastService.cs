@@ -100,13 +100,13 @@ public static class ToastService
 
         Invoke(() =>
         {
-            while (Items.Count >= MaxVisible)
-            {
-                var oldest = Items[0];
-                oldest.Timer?.Stop();
-                oldest.Timer = null;
-                Items.Remove(oldest);
-            }
+            // C5：超限时不要直接 Items.Remove —— 那样 IsLeaving 永远没置 true，
+            // 退场 DataTrigger 不会触发，Toast 会「瞬间消失、没有收回动画」。
+            // 改为走 Dismiss：IsLeaving=true → 播放向右收回动画 → 计时器到点移除。
+            // 元素在动画播完前仍留在集合里（IsLeaving 已置位的那些不再计入），
+            // 故这里用 while 最多挤出 1 条即可，不会死循环。
+            while (Items.Count(v => !v.IsLeaving) >= MaxVisible)
+                Dismiss(Items.First(x => !x.IsLeaving));
             Items.Add(item);
 
             int effective = seconds ?? DurationSeconds;

@@ -1014,13 +1014,16 @@
 
                 <DataTemplate>
 
+                    <!-- C5：Opacity / Tt.X 的**本地值就是可见终态**（1 / 0）。
+                         入场动画用 FillBehavior.Stop，播完回落到这两个本地值；
+                         若本地值写成 0/340，Stop 之后 Toast 会停在「透明+偏移」处看不见。 -->
                     <Border Margin="0,6,0,0" CornerRadius="8" Padding="0"
                         Background="{DynamicResource ControlBackground}"
                         BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
-                        Opacity="0" Cursor="Hand"
+                        Opacity="1" Cursor="Hand"
                         MouseLeftButtonUp="ToastCard_Click">
                     <Border.RenderTransform>
-                        <TranslateTransform x:Name="Tt" X="340"/>
+                        <TranslateTransform x:Name="Tt" X="0"/>
                     </Border.RenderTransform>
                     <Border.Effect>
                         <DropShadowEffect BlurRadius="14" ShadowDepth="2" Opacity="0.45" Color="Black"/>
@@ -1034,10 +1037,12 @@
                                             <Storyboard>
                                                 <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(TranslateTransform.X)"
                                                                  To="340" Duration="0:0:0.28"
-                                                                 EasingFunction="{StaticResource MotionEase}"/>
+                                                                 EasingFunction="{StaticResource MotionEase}"
+                                                                 FillBehavior="HoldEnd"/>
                                                 <DoubleAnimation Storyboard.TargetProperty="Opacity"
                                                                  To="0" Duration="0:0:0.28"
-                                                                 EasingFunction="{StaticResource MotionEase}"/>
+                                                                 EasingFunction="{StaticResource MotionEase}"
+                                                                 FillBehavior="HoldEnd"/>
                                             </Storyboard>
                                         </BeginStoryboard>
                                     </DataTrigger.EnterActions>
@@ -1045,19 +1050,24 @@
                             </Style.Triggers>
                         </Style>
                     </Border.Style>
+                    <!-- C5：入场动画必须 FillBehavior.Stop。
+                         默认 HoldEnd 会把 Opacity=1 / Tt.X=0 永久钉在同一属性上，
+                         导致 IsLeaving=true 时退场动画被压制 —— 表现为 Toast「直接消失」。 -->
                     <Border.Triggers>
-                        <EventTrigger RoutedEvent="Border.Loaded">
-                            <BeginStoryboard>
-                                <Storyboard>
-                                    <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
-                                                     From="340" To="0" Duration="0:0:0.28"
-                                                     EasingFunction="{StaticResource MotionEaseExpo}"/>
-                                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                     From="0" To="1" Duration="0:0:0.28"
-                                                     EasingFunction="{StaticResource MotionEaseExpo}"/>
-                                </Storyboard>
-                            </BeginStoryboard>
-                        </EventTrigger>
+                            <EventTrigger RoutedEvent="Border.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Tt" Storyboard.TargetProperty="X"
+                                                         From="340" To="0" Duration="0:0:0.28"
+                                                         EasingFunction="{StaticResource MotionEaseExpo}"
+                                                         FillBehavior="Stop"/>
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                         From="0" To="1" Duration="0:0:0.28"
+                                                         EasingFunction="{StaticResource MotionEaseExpo}"
+                                                         FillBehavior="Stop"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
                     </Border.Triggers>
 
                         <Grid>
