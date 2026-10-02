@@ -981,9 +981,7 @@ public partial class MainWindow : Window
         {
             if (AnimationsEnabled)
             {
-                p.Root.BeginAnimation(FrameworkElement.WidthProperty,
-                    new DoubleAnimation(enter ? MainTabs.ExpandedWidth : MainTabs.CollapsedWidth,
-                        TimeSpan.FromMilliseconds(250)) { EasingFunction = UiEaseOut });
+                AnimateWidth(p.Root, enter ? MainTabs.ExpandedWidth : MainTabs.CollapsedWidth, 250);
                 RevealTitle(p, enter, true);
             }
             else
@@ -1492,8 +1490,7 @@ public partial class MainWindow : Window
                 p.Title.Visibility = showLabels0 ? Visibility.Visible : Visibility.Collapsed;
             return;
         }
-        SidebarRoot.BeginAnimation(FrameworkElement.WidthProperty,
-            new DoubleAnimation(width, TimeSpan.FromMilliseconds(SidebarState.TransitionMs)) { EasingFunction = UiEaseOut });
+        AnimateWidth(SidebarRoot, width, SidebarState.TransitionMs);
         var showLabels = expanded && !ThemeManager.HideSidebarLabels;
         foreach (var p in _sidebarItems.Values)
             p.Title.Visibility = showLabels ? Visibility.Visible : Visibility.Collapsed;
@@ -2127,9 +2124,18 @@ public partial class MainWindow : Window
     private static SolidColorBrush Brush(string key) =>
         (SolidColorBrush)Application.Current.FindResource(key);
 
-    private static void AnimateWidth(FrameworkElement el, double to) =>
+    // Safe DoubleAnimation on Width: if current Width is Auto(NaN) (e.g. glass->other),
+    // a bare DoubleAnimation throws "NaN origin" every frame (the "ferocious exception" on style switch).
+    // Clear any held animation, land a real base value (actual or target), then play explicit From/To.
+    private static void AnimateWidth(FrameworkElement el, double to, double ms = MainTabs.TransitionMs)
+    {
+        el.BeginAnimation(FrameworkElement.WidthProperty, null);
+        double from = double.IsNaN(el.Width) ? el.ActualWidth : el.Width;
+        if (!double.IsFinite(from) || from <= 0) from = to;
+        el.Width = from;
         el.BeginAnimation(FrameworkElement.WidthProperty,
-            new DoubleAnimation(to, TimeSpan.FromMilliseconds(MainTabs.TransitionMs)) { EasingFunction = UiEaseOut });
+            new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = UiEaseOut });
+    }
 
     private static void AnimateMargin(FrameworkElement el, Thickness to) =>
         el.BeginAnimation(FrameworkElement.MarginProperty,
