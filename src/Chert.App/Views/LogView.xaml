@@ -115,125 +115,104 @@
 
                 <Button Content="{theme:Loc mods.refresh}" Command="{Binding RefreshCommand}" Width="70" Padding="0,2" Margin="12,0,0,0"/>
 
+                <!-- 聊天记录开关（用户要求：与上方「只显示错误」同款的开关式，不用页签） -->
+                <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                              IsChecked="{Binding ShowChatPanel, Mode=TwoWay}" Margin="16,0,4,0"
+                              VerticalAlignment="Center"
+                              ToolTip="在日志正文下方展开 / 收起聊天记录"/>
+                <TextBlock Text="聊天记录" VerticalAlignment="Center"
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+                <TextBlock Text="{Binding ChatCountText}" VerticalAlignment="Center" Margin="6,0,0,0"
+                           Foreground="{DynamicResource SecondaryForeground}" FontSize="11"/>
+
             </StackPanel>
 
-            <!-- P11：日志正文 / 聊天记录 两个页签 -->
+            <!-- P11：聊天记录改为开关控制的下方折叠区（不再是页签） -->
+            <Grid Grid.Row="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-            <TabControl Grid.Row="1">
+                <ListBox Grid.Row="0" ItemsSource="{Binding Lines}"
+                         Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
+                         Foreground="{DynamicResource PrimaryForeground}"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
+                                       Foreground="{Binding Severity, Converter={x:Static conv:LogSeverityToColor.Instance}}"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
 
-                <TabItem Header="日志正文">
-
-                    <ListBox ItemsSource="{Binding Lines}"
-
-                     Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
-
-                     Foreground="{DynamicResource PrimaryForeground}"
-
-                     ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12">
-
-                        <ListBox.ItemTemplate>
-
-                            <DataTemplate>
-
-                                <TextBlock Text="{Binding Text}" TextWrapping="Wrap"
-
-                                           Foreground="{Binding Severity, Converter={x:Static conv:LogSeverityToColor.Instance}}"/>
-
-                            </DataTemplate>
-
-                        </ListBox.ItemTemplate>
-
-                    </ListBox>
-
-                </TabItem>
-
-                <TabItem Header="聊天记录">
-
-                    <Grid Margin="4">
-
+                <!-- 聊天记录区：仅在开关打开时显示 -->
+                <Border Grid.Row="1" Margin="0,8,0,0" Padding="8" CornerRadius="6"
+                        Background="{DynamicResource ControlBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                        MaxHeight="320"
+                        Visibility="{Binding ShowChatPanel, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
+                    <Grid>
                         <Grid.RowDefinitions>
-
-                            <RowDefinition Height="*"/>
-
                             <RowDefinition Height="Auto"/>
-
+                            <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
 
-                        <ListBox Grid.Row="0" ItemsSource="{Binding ChatEntries}"
-
-                                 Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
-
-                                 HorizontalContentAlignment="Stretch"
-
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-
-                                 VirtualizingPanel.IsVirtualizing="True"
-
-                                 VirtualizingPanel.VirtualizationMode="Recycling">
-
-                            <ListBox.ItemTemplate>
-
-                                <DataTemplate>
-
-                                    <TextBlock TextWrapping="Wrap" Margin="0,1,0,1"
-
-                                               Foreground="{DynamicResource ChatForeground}">
-
-                                        <Run Text="{Binding Time, Mode=OneWay}"/>
-
-                                        <Run Text=" "/>
-
-                                        <Run Text="{Binding Player, Mode=OneWay}" FontWeight="SemiBold"/>
-
-                                        <Run Text=": "/>
-
-                                        <Run Text="{Binding Message, Mode=OneWay}"/>
-
-                                    </TextBlock>
-
-                                </DataTemplate>
-
-                            </ListBox.ItemTemplate>
-
-                        </ListBox>
-
-                        <Grid Grid.Row="1" Margin="0,6,0,0">
-
+                        <!-- 标题行：条数 + 导出 -->
+                        <Grid Grid.Row="0" Margin="0,0,0,6">
                             <Grid.ColumnDefinitions>
-
                                 <ColumnDefinition Width="*"/>
-
                                 <ColumnDefinition Width="Auto"/>
-
                                 <ColumnDefinition Width="Auto"/>
-
                             </Grid.ColumnDefinitions>
-
                             <TextBlock Grid.Column="0" Text="{Binding ChatStatus}" FontSize="11"
-
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-
                                        Foreground="{DynamicResource SecondaryForeground}"/>
-
                             <Button Grid.Column="1" Content="导出 .txt" Width="82" Padding="0,3" Margin="6,0,0,0"
-
                                     Command="{Binding ExportChatCommand}" CommandParameter="txt"
-
                                     IsEnabled="{Binding HasChat}" ToolTip="导出为纯文本"/>
-
                             <Button Grid.Column="2" Content="导出 .md" Width="82" Padding="0,3" Margin="6,0,0,0"
-
                                     Command="{Binding ExportChatCommand}" CommandParameter="md"
-
                                     IsEnabled="{Binding HasChat}" ToolTip="导出为 Markdown 表格"/>
-
                         </Grid>
 
+                        <!-- 内容区：有数据显示绿色行；无数据显示空态说明（否则用户以为染色坏了） -->
+                        <Grid Grid.Row="1">
+                            <ListBox ItemsSource="{Binding ChatEntries}"
+                                     Background="Transparent" BorderThickness="0"
+                                     HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     VirtualizingPanel.IsVirtualizing="True"
+                                     VirtualizingPanel.VirtualizationMode="Recycling"
+                                     Visibility="{Binding HasChat, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock TextWrapping="Wrap" Margin="0,1,0,1"
+                                                   Foreground="{DynamicResource ChatForeground}">
+                                            <Run Text="{Binding Time, Mode=OneWay}"/>
+                                            <Run Text=" "/>
+                                            <Run Text="{Binding Player, Mode=OneWay}" FontWeight="SemiBold"/>
+                                            <Run Text=": "/>
+                                            <Run Text="{Binding Message, Mode=OneWay}"/>
+                                        </TextBlock>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- 空态：明确告诉用户「这份日志里没有聊天记录」，而不是空白 -->
+                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                        Visibility="{Binding HasChat, Converter={x:Static vm:VisibilityHelper.BoolToVisInvert}, FallbackValue=Visible}">
+                                <TextBlock Text="这份日志里没有聊天记录" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+                                <TextBlock Text="游戏内发送消息（单机为 &lt;玩家名&gt; 格式）后重新载入即可看到"
+                                           HorizontalAlignment="Center" Margin="0,4,0,0" FontSize="11"
+                                           Foreground="{DynamicResource SecondaryForeground}" Opacity="0.8"/>
+                            </StackPanel>
+                        </Grid>
                     </Grid>
-
-                </TabItem>
-
-            </TabControl>
+                </Border>
+            </Grid>
 
         </Grid>
 

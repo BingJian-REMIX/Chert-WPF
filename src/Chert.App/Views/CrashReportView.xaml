@@ -9,6 +9,18 @@
         Loaded="Window_Loaded">
     <Window.Resources>
         <controls:BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
+        <!-- 反转版：供「无聊天记录」空态用（内置转换器没有 TrueValue/FalseValue，
+             那是 UWP 的 API），故用一个 Style 触发器实现反向 Visibility。 -->
+        <Style x:Key="InverseBoolToVis" TargetType="StackPanel">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding HasChat}" Value="True">
+                    <Setter Property="Visibility" Value="Collapsed"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding HasChat}" Value="False">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
     <!-- 主卡片：复用已定义的 ModalCardStyle（暗色底 / 圆角 / 阴影） -->
     <Border x:Name="Card" Style="{StaticResource ModalCardStyle}" MaxWidth="720"
@@ -144,13 +156,15 @@
                                     IsEnabled="{Binding HasChat}" ToolTip="导出为 Markdown 表格"/>
                         </Grid>
 
-                        <!-- 聊天行整体染成 ChatForeground（主题资源，深浅色各自适配） -->
-                        <ListBox Grid.Row="1" ItemsSource="{Binding ChatEntries}"
+                        <!-- 有内容显示绿色行、无内容显示空态提示，两者叠放在同一格 -->
+                        <Grid Grid.Row="1">
+                        <ListBox ItemsSource="{Binding ChatEntries}"
                                  Background="Transparent" BorderThickness="0"
                                  HorizontalContentAlignment="Stretch"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  VirtualizingPanel.IsVirtualizing="True"
-                                 VirtualizingPanel.VirtualizationMode="Recycling">
+                                 VirtualizingPanel.VirtualizationMode="Recycling"
+                                 Visibility="{Binding HasChat, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock TextWrapping="Wrap" Margin="0,1,0,1"
@@ -164,6 +178,18 @@
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
+
+                        <!-- 空态：这份崩溃报告对应的日志里没有聊天记录。缺了它就是一片空白，
+                             用户会误以为「染色坏了」。 -->
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+            Style="{StaticResource InverseBoolToVis}">
+    <TextBlock Text="没有可提取的聊天记录" HorizontalAlignment="Center"
+               Foreground="{DynamicResource SecondaryForeground}"/>
+    <TextBlock Text="该崩溃报告对应的日志里未出现 [CHAT] 频道行"
+               HorizontalAlignment="Center" Margin="0,4,0,0" FontSize="11"
+               Foreground="{DynamicResource SecondaryForeground}" Opacity="0.8"/>
+                        </StackPanel>
+                        </Grid>
                     </Grid>
                 </TabItem>
             </TabControl>

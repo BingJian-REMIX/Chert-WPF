@@ -21,6 +21,8 @@ public class LogViewModel : ObservableObject
 
     private ObservableCollection<ChatEntry> _chatEntries = new();
     private bool _hasChat;
+    private bool _showChatPanel;
+    private int _chatCount;
     private string _chatStatus = "未选择文件";
 
     /// <summary>当前选中日志里提取到的聊天记录（绿色染色展示）。</summary>
@@ -37,6 +39,28 @@ public class LogViewModel : ObservableObject
         set
         {
             if (SetField(ref _hasChat, value)) ExportChatCommand?.RaiseCanExecuteChanged();
+        }
+    }
+
+    /// <summary>是否展开聊天记录区（用户要求：改为与「只显示错误」同款的开关式，而非页签）。</summary>
+    public bool ShowChatPanel
+    {
+        get => _showChatPanel;
+        set => SetField(ref _showChatPanel, value);
+    }
+
+    /// <summary>聊天条数文本（开关旁显示，让用户不必展开就知道有没有内容）。</summary>
+    public string ChatCountText => _chatCount > 0 ? $"（{_chatCount} 条）" : "（无）";
+
+    /// <summary>聊天条数。★ 需在 <see cref="ChatEntries"/> 变化时通知 <see cref="ChatCountText"/>。</summary>
+    private int ChatCount
+    {
+        get => _chatCount;
+        set
+        {
+            if (_chatCount == value) return;
+            _chatCount = value;
+            OnPropertyChanged(nameof(ChatCountText));
         }
     }
 
@@ -142,6 +166,7 @@ public class LogViewModel : ObservableObject
             Lines = new();
             ChatEntries = new();
             HasChat = false;
+            ChatCount = 0;          // 同步条数，供开关旁的「（无）」显示
             ChatStatus = "未选择文件";
             return;
         }
@@ -153,6 +178,7 @@ public class LogViewModel : ObservableObject
         var chat = ChatExtractor.Extract(text);
         ChatEntries = new ObservableCollection<ChatEntry>(chat);
         HasChat = chat.Count > 0;
+        ChatCount = chat.Count;   // 同步条数
         ChatStatus = chat.Count > 0
             ? $"从 {SelectedFile.Name} 提取到 {chat.Count} 条聊天记录。"
             : $"未在 {SelectedFile.Name} 中找到聊天记录。";

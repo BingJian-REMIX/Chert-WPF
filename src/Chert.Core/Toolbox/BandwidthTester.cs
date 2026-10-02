@@ -61,6 +61,11 @@ public class BandwidthResult
 /// </summary>
 public static class BandwidthTester
 {
+    // ★ 本类**不产生任何临时文件**：测速用 HttpCompletionOption.ResponseHeadersRead 直接读
+    //   网络流到内存缓冲区（byte[]），用完即弃；响应体与流由 using / await using 保证释放。
+    //   因此不存在「测速残留文件需清理」的问题 —— 也刻意避开了「先落盘再删」的做法
+    //   （中途崩溃/被杀会留下垃圾文件，且大文件白占磁盘）。
+
     /// <summary>版本清单地址（用于解析出真实 jar 直链）。</summary>
     private const string VersionManifestUrl =
         "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
