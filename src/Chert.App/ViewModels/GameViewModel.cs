@@ -482,15 +482,50 @@ public class GameViewModel : ObservableObject
             return;
         }
 
-        target.Name = result.Name;
-        target.Address = result.Address;
+        // ★★ 用户定案：改为「移除 > 重添加」。
+        //   之前是就地改属性（target.Name = ...），即使 ServerEntry 已实现 INPC，
+        //   卡片上绑定 Name / Address 的 TextBlock 在某些情况下仍不刷新，用户实测无效。
+        //   走集合的 Remove + Insert 会强制 ItemsControl 丢弃旧容器、重建新容器并重新绑定，
+        //   不依赖任何属性通知，是最可靠的刷新方式。
+        var idx = Servers.IndexOf(target);
+        if (idx < 0)
+        {
+            ToastService.Show("服务器", "定位失败：服务器不在列表中，请刷新后重试", ToastKind.Warning);
+            return;
+        }
+
+        var newEntry = new ServerEntry
+        {
+            Name = result.Name,
+            Address = result.Address,
+            Icon = target.Icon,
+            AcceptTextures = target.AcceptTextures
+        };
+
+        // 1) 先移除，2) 立刻按新值重添加 —— 两步都作用于集合，
+        //    强制 ItemsControl 丢弃旧容器、重建新卡片并重新绑定（不依赖属性通知）。
+        //    ★ 顺序很关键：必须「移除→添加」都做完再存盘。
+        //    若在 RemoveAt 之后、Insert 之前 Save，磁盘上这条会**整条丢失**。
+        Servers.RemoveAt(idx);
+        Servers.Insert(idx, newEntry);
+
+        // 3) 存盘（此时集合已是最终正确状态）
         if (!ServerListStore.Save(Servers.ToList(), _gameRoot))
         {
+            // 存盘失败：回滚成原条目，别让界面和磁盘脱节
+            Servers.RemoveAt(idx);
+            Servers.Insert(idx, target);
             ToastService.Show("服务器", "保存失败：无法写入 servers.dat", ToastKind.Warning);
             return;
         }
+
+        // 4) 终极兜底：保存成功后**从磁盘重载**整个列表。
+        //    前面已经用 Remove+Insert 强制重建卡片，这里再让集合内容与 servers.dat 完全对齐 ——
+        //    无论此前 UI 刷新链路有多少不确定性，重载后显示的一定是磁盘真实内容。
+        //    顺带把已失效的 ping 状态（LatencyLevel / OnlinePlayers）复位，符合原设计。
+        LoadServers();
         ServersEmpty = Servers.Count == 0;
-        ToastService.Show("服务器", $"已更新 {target.Name}", ToastKind.Success);
+        ToastService.Show("服务器", $"已更新 {newEntry.Name}", ToastKind.Success);
     }
 
     private void DeleteServer(ServerEntry? server)
