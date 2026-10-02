@@ -60,6 +60,13 @@ public class MusicPlayerViewModel : ObservableObject
     /// <summary>实际解码宿主（MediaElement），由主窗口注入。</summary>
     public IMediaPlayer? Host { get; set; }
 
+    /// <summary>OGG/Vorbis 解码宿主（NAudio + NVorbis），用于 MediaElement 默认放不了的 .ogg（MC 原声 / 本地 OGG）。</summary>
+    private readonly OggPlayer _oggHost = new();
+
+    /// <summary>按当前曲目内容签名选择解码宿主：OGG/Vorbis -> NAudio 后端，否则 MediaElement。</summary>
+    private IMediaPlayer? ActiveHost =>
+        (CurrentTrack is { Path: var p } && OggPlayer.IsOggFile(p)) ? _oggHost : Host;
+
     // 清单 #70：在线流媒体本期屏蔽，预设列表保留以便后续评估后直接启用。
     public ObservableCollection<string> OnlinePresets { get; } = new()
     {
@@ -113,6 +120,9 @@ public class MusicPlayerViewModel : ObservableObject
             Interval = TimeSpan.FromMilliseconds(500)
         };
         _progressTimer.Tick += (_, _) => RefreshProgress();
+
+        // P04：OGG 解码宿主自然播完时推进到下一曲（与 MediaElement 的 Ended 同一入口）。
+        _oggHost.Ended += OnTrackEnded;
     }
 
     private readonly System.Windows.Threading.DispatcherTimer _progressTimer;
@@ -170,7 +180,7 @@ public class MusicPlayerViewModel : ObservableObject
 
     private void RefreshProgress()
     {
-        var host = Host;
+        var host = ActiveHost;
         if (host is null) return;
 
         var hostDuration = host.DurationSec;
@@ -198,7 +208,7 @@ public class MusicPlayerViewModel : ObservableObject
         try
         {
             _isSeeking = true;
-            Host?.Seek(seconds);
+            ActiveHost?.Seek(seconds);
             PositionSec = seconds;
         }
         finally
@@ -289,7 +299,7 @@ public class MusicPlayerViewModel : ObservableObject
         {
             if (SetField(ref _volume, value))
             {
-                Host?.SetVolume(value);
+                ApplyVolume(value);
                 SavePrefs();
             }
         }
@@ -370,8 +380,8 @@ public class MusicPlayerViewModel : ObservableObject
         SyncTracks();
         _playlist.Select(_playlist.Count - 1);
         CurrentTrack = _playlist.Current;
-        Host?.LoadAndPlay(path);
-        try { Host?.Seek(pos); } catch { }
+        PlayOnActiveHost(path);
+        try { ActiveHost?.Seek(pos); } catch { }
         PositionSec = pos;
         DurationSec = track.DurationSec;
         IsPlaying = true;
@@ -427,7 +437,7 @@ public class MusicPlayerViewModel : ObservableObject
         if (IsPlaying)
         {
             IsPlaying = false;
-            Host?.Pause();
+            ActiveHost?.Pause();
             StopProgressTimer();
             SaveResumePoint();
             StatusText = "已暂停：" + CurrentTrack.Display;
@@ -435,7 +445,7 @@ public class MusicPlayerViewModel : ObservableObject
         else
         {
             IsPlaying = true;
-            Host?.Resume();
+            ActiveHost?.Resume();
             StartProgressTimer();
             StatusText = "正在播放：" + CurrentTrack.Display;
         }
@@ -450,7 +460,7 @@ public class MusicPlayerViewModel : ObservableObject
         if (t is null)
         {
             IsPlaying = false;
-            Host?.Stop();
+            ActiveHost?.Stop();
             StatusText = "播放列表结束";
             return;
         }
@@ -464,12 +474,27 @@ public class MusicPlayerViewModel : ObservableObject
         if (t is null)
         {
             IsPlaying = false;
-            Host?.Stop();
+            ActiveHost?.Stop();
             StopProgressTimer();
             StatusText = "播放列表结束";
             return;
         }
         SelectAndPlay(_playlist.CurrentIndex);
+    }
+
+    /// <summary>P04：按内容签名把音源路由到正确解码后端，并停掉另一个后端避免串声。</summary>
+    private void PlayOnActiveHost(string path)
+    {
+        if (OggPlayer.IsOggFile(path))
+        {
+            Host?.Stop();
+            _oggHost.LoadAndPlay(path);
+        }
+        else
+        {
+            _oggHost.Stop();
+            Host?.LoadAndPlay(path);
+        }
     }
 
     private void SelectAndPlay(int index)
@@ -478,7 +503,7 @@ public class MusicPlayerViewModel : ObservableObject
         _playlist.Select(index);
         CurrentTrack = _playlist.Current;
         IsPlaying = true;
-        Host?.LoadAndPlay(CurrentTrack!.Path);
+        PlayOnActiveHost(CurrentTrack!.Path);
         StartProgressTimer();
         SaveResumePoint();
         StatusText = "正在播放：" + CurrentTrack.Display;
@@ -524,7 +549,7 @@ public class MusicPlayerViewModel : ObservableObject
         if (isCurrent)
         {
             IsPlaying = false;
-            Host?.Stop();
+            ActiveHost?.Stop();
             StopProgressTimer();
         }
 
@@ -620,7 +645,7 @@ public class MusicPlayerViewModel : ObservableObject
         if (IsPlaying)
         {
             // 降音量（保留播放）：MC 启动时背景音乐调小
-            Host?.SetVolume(Math.Min(Volume, 15));
+            ApplyVolume(Math.Min(Volume, 15));
             StatusText = "游戏启动：音乐已降低音量";
         }
     }
@@ -629,11 +654,18 @@ public class MusicPlayerViewModel : ObservableObject
     public void OnGameExit()
     {
         if (!AutoDuck) return;
-        Host?.SetVolume(Volume);
+        ApplyVolume(Volume);
+    }
+
+    /// <summary>把音量同时推送到两个解码后端（MediaElement + OGG/NAudio），保持二者一致。</summary>
+    private void ApplyVolume(int v)
+    {
+        Host?.SetVolume(v);
+        _oggHost.SetVolume(v);
     }
 
     /// <summary>宿主注入后把当前音量推送到解码器（构造函数里 Host 尚为空）。</summary>
-    public void SetVolumeFromHost() => Host?.SetVolume(_volume);
+    public void SetVolumeFromHost() => ApplyVolume(_volume);
 
     private void SavePrefs()
     {

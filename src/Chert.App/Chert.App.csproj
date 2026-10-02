@@ -31,6 +31,15 @@
     <ProjectReference Include="..\Chert.Core\Chert.Core.csproj" />
   </ItemGroup>
 
+  <!-- P04：MC 原声 / 本地 OGG 解码。
+       Windows Media Foundation 默认不含 OGG 解码器，MediaElement 放不了 .ogg；
+       NAudio.Vorbis 提供 Vorbis（OGG）解码器（VorbisWaveReader : NAudio WaveStream），
+       NAudio 提供 Windows 音频输出（WaveOutEvent）。仅 Windows 端需要，故加在 Chert.App（WinExe）。 -->
+  <ItemGroup>
+    <PackageReference Include="NAudio" Version="2.2.1" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+  </ItemGroup>
+
   <!-- PNG UI 图标：编译进程序集（Resource），不复制到输出目录，运行时不可被直接篡改/读取。
        嵌入 1x（light/dark）与 2x 高清（light@2x/dark@2x），后者供“适配高分辨率屏幕”开关启用。 -->
   <ItemGroup>
