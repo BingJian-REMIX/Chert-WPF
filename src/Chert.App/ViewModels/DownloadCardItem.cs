@@ -53,4 +53,10 @@ public class DownloadCardItem
 
     /// <summary>整合包卡片的次级元信息行（如 "Fabric · 1.20.1 · 12.3K 下载"），其它卡片为空。</summary>
     public string MetaText { get; init; } = "";
+
+    /// <summary>
+    /// P16：站外项目页地址（CurseForge 结果）。页内详情是 Modrinth 专用，
+    /// CF 卡片点击时用此地址打开官网；为空则回退按 Id 拼官方地址。
+    /// </summary>
+    public string? WebUrl { get; init; }
 }

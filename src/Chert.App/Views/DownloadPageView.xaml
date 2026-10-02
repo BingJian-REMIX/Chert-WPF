@@ -284,6 +284,12 @@
 
                       Visibility="{Binding IsMod, Converter={StaticResource BoolToVisibility}}"/>
 
+            <!-- P16：搜索来源（Modrinth / CurseForge）。CurseForge 按当前副页映射 classId 走官方 API。 -->
+
+            <ComboBox Width="130" Margin="8,0,0,0" ItemsSource="{Binding SearchSources}" SelectedItem="{Binding SearchSource}"
+
+                      ToolTip="搜索来源：CurseForge 将按当前分类使用官方 classId 搜索"/>
+
         </StackPanel>
 
 
