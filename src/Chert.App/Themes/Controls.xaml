@@ -159,10 +159,20 @@
         ===== 横向滚动卡片流（规格 1.4：卡片流横向滚动） =====
         组合：ScrollViewer（横向）+ StackPanel（横向排布，卡片间 14px 间距由 CardStyle.Margin 提供）。
     -->
+    <!--
+        横向卡片流容器。
+        ★ 滚轮支持（problem3）：WPF 的 ScrollViewer 对「滚轮」默认只处理垂直方向，
+          横向 ScrollViewer 必须显式把垂直滚轮换算成水平偏移，否则鼠标停在内容中间时
+          滚轮完全无效 —— 用户表现为「必须把鼠标移到最左/最右露出滚动条才能拖」。
+        ★ CanContentScroll="False"：内容是无宽度约束的横向 StackPanel
+          （CardFlowPanelStyle），按项滚动会拿不到可滚范围，必须按像素滚动。
+    -->
     <Style x:Key="HorizontalScrollViewerStyle" TargetType="ScrollViewer">
         <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
         <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
         <Setter Property="Padding" Value="2,6,2,6"/>
+        <Setter Property="CanContentScroll" Value="False"/>
+        <Setter Property="PanningMode" Value="HorizontalOnly"/>
     </Style>
 
     <Style x:Key="CardFlowPanelStyle" TargetType="StackPanel">

@@ -111,7 +111,7 @@
 
                     <TextBlock Foreground="{DynamicResource SecondaryForeground}" Text="{theme:Loc perf.m211}"/>
 
-                    <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding Instances.Count}"/>
+                    <TextBlock FontSize="18" FontWeight="Bold" Text="{Binding InstanceCount}"/>
 
                 </StackPanel>
 

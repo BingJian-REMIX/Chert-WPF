@@ -13,6 +13,46 @@ public partial class GameView : UserControl
     {
         InitializeComponent();
         DataContext = new GameViewModel();
+
+        // problem3：横向卡片流滚轮支持。
+        //   WPF 的 ScrollViewer 滚轮默认只作用于垂直方向，横向容器里滚轮完全无效 ——
+        //   用户的体感是「必须把鼠标移到最左/最右露出滚动条才能拖」。
+        //   这里在页根统一挂 PreviewMouseWheel（Preview 隧道能先于子元素的
+        //   ItemsControl / 卡片 Button 拿到事件），命中横向 ScrollViewer 就换算偏移。
+        PreviewMouseWheel += GameView_PreviewMouseWheel;
+    }
+
+    /// <summary>
+    /// 把垂直滚轮换算为横向偏移，作用于页内所有
+    /// <c>HorizontalScrollViewerStyle</c> 的卡片流（局域网 / 服务器 / 推荐 / 版本）。
+    /// </summary>
+    private void GameView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        // 命中最近的祖先横向 ScrollViewer；不在卡片流里则不拦截，交给外层页面正常处理。
+        var sv = FindAncestorHorizontalScrollViewer(e.OriginalSource as DependencyObject);
+        if (sv is null || sv.ScrollableWidth <= 0) return;
+
+        // 一格滚轮 ≈ 3 行的位移，观感更跟手
+        const double step = 48;
+        var next = sv.HorizontalOffset - Math.Sign(e.Delta) * step;
+        sv.ScrollToHorizontalOffset(Math.Max(0, Math.Min(next, sv.ScrollableWidth)));
+
+        // 标记已处理：否则事件继续冒泡，页面外层的 ScrollViewer 也会跟着动。
+        e.Handled = true;
+    }
+
+    /// <summary>从事件源向上找最近的、开了水平滚动的 ScrollViewer。</summary>
+    private static ScrollViewer? FindAncestorHorizontalScrollViewer(DependencyObject? node)
+    {
+        while (node is not null)
+        {
+            if (node is ScrollViewer sv
+                && sv.ScrollableWidth > 0
+                && sv.VerticalScrollBarVisibility == ScrollBarVisibility.Disabled)
+                return sv;
+            node = System.Windows.Media.VisualTreeHelper.GetParent(node);
+        }
+        return null;
     }
 
     private void AnnualReportCard_Click(object sender, MouseButtonEventArgs e)

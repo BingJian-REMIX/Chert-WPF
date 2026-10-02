@@ -64,6 +64,14 @@ public class PerfViewModel : ObservableObject, IDisposable
 
     public int ProcessorCount => Environment.ProcessorCount;
 
+    /// <summary>
+    /// 运行中实例数。**不能直接绑 <c>Instances.Count</c>**：
+    /// <c>SampleCore</c> 每次都把 <c>Instances</c> <b>整体替换</b>成新
+    /// <c>ObservableCollection</c>（换实例），而 <c>Count</c> 的 PropertyChanged
+    /// 链在旧集合上 —— 界面永远停在初始的 0（用户实测「实例检测显示 0」）。
+    /// </summary>
+    public int InstanceCount => _instances.Count;
+
     public double SystemCpu
     {
         get => _systemCpu;
@@ -195,6 +203,8 @@ public class PerfViewModel : ObservableObject, IDisposable
             if (!list.Any(i => i.Pid == pid)) _cpuSamples.Remove(pid);
 
         Instances = new ObservableCollection<InstancePerf>(rows);
+        // ★ 集合已整体替换，派生属性必须显式通知，否则「实例数」卡片永远显示 0。
+        OnPropertyChanged(nameof(InstanceCount));
 
         try { if (_cpuCounter != null) SystemCpu = _cpuCounter.NextValue(); } catch { }
         try { if (_memCounter != null) MemoryAvailableMb = _memCounter.NextValue(); } catch { }
