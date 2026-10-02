@@ -24,14 +24,16 @@ public class LaunchOptions
     public bool Fullscreen { get; set; }
 
     /// <summary>
-    /// 进入游戏时的主音量（0–100）。null 表示不干预，沿用游戏自身 / options.txt 的设置。
+    /// 进入游戏时**降低**音量的幅度（0-100，单位 %）。null 表示不调整。
     /// </summary>
     /// <remarks>
-    /// MC 原生支持 <c>--volume &lt;0-100&gt;</c> 启动参数，优先于 options.txt，
-    /// 因此「启动器里调一次、每次进游戏都生效」用它最直接（无需改写 options.txt，
-    /// 也就不会污染用户的存档设置）。
+    /// 语义是幅度而非目标音量：实际下发的 <c>--volume</c> = 玩家当前音量 × (100 - 幅度)。
+    /// 读取玩家当前音量优先走 options.txt；读不到（文件缺失 / 损坏 / 被模组改写）时
+    /// 退化为以 100% 为基准，即「在满音量基础上按幅度降低」，行为依然符合直觉。
+    /// 用幅度表达还避免了一个陷阱：若把「目标音量」当参数，
+    /// 玩家自己调低过音量时每次启动都会被抬回去。
     /// </remarks>
-    public int? MasterVolume { get; set; }
+    public int? VolumeDuckPercent { get; set; }
 }
 
 /// <summary>解析后的启动参数。</summary>

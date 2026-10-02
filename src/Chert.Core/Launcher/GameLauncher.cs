@@ -145,6 +145,35 @@ public static class GameLauncher
     }
 
     /// <summary>把一行启动器日志同时推给调用方 logger（状态栏）与磁盘日志文件（logs/mclcs_launcher.log，可在日志页查看）。</summary>
+    /// <summary>
+    /// 读玩家在 <c>options.txt</c> 里设的主音量（0-100）。
+    /// 读不到 / 损坏 / 被模组改写时返回 100（满音量），由调用方按幅度退化计算。
+    /// </summary>
+    private static double ReadCurrentVolumePercent(string gameDir)
+    {
+        try
+        {
+            var path = Path.Combine(gameDir, "options.txt");
+            if (!File.Exists(path)) return 100;
+            foreach (var raw in File.ReadLines(path))
+            {
+                var line = raw.Trim();
+                // 形如 soundCategory_master:0.8
+                if (!line.StartsWith("soundCategory_master:", StringComparison.Ordinal)) continue;
+                var val = line["soundCategory_master:".Length..].Trim();
+                if (double.TryParse(val, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    return Math.Clamp(v * 100.0, 0, 100);
+                return 100;
+            }
+        }
+        catch
+        {
+            // 读不到就用基准值，不影响启动
+        }
+        return 100;
+    }
+
     private static void LogLine(ILogger? logger, string gameRoot, string message)
     {
         logger?.Log(message);
@@ -213,14 +242,19 @@ public static class GameLauncher
         if (options.Fullscreen)
             resolved.GameArgs.Add("--fullscreen");
 
-        // 进入游戏自动调音量（problem3）：MC 原生 --volume 参数，优先于 options.txt。
-        // 钳位到 0–100；null 表示不干预、沿用用户自己在游戏里调好的音量。
-        if (options.MasterVolume is int vol)
+        // 进入游戏自动降音量（problem3）：MC 原生 --volume 参数，优先于 options.txt。
+        //   语义是「降低幅度」：目标音量 = 玩家当前音量 × (100 - 幅度)。
+        //   读不到当前音量时以 100% 为基准退化为「满音量按幅度降低」，仍符合直觉。
+        if (options.VolumeDuckPercent is int duck && duck > 0)
         {
-            var v = Math.Clamp(vol, 0, 100);
+            var percent = Math.Clamp(duck, 0, 100);
+            var current = ReadCurrentVolumePercent(gameDir);
+            var target = (int)Math.Round(current * (100 - percent) / 100.0);
+            target = Math.Clamp(target, 0, 100);
             resolved.GameArgs.Add("--volume");
-            resolved.GameArgs.Add(v.ToString());
-            LogLine(logger, gameRoot, $"按设置调整游戏主音量：{v}");
+            resolved.GameArgs.Add(target.ToString());
+            LogLine(logger, gameRoot,
+                $"按设置降低游戏音量 {percent}%：{current:F0}% → {target}%");
         }
 
         // 解压原生库

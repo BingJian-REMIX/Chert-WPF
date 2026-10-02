@@ -618,9 +618,9 @@
                         <Slider Width="160" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
                                 VerticalAlignment="Center" Margin="10,0,0,0"
                                 IsEnabled="{Binding GameVolumeEnabled}"
-                                Value="{Binding GameVolume, Mode=TwoWay}"/>
-                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Width="38"
-                                   Text="{Binding GameVolume}"
+                                Value="{Binding GameVolumeDuckPercent, Mode=TwoWay}"/>
+                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Width="48"
+                                   Text="{Binding GameVolumeDuckPercent, StringFormat={}{0}%}"
                                    Foreground="{DynamicResource PrimaryForeground}"/>
                     </StackPanel>
 

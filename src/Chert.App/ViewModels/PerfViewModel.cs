@@ -163,7 +163,8 @@ public class PerfViewModel : ObservableObject, IDisposable
 
     private void SampleCore()
     {
-        var list = InstanceTracker.ListActive();
+        // 含跨进程扫描：与状态栏口径一致（用户反馈游戏在跑却显示「0 个实例」）
+        var list = InstanceTracker.ListActiveIncludingExternal(Chert.Core.Utils.GameConstants.DefaultGameRoot);
         var now = DateTime.Now;
         var rows = new List<InstancePerf>();
         foreach (var inst in list)

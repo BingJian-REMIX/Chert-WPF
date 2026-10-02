@@ -113,7 +113,8 @@ public class StatusBarViewModel : ObservableObject
         try
         {
             InstalledCount = LauncherService.Instance.ListInstalledVersions().Count;
-            RunningInstances = InstanceTracker.ActiveCount();
+            // 含跨进程扫描：启动器重启后仍能统计到后台跑着的游戏（用户反馈「0 个实例」）
+            RunningInstances = InstanceTracker.ActiveCountIncludingExternal(GameConstants.DefaultGameRoot);
 
             var java = await JavaDetector.FindBestAsync(GameConstants.MinimumJavaMajorVersion);
             JavaVersionText = java is not null
