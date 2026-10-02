@@ -414,8 +414,24 @@ public class GameViewModel : ObservableObject
     private ServerEntry? ResolveServer(ServerEntry? entry)
     {
         if (entry is null) return null;
-        if (Servers.Contains(entry)) return entry;
 
+        // ★★ 必须返回**集合内那个实例**，而不是传入的 entry。
+        //   上一个版本写的是「if (Servers.Contains(entry)) return entry;」——
+        //   Contains 因为值语义返回 true（说明集合里有等值对象），但返回的却是
+        //   传入的旧实例。调用方随后用 ReferenceEquals 排除自己时，
+        //   集合里没有任何元素与旧实例引用相同 → 自己被当成别人 →
+        //   「已存在同名服务器」每次必报（用户连续 4 次反馈该症状）。
+        //   正解：用索引反查集合内的真实元素。
+
+        // 1) 引用相同（本来就在集合里）
+        var byRef = Servers.FirstOrDefault(s => ReferenceEquals(s, entry));
+        if (byRef is not null) return byRef;
+
+        // 2) 值相同（DataTemplate 缓存的旧实例 / RefreshServers 重建后的等价对象）
+        var byValue = Servers.FirstOrDefault(s => s.Equals(entry));
+        if (byValue is not null) return byValue;
+
+        // 3) 按地址（业务主键）匹配
         var addr = entry.Address?.Trim() ?? "";
         if (addr.Length > 0)
         {
@@ -423,9 +439,12 @@ public class GameViewModel : ObservableObject
                 string.Equals(s.Address?.Trim(), addr, StringComparison.OrdinalIgnoreCase));
             if (byAddr is not null) return byAddr;
         }
+
+        // 4) 按名称兜底
         var name = entry.Name?.Trim() ?? "";
         if (name.Length > 0)
             return Servers.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.Ordinal));
+
         return null;
     }
 
