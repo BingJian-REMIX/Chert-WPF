@@ -2035,13 +2035,73 @@ public partial class MainWindow : Window
         BigPageHost.Children.Clear();
         BigPageHost.Children.Add(page);
         BigPageHost.Visibility = Visibility.Visible;
+        PlayBigPageEnter(page);
     }
 
     private void CloseBigPage()
     {
+        var page = _gameBigPage;
         _gameBigPage = null;
-        BigPageHost.Visibility = Visibility.Collapsed;
-        BigPageHost.Children.Clear();
+        if (page is null || !AnimationsEnabled || !IsLoaded)
+        {
+            BigPageHost.Visibility = Visibility.Collapsed;
+            BigPageHost.Children.Clear();
+            return;
+        }
+        // 退场：淡出 + 轻微下沉，收尾才真正隐藏（否则内容先消失、动画看不到）
+        var dur = TimeSpan.FromMilliseconds(140);
+        page.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(1, 0, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
+        var tf = new TranslateTransform(0, 0);
+        page.RenderTransform = tf;
+        var a = new DoubleAnimation(0, 8, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd };
+        a.Completed += (_, _) =>
+        {
+            page.BeginAnimation(UIElement.OpacityProperty, null);
+            page.RenderTransform = null;
+            if (ReferenceEquals(_gameBigPage, null))   // 退场期间又打开了新大页则不清理
+            {
+                BigPageHost.Visibility = Visibility.Collapsed;
+                BigPageHost.Children.Clear();
+            }
+        };
+        tf.BeginAnimation(TranslateTransform.YProperty, a);
+    }
+
+    /// <summary>P17：版本库 / 版本设置等大页的入场动效（缩放 + 淡入 + 轻微上浮）。</summary>
+    private void PlayBigPageEnter(FrameworkElement page)
+    {
+        if (!AnimationsEnabled || !IsLoaded) return;
+
+        var dur = TimeSpan.FromMilliseconds(200);
+        page.BeginAnimation(UIElement.OpacityProperty,
+            new DoubleAnimation(0, 1, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop });
+        page.Opacity = 1;
+
+        var scale = new ScaleTransform(0.985, 0.985);
+        var tf = new TranslateTransform(0, 10);
+        page.RenderTransformOrigin = new Point(0.5, 0.5);
+        page.RenderTransform = new TransformGroup { Children = { scale, tf } };
+
+        var done = 0;
+        void Finish()
+        {
+            if (++done < 2) return;
+            page.BeginAnimation(UIElement.OpacityProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            tf.BeginAnimation(TranslateTransform.YProperty, null);
+            page.RenderTransform = null;   // 收尾清 transform，避免影响内部布局/命中
+        }
+
+        var ax = new DoubleAnimation(0.985, 1, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop };
+        var ay = new DoubleAnimation(0.985, 1, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop };
+        var ay2 = new DoubleAnimation(10, 0, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop };
+        ax.Completed += (_, _) => Finish();
+        ay.Completed += (_, _) => Finish();
+        scale.BeginAnimation(ScaleTransform.ScaleXProperty, ax);
+        scale.BeginAnimation(ScaleTransform.ScaleYProperty, ay);
+        tf.BeginAnimation(TranslateTransform.YProperty, ay2);
     }
 
     /// <summary>P01：安卓顶栏标签条的滚轮处理。垂直滚轮换算为横向滚动。</summary>
