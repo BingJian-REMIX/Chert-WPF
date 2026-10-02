@@ -539,6 +539,9 @@ public partial class MainWindow : Window
         // 清单 #16：快照外壳默认值（标题栏/状态栏行高、品牌文案、状态栏字体），供玻璃风格切出时还原
         _titleBarRowHeight = TitleBarRow.Height;
         _statusBarRowHeight = StatusBarRow.Height;
+
+        // P07：底栏实际高度确定后回填 Toast 宿主边距（Loaded 之后 ActualHeight 才有效）
+        Loaded += (_, _) => UpdateToastHostMargin();
         _brandTextDefault = BrandText.Text;
         _brandFontDefault = BrandText.FontFamily;
         _brandFontSizeDefault = BrandText.FontSize;
@@ -1760,8 +1763,52 @@ public partial class MainWindow : Window
 
         ApplyBottomNavSelection(_currentKind);
 
+        // P07：底栏行高已随风格改变，重新回填 Toast 宿主底部边距，保证 Toast 仍贴在底栏正上方
+        UpdateToastHostMargin();
+
         // 清单 #17：主题字典刚被重载过，窗口背景色要重新套一遍（否则自定义色被主题默认值盖掉）
         App.ReapplyCustomWindowBackground();
+    }
+
+    /// <summary>
+    /// P07：点击 Toast 卡片给出反馈——直接触发收回（等价点「关闭」）。
+    /// 卡片内的按钮/「查看详情」会自行处理冒泡，不会走到这里。
+    /// </summary>
+    private void ToastCard_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject src
+            && FindParent<Button>(src) is not null) return;   // 点在按钮上，交给按钮自己
+        if (DataContext is ToastItem item) ToastService.Dismiss(item);
+    }
+
+    /// <summary>向上查找最近的指定类型祖先（用于判断点击是否落在内部按钮上）。</summary>
+    private static T? FindParent<T>(DependencyObject? node) where T : DependencyObject
+    {
+        while (node is not null)
+        {
+            if (node is T t) return t;
+            node = VisualTreeHelper.GetParent(node);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// P07：让 Toast 恒定贴在底栏（状态栏）正上方。
+    /// 底栏行高随界面风格变化（玻璃 26px，标准/灵动/安卓各异），若底部边距写死，
+    /// 切风格后 Toast 会随底栏高度漂移。此处按状态栏**实际渲染高度**回填底部边距。
+    /// </summary>
+    private void UpdateToastHostMargin()
+    {
+        try
+        {
+            var h = StatusBarRoot.ActualHeight;
+            if (double.IsNaN(h) || h <= 0)
+            {
+                h = StatusBarRow.Height.IsAuto ? 26 : Math.Max(0, StatusBarRow.Height.Value);
+            }
+            if (ToastHost != null) ToastHost.Margin = new Thickness(0, 0, 16, h + 8);
+        }
+        catch { /* 布局未就绪时忽略，下一次调用会补上 */ }
     }
 
     /// <summary>把标题栏 / 侧栏 / 状态栏的外壳复位到 XAML 默认，供风格切换时还原（含关闭毛玻璃背板）。</summary>

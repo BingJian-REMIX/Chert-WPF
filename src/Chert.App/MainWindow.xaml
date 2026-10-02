@@ -990,13 +990,15 @@
 
              覆盖全部三行，但只在卡片本身处可点击，空白区域不拦截下层交互。 -->
 
-        <ItemsControl Grid.Row="0" Grid.RowSpan="4"
+        <ItemsControl x:Name="ToastHost" Grid.Row="0" Grid.RowSpan="4"
 
                       ItemsSource="{Binding Source={x:Static svc:ToastService.Items}}"
 
                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
 
-                      Margin="0,0,16,40" Width="330" Background="Transparent">
+                      Margin="0,0,16,0" Width="330" Background="Transparent"
+
+                      Panel.ZIndex="90">
 
             <ItemsControl.ItemsPanel>
 
@@ -1015,7 +1017,8 @@
                     <Border Margin="0,6,0,0" CornerRadius="8" Padding="0"
                         Background="{DynamicResource ControlBackground}"
                         BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
-                        Opacity="0">
+                        Opacity="0" Cursor="Hand"
+                        MouseLeftButtonUp="ToastCard_Click">
                     <Border.RenderTransform>
                         <TranslateTransform x:Name="Tt" X="340"/>
                     </Border.RenderTransform>
