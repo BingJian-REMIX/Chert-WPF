@@ -227,7 +227,11 @@ public partial class MainWindow : Window
                 SC_RESTORE => WindowState.Normal,
                 _ => (WindowState?)null
             };
-            if (target is { } t && t != WindowState)
+            // ★ 最小化**不拦截**：交回系统，让 DWM 播放原生的「缩到任务栏」动画。
+            //   此前这里对 SC_MINIMIZE 也 handled=true 吞掉了系统消息，DWM 动画因此失效
+            //   （窗口是 WindowStyle=None 自绘窗，但仍参与 DWM 合成，不该抢它的消息）。
+            //   最小化已改为直接 WindowState = Minimized（见 AnimateMinimize），无需自绘。
+            if (target is { } t && t != WindowState && t != WindowState.Minimized)
             {
                 handled = true;
                 AnimateWindowState(t);
@@ -412,73 +416,18 @@ public partial class MainWindow : Window
     /// Windows 的「缩到任务栏」观感，动画结束后才真正置 Minimized。
     /// 还原时由 <see cref="ResetMinimizeTransform"/> 复位，故不会残留缩放或位移。
     /// </summary>
+    /// <summary>
+    /// 最小化：**直接**切到 Minimized，不做任何自绘动画。
+    /// <para>
+    /// 自绘「朝任务栏收缩」动画已被移除（用户明确拒绝）。此前 DWM 原生最小化动画失效的
+    /// 根因不是 GlassFrameThickness 或 AllowsTransparency（实测二者均未导致分层），
+    /// 而是 <see cref="WndProcHook"/> 对 SC_MINIMIZE 也 <c>handled = true</c>，
+    /// 吞掉了系统的 WM_SYSCOMMAND，DWM 因此没有机会播放原生动画。
+    /// 现最小化不再拦消息，系统动画恢复。
+    /// </para>
+    /// </summary>
     private void AnimateMinimize()
     {
-        // 用户要求（2026-10-02）：去掉最小化动画，直接最小化。
-        // 原先用 RenderTransform 做「朝任务栏收缩」的视觉动画，现改为交给 Windows 原生行为，
-        // 便于确认最小化本身（含 DWM 动画）是否有问题。
-        ApplyWindowState(WindowState.Minimized);
-    }
-
-    /// <summary>已停用：原先的最小化视觉动画（缩放+平移+淡出）。保留以便回退。</summary>
-    private void AnimateMinimize_Legacy()
-    {
-        if (!AnimationsEnabled || !IsLoaded || _stateAnimating)
-        {
-            ApplyWindowState(WindowState.Minimized);
-            return;
-        }
-
-        _stateAnimating = true;
-        try
-        {
-            var wa = SystemParameters.WorkArea;
-            // 以窗口中心为原点缩放，缩到 0.12 倍并下移到任务栏中部 —— 视觉上「缩进任务栏」。
-            var scale = new ScaleTransform(1, 1);
-            var translate = new TranslateTransform(0, 0);
-            RenderTransformOrigin = new Point(0.5, 0.5);
-            RenderTransform = new TransformGroup { Children = { scale, translate } };
-
-            var centerY = Top + Height / 2;
-            var targetY = wa.Bottom - 12;                 // 任务栏中部附近
-            var dy = targetY - centerY;
-
-            var dur = TimeSpan.FromMilliseconds(180);
-            scale.BeginAnimation(ScaleTransform.ScaleXProperty,
-                new DoubleAnimation(1, 0.12, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
-            scale.BeginAnimation(ScaleTransform.ScaleYProperty,
-                new DoubleAnimation(1, 0.12, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
-            var ty = new DoubleAnimation(0, dy, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd };
-            ty.Completed += (_, _) => FinishMinimize();
-            translate.BeginAnimation(TranslateTransform.YProperty, ty);
-            BeginAnimation(OpacityProperty,
-                new DoubleAnimation(1, 0, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
-        }
-        catch
-        {
-            _stateAnimating = false;
-            ResetMinimizeTransform();
-            ApplyWindowState(WindowState.Minimized);
-        }
-    }
-
-    /// <summary>最小化动画收尾：清动画 + 复位 RenderTransform/Opacity，再落到 Minimized。</summary>
-    private void FinishMinimize()
-    {
-        try
-        {
-            BeginAnimation(OpacityProperty, null);
-            Opacity = 1;
-            if (RenderTransform is TransformGroup tg)
-            {
-                tg.Children.OfType<ScaleTransform>().FirstOrDefault()?.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-                tg.Children.OfType<ScaleTransform>().FirstOrDefault()?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-                tg.Children.OfType<TranslateTransform>().FirstOrDefault()?.BeginAnimation(TranslateTransform.YProperty, null);
-            }
-        }
-        catch { /* 收尾失败不影响状态落地 */ }
-        ResetMinimizeTransform();
-        _stateAnimating = false;
         ApplyWindowState(WindowState.Minimized);
     }
 
