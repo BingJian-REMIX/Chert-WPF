@@ -31,41 +31,40 @@ public partial class GameView : UserControl
     /// 再用 <c>DataContext</c>（GameViewModel）里的命令显式赋值 —— 百分百可靠。
     /// </para>
     /// </summary>
+    private ServerEntry? _pendingServer;
+
     private void ServerMenu_Opened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
 
         var vm = DataContext as GameViewModel;
-        var entry = (menu.PlacementTarget as FrameworkElement)?.DataContext as ServerEntry;
+        _pendingServer = (menu.PlacementTarget as FrameworkElement)?.DataContext as ServerEntry;
+        if (vm is null || _pendingServer is null) return;
 
-        // ==== 临时诊断（定位后删除）====
-        var dbg = $"vm={vm?.GetType().Name ?? "NULL"} " +
-                  $"target={menu.PlacementTarget?.GetType().Name ?? "NULL"} " +
-                  $"entry={(entry?.Name ?? "NULL")} items={menu.Items.Count}";
-        foreach (var mi in menu.Items.OfType<MenuItem>())
-            dbg += $" | tag={mi.Tag ?? "null"}({mi.Tag?.GetType().Name}) cmd={mi.Command?.GetType().Name ?? "null"}";
-        Chert.App.Services.ToastService.Show("菜单诊断", dbg);
-        // ==== 诊断结束 ====
-
-        if (vm is null || entry is null) return;
-
-        // ★ 菜单项的 x:Name 定义在 DataTemplate 内 —— 那属于**局部名字作用域**（每张卡片一份），
-        //   code-behind 里直接写 ServerEditItem 编译不过（CS0103）。
-        //   改为遍历 ContextMenu 的逻辑树找 MenuItem（它们是菜单的直接逻辑子节点）。
-        // ★★ Equals（值比较）而非 ReferenceEquals（引用比较）：XAML 里 Tag="edit" 的字符串
-        //   由转换器新建，与代码字面量并非同一实例，引用比较恒为 false → 命令挂不上。
+        // 诊断结论：vm / entry / Tag / Items 全部正常（Cmd=null 只是诊断跑在挂载之前，
+        // 属预期），CanExecute 也为 true，但点击仍无反应 —— 说明
+        // **ContextMenu 关闭后靠 CommandParameter 传参这条路不可靠**
+        // （Popup 关闭会重建 / 回收 MenuItem 容器）。
+        // 改为：命令只决定「是否可点」，真正执行走菜单项自己的 Click 事件。
         foreach (var item in menu.Items.OfType<MenuItem>())
         {
-            if (Equals(item.Tag, "edit"))
-            {
-                item.Command = vm.EditServerCommand;
-                item.CommandParameter = entry;
-            }
-            else if (Equals(item.Tag, "delete"))
-            {
+            item.IsEnabled = true;
+            if (Equals(item.Tag, "delete"))
                 item.Command = vm.DeleteServerCommand;
-                item.CommandParameter = entry;
-            }
         }
+    }
+
+    /// <summary>菜单「编辑」：直接执行，不依赖 Command 往返。</summary>
+    private void ServerMenu_EditClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is GameViewModel vm && _pendingServer is not null)
+            vm.EditServerCommand.Execute(_pendingServer);
+    }
+
+    /// <summary>菜单「删除」：直接执行，不依赖 Command 往返。</summary>
+    private void ServerMenu_DeleteClick(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is GameViewModel vm && _pendingServer is not null)
+            vm.DeleteServerCommand.Execute(_pendingServer);
     }
 }

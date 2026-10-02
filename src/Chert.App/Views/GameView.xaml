@@ -425,9 +425,16 @@
                                         <!-- Tag 用于 code-behind 区分菜单项：DataTemplate 内的
                                              x:Name 属局部名字作用域，外部访问不到。 -->
 
-                                        <MenuItem Tag="edit" Header="{theme:Loc game.edit}"/>
+                                        <!-- 执行走 Click 而非 Command：Popup 关闭会回收
+                                             MenuItem 容器，CommandParameter 链路不可靠。 -->
 
-                                        <MenuItem Tag="delete" Header="{theme:Loc btn.delete}"/>
+                                        <MenuItem Tag="edit" Header="{theme:Loc game.edit}"
+
+                                                  Click="ServerMenu_EditClick"/>
+
+                                        <MenuItem Tag="delete" Header="{theme:Loc btn.delete}"
+
+                                                  Click="ServerMenu_DeleteClick"/>
 
                                     </ContextMenu>
 
