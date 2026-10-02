@@ -75,11 +75,13 @@
 
                                      ToolTip="{theme:Loc shader.m249}"/>
 
-                            <Button Grid.Column="2" Content="✕" Width="24" Padding="0"
+                            <Button Grid.Column="2" Width="24" Padding="0"
 
                                     Command="{Binding DataContext.RemoveParamCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                    CommandParameter="{Binding}" Foreground="#E74C3C"/>
+                                    CommandParameter="{Binding}">
+                                <theme:PngIcon Token="close" Size="12"/>
+                            </Button>
 
                         </Grid>
 
@@ -161,11 +163,13 @@
 
                                         CommandParameter="{Binding}"/>
 
-                                <Button Content="✕" Width="24" Padding="0" Foreground="#E74C3C"
+                                <Button Width="24" Padding="0"
 
                                         Command="{Binding DataContext.DeleteCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                        CommandParameter="{Binding}"/>
+                                        CommandParameter="{Binding}">
+                                    <theme:PngIcon Token="close" Size="12"/>
+                                </Button>
 
                             </StackPanel>
 

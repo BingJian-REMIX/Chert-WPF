@@ -383,15 +383,17 @@
 
                                 <!-- bug #13：删除按钮此前与「载入」同处 Grid.Column=1，被完全遮挡点不到 -->
 
-                                <Button Grid.Column="2" Content="✕" Width="30" Padding="0,2"
+                                <Button Grid.Column="2" Width="30" Padding="0,2"
 
                                         Command="{Binding DataContext.DeleteCommand,
 
                                             RelativeSource={RelativeSource AncestorType=ListBox}}"
 
-                                        CommandParameter="{Binding}" Foreground="#E74C3C"
+                                        CommandParameter="{Binding}"
 
-                                        ToolTip="{theme:Loc afk.delete_workflow_tip}"/>
+                                        ToolTip="{theme:Loc afk.delete_workflow_tip}">
+                                    <theme:PngIcon Token="close" Size="12"/>
+                                </Button>
 
                             </Grid>
 

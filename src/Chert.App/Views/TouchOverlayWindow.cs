@@ -64,7 +64,7 @@ public class TouchOverlayWindow : Window
         };
         var closeBtn = new Button
         {
-            Content = "✕",
+            Content = new Chert.App.Themes.PngIcon { Token = "close", Size = 12 },
             Width = 26,
             Height = 20,
             HorizontalAlignment = HorizontalAlignment.Right,
