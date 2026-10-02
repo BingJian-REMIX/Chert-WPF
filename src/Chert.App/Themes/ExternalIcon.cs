@@ -28,7 +28,10 @@ public class ExternalIcon : ContentControl
     /// <summary>占位图标 token（对应内嵌 PNG 文件名，未知则显示空白占位）。</summary>
     public static readonly DependencyProperty FallbackTokenProperty =
         DependencyProperty.Register(nameof(FallbackToken), typeof(string), typeof(ExternalIcon),
-            new PropertyMetadata("image", OnFallbackChanged));
+            // 注意：默认值必须是图标库中**真实存在**的 token。
+            // 原默认值 "image" 在 Resources/Icons 下并不存在，每次构造都会抛
+            // IOException「找不到资源 resources/icons/{light|dark}/image.png」。
+            new PropertyMetadata("download", OnFallbackChanged));
 
     /// <summary>圆角半径（用于裁剪封面与占位，使其贴合卡片圆角）。</summary>
     public static readonly DependencyProperty CornerRadiusProperty =

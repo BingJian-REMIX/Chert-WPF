@@ -414,6 +414,15 @@ public partial class MainWindow : Window
     /// </summary>
     private void AnimateMinimize()
     {
+        // 用户要求（2026-10-02）：去掉最小化动画，直接最小化。
+        // 原先用 RenderTransform 做「朝任务栏收缩」的视觉动画，现改为交给 Windows 原生行为，
+        // 便于确认最小化本身（含 DWM 动画）是否有问题。
+        ApplyWindowState(WindowState.Minimized);
+    }
+
+    /// <summary>已停用：原先的最小化视觉动画（缩放+平移+淡出）。保留以便回退。</summary>
+    private void AnimateMinimize_Legacy()
+    {
         if (!AnimationsEnabled || !IsLoaded || _stateAnimating)
         {
             ApplyWindowState(WindowState.Minimized);
