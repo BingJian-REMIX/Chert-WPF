@@ -41,3 +41,5 @@ tools/CrashProbe/
 
 # 本地私有构建配置：放 CurseForge API Key 等机密值，构建时注入二进制，绝不入库
 Directory.Build.user.props
+# 发布压缩包：源码仓只收源码，zip 一律不进仓（release 走制品库/附件）
+*.zip
