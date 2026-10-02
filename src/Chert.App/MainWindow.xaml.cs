@@ -294,12 +294,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        // 从最小化还原：窗口此前不可见，几何仍停在被缩小的矩形，
-        // 这里先显式复位到还原矩形再落地——隐藏窗口做过渡不可见，只会增加复杂度与闪屏。
+        // 从最小化还原：最小化动画只动了 RenderTransform、**没有改几何**，
+        // 这里复位视觉缩放后直接落地；隐藏的窗口做几何过渡不可见，只会带来闪屏。
         if (WindowState == WindowState.Minimized)
         {
+            ResetMinimizeTransform();
             var rect = _restoreRect ?? RestoreBounds;
-            Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
+            if (rect.Width >= 1 && rect.Height >= 1)
+            {
+                Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
+            }
             ApplyWindowState(target);
             return;
         }
@@ -309,12 +313,23 @@ public partial class MainWindow : Window
         // 离开「正常态」前先把当前矩形记下来，供之后还原使用
         if (WindowState == WindowState.Normal) _restoreRect = from;
 
+        // 最小化：Windows 原生是「朝任务栏按钮方向缩-genie 动画」，但自绘无边框窗没有 DWM 动画。
+        // 用户反馈「不能直接消失」——所以这里**保留一段动画**，但**不改窗口真实几何**
+        // （旧实现把 Left/Top/Width/Height 真的缩到 40%，于是「最小化每次都缩窗口大小」，
+        //   且还原时矩形被缩小值污染）。改为几何完全不动、只用 RenderTransform 做视觉收缩+淡出，
+        //   动画结束才置 WindowState.Minimized；还原时把 RenderTransform 复位即可。
+        if (target == WindowState.Minimized)
+        {
+            AnimateMinimize();
+            return;
+        }
+
         var to = target switch
         {
             WindowState.Maximized => MaximizeTargetRect(),
             // 优先用自己记的矩形；没有记录（如首次会话）再退回 WPF 的 RestoreBounds
             WindowState.Normal => _restoreRect ?? RestoreBounds,
-            _ => MinimizeTargetRect(from)            // 最小化：朝任务栏方向缩小
+            _ => MaximizeTargetRect()
         };
         if (from.Width < 1 || from.Height < 1 || to.Width < 1 || to.Height < 1)
         {
@@ -369,11 +384,7 @@ public partial class MainWindow : Window
             BeginAnimation(FrameworkElement.WidthProperty, null);
             BeginAnimation(FrameworkElement.HeightProperty, null);
 
-            // 最小化：窗口已不可见，把矩形复位回原尺寸 ——
-            // 否则从任务栏还原时窗口会以「缩小后的 40%」尺寸回来。
-            // 最大化：不动（系统接管矩形），还原时由 _restoreRect 显式写回。
-            // 最小化：保持动画终点的缩小矩形落地，避免「先弹回原尺寸再消失」的闪屏；
-            // 还原几何由 _restoreRect 在上面的最小化分支负责复位。
+            // 最大化/还原：写回动画终点矩形（最小化已改走 AnimateMinimize，不再经此路径）。
             var r = final;
             Left = r.Left; Top = r.Top; Width = r.Width; Height = r.Height;
         }
@@ -396,13 +407,83 @@ public partial class MainWindow : Window
         return new Rect(wa.Left, wa.Top, wa.Width, wa.Height);
     }
 
-    /// <summary>最小化目标矩形：横向居中缩到 40%、贴到工作区底部（比直接消失自然）。</summary>
-    private static Rect MinimizeTargetRect(Rect from)
+    /// <summary>
+    /// 最小化动画：几何保持不变，用 RenderTransform（缩放 + 向任务栏方向平移 + 淡出）模拟
+    /// Windows 的「缩到任务栏」观感，动画结束后才真正置 Minimized。
+    /// 还原时由 <see cref="ResetMinimizeTransform"/> 复位，故不会残留缩放或位移。
+    /// </summary>
+    private void AnimateMinimize()
     {
-        var wa = SystemParameters.WorkArea;
-        var w = from.Width * 0.4;
-        var h = from.Height * 0.4;
-        return new Rect(from.Left + from.Width / 2 - w / 2, wa.Bottom - h, w, h);
+        if (!AnimationsEnabled || !IsLoaded || _stateAnimating)
+        {
+            ApplyWindowState(WindowState.Minimized);
+            return;
+        }
+
+        _stateAnimating = true;
+        try
+        {
+            var wa = SystemParameters.WorkArea;
+            // 以窗口中心为原点缩放，缩到 0.12 倍并下移到任务栏中部 —— 视觉上「缩进任务栏」。
+            var scale = new ScaleTransform(1, 1);
+            var translate = new TranslateTransform(0, 0);
+            RenderTransformOrigin = new Point(0.5, 0.5);
+            RenderTransform = new TransformGroup { Children = { scale, translate } };
+
+            var centerY = Top + Height / 2;
+            var targetY = wa.Bottom - 12;                 // 任务栏中部附近
+            var dy = targetY - centerY;
+
+            var dur = TimeSpan.FromMilliseconds(180);
+            scale.BeginAnimation(ScaleTransform.ScaleXProperty,
+                new DoubleAnimation(1, 0.12, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
+            scale.BeginAnimation(ScaleTransform.ScaleYProperty,
+                new DoubleAnimation(1, 0.12, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
+            var ty = new DoubleAnimation(0, dy, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd };
+            ty.Completed += (_, _) => FinishMinimize();
+            translate.BeginAnimation(TranslateTransform.YProperty, ty);
+            BeginAnimation(OpacityProperty,
+                new DoubleAnimation(1, 0, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.HoldEnd });
+        }
+        catch
+        {
+            _stateAnimating = false;
+            ResetMinimizeTransform();
+            ApplyWindowState(WindowState.Minimized);
+        }
+    }
+
+    /// <summary>最小化动画收尾：清动画 + 复位 RenderTransform/Opacity，再落到 Minimized。</summary>
+    private void FinishMinimize()
+    {
+        try
+        {
+            BeginAnimation(OpacityProperty, null);
+            Opacity = 1;
+            if (RenderTransform is TransformGroup tg)
+            {
+                tg.Children.OfType<ScaleTransform>().FirstOrDefault()?.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                tg.Children.OfType<ScaleTransform>().FirstOrDefault()?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                tg.Children.OfType<TranslateTransform>().FirstOrDefault()?.BeginAnimation(TranslateTransform.YProperty, null);
+            }
+        }
+        catch { /* 收尾失败不影响状态落地 */ }
+        ResetMinimizeTransform();
+        _stateAnimating = false;
+        ApplyWindowState(WindowState.Minimized);
+    }
+
+    /// <summary>清掉最小化用的视觉缩放（还原 / 复位时调用）。几何从未改动，故无需恢复矩形。</summary>
+    private void ResetMinimizeTransform()
+    {
+        try
+        {
+            BeginAnimation(OpacityProperty, null);
+            Opacity = 1;
+            RenderTransform = null;
+            RenderTransformOrigin = new Point(0.5, 0.5);
+        }
+        catch { /* 忽略 */ }
     }
 
     private void BtnMax_Click(object sender, RoutedEventArgs e)
@@ -695,9 +776,11 @@ public partial class MainWindow : Window
         // 先恢复可见性和任务栏按钮，再解除最小化，避免 DWM 残留最小化状态。
         Visibility = Visibility.Visible;
         ShowInTaskbar = true;
-        // 托盘恢复时显式复位几何：最小化动画把窗口缩到了 40% 矩形，不复位会让窗口以缩小尺寸回来。
+        // 最小化动画只动 RenderTransform、没改几何，这里复位视觉缩放即可（并兜底写回还原矩形）。
+        ResetMinimizeTransform();
         var rect = _restoreRect ?? RestoreBounds;
-        Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
+        if (rect.Width >= 1 && rect.Height >= 1)
+            Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
         Activate();
@@ -1684,7 +1767,9 @@ public partial class MainWindow : Window
     /// <summary>把标题栏 / 侧栏 / 状态栏的外壳复位到 XAML 默认，供风格切换时还原（含关闭毛玻璃背板）。</summary>
     private void RestoreDefaultChrome()
     {
-        SidebarItemsPanel.Margin = new Thickness(6, 8, 6, 8);
+        // 左/右内边距 0：让选中项指示竖条贴住侧栏最左缘，作为「侧栏外侧边线」（红圈诉求 C1）。
+        // 此前为 6 会把指示条往里推 6px，且每次切风格都会被这里复位，故统一改成 0。
+        SidebarItemsPanel.Margin = new Thickness(0, 8, 0, 8);
         TitleBarRow.Height = _titleBarRowHeight;
         StatusBarRow.Height = _statusBarRowHeight;
 
@@ -2132,9 +2217,14 @@ public partial class MainWindow : Window
     // Clear any held animation, land a real base value (actual or target), then play explicit From/To.
     private static void AnimateWidth(FrameworkElement el, double to, double ms = MainTabs.TransitionMs)
     {
+        // 必须在清掉旧动画「之前」取当前宽：动画 HoldEnd 期间 el.Width 返回的是动画保持值；
+        // 若先 BeginAnimation(null) 再读 el.Width，会回落到本地值（如 56），导致收回动画 from 算错、
+        // 表现为「有展开动画、无收回动画」（侧栏/索引贴移出后不平滑收起，症状 C6）。
+        double current = el.Width;
+        double from = (double.IsNaN(current) || !double.IsFinite(current) || current <= 0)
+            ? (double.IsFinite(el.ActualWidth) && el.ActualWidth > 0 ? el.ActualWidth : to)
+            : current;
         el.BeginAnimation(FrameworkElement.WidthProperty, null);
-        double from = double.IsNaN(el.Width) ? el.ActualWidth : el.Width;
-        if (!double.IsFinite(from) || from <= 0) from = to;
         el.Width = from;
         el.BeginAnimation(FrameworkElement.WidthProperty,
             new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = UiEaseOut });
