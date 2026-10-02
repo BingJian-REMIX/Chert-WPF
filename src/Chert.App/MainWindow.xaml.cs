@@ -307,7 +307,7 @@ public partial class MainWindow : Window
         var from = new Rect(Left, Top, Width, Height);
 
         // 离开「正常态」前先把当前矩形记下来，供之后还原使用
-        if (target != WindowState.Normal) _restoreRect = from;
+        if (WindowState == WindowState.Normal) _restoreRect = from;
 
         var to = target switch
         {
@@ -331,7 +331,10 @@ public partial class MainWindow : Window
             // 先把本地值写成最终矩形（动画 Stop 后回落到它）。
             // 还原时这一步还兼任「显式恢复几何」——系统切回 Normal 时会用它自己的推断值，
             // 我们紧接着覆盖成还原矩形，避免出现「还原回去大小不对」。
-            Left = to.Left; Top = to.Top; Width = to.Width; Height = to.Height;
+            // 最大化时窗口由系统接管几何，不应预置为 work-area 矩形（否则先闪到最大化再回跳）；
+            // 还原/最小化则必须把本地值写成终点矩形，避免系统切回 Normal 时几何错乱。
+            var baseRect = target == WindowState.Maximized ? from : to;
+            Left = baseRect.Left; Top = baseRect.Top; Width = baseRect.Width; Height = baseRect.Height;
 
             var dur = TimeSpan.FromMilliseconds(target == WindowState.Minimized ? 160 : 200);
             BeginAnimation(Window.LeftProperty, StateAnim(from.Left, to.Left, dur));
