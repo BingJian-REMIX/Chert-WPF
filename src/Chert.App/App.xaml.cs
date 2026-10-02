@@ -111,6 +111,12 @@ public partial class App : Application
         Chert.App.Services.LauncherService.Reinitialize(GameConstants.DefaultGameRoot);
 
         // 载入上次保存的个人资料（语言 / 外观）
+        // ★ 配置迁移（2.6 新增）：从启动器自动更新到本版本时，用户的旧配置还留在游戏目录里。
+        //   触发条件由 ConfigMigrator 内部控制 —— **必须已存在旧配置文件**才迁移，
+        //   所以「初次使用 / 全新安装」不会有任何提示（正是需求所要求的）。
+        //   迁移失败只提示不阻断启动。
+        RunConfigMigration();
+
         LauncherProfile profile;
         try
         {
@@ -215,6 +221,48 @@ public partial class App : Application
         // 网络 / 解析 / 加载任一失败均静默回退默认外观，绝不阻塞启动。
         Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
         _ = Chert.App.Themes.SeasonalThemeManager.InitializeAsync(GameConstants.DefaultGameRoot);
+    }
+
+    /// <summary>
+    /// 启动时的配置迁移（幂等）。仅当游戏目录里已存在旧版配置文件时才会真正执行，
+    /// 因此**初次使用不会触发**；从旧版本自动更新上来才会弹提示。
+    /// </summary>
+    private static void RunConfigMigration()
+    {
+        ConfigMigrator.Result result;
+        try
+        {
+            result = ConfigMigrator.Run(GameConstants.DefaultGameRoot);
+        }
+        catch (Exception ex)
+        {
+            // 迁移器内部已兜底，这里再兜一层，绝不让配置问题阻断启动
+            Chert.App.Services.ToastService.Show("配置", $"配置迁移异常，已使用默认设置：{ex.Message}", Chert.App.Services.ToastKind.Warning);
+            return;
+        }
+
+        switch (result.Outcome)
+        {
+            case ConfigMigrator.Outcome.Migrated:
+                Chert.App.Services.ToastService.Show("配置",
+                    $"已从旧版本 v{result.FromVersion} 迁移到 v{result.ToVersion}：\n"
+                    + string.Join("\n", result.Changes), Chert.App.Services.ToastKind.Info);
+                break;
+
+            case ConfigMigrator.Outcome.VersionedOnly:
+                Chert.App.Services.ToastService.Show("配置", $"配置已标记为 v{result.ToVersion}", Chert.App.Services.ToastKind.Info);
+                break;
+
+            case ConfigMigrator.Outcome.Failed:
+                Chert.App.Services.ToastService.Show("配置",
+                    result.Error ?? "配置迁移失败，已保留原配置", Chert.App.Services.ToastKind.Warning);
+                break;
+
+            // Skipped：初次使用或已是最新，不打扰用户
+            case ConfigMigrator.Outcome.Skipped:
+            default:
+                break;
+        }
     }
 
     private void ApplyTheme(ThemeType theme)
