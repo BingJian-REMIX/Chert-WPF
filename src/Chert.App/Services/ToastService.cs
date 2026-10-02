@@ -100,7 +100,13 @@ public static class ToastService
 
         Invoke(() =>
         {
-            while (Items.Count >= MaxVisible) Dismiss(Items[0]);
+            while (Items.Count >= MaxVisible)
+            {
+                var oldest = Items[0];
+                oldest.Timer?.Stop();
+                oldest.Timer = null;
+                Items.Remove(oldest);
+            }
             Items.Add(item);
 
             int effective = seconds ?? DurationSeconds;
