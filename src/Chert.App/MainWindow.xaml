@@ -546,7 +546,7 @@
 
                 <ScrollViewer x:Name="SidebarScroll" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
 
-                    <StackPanel x:Name="SidebarItemsPanel" Orientation="Vertical" Margin="6,8"/>
+                    <StackPanel x:Name="SidebarItemsPanel" Orientation="Vertical" Margin="0,8"/>
 
                 </ScrollViewer>
 
@@ -586,7 +586,7 @@
 
             <!-- bug #10：版本库大页覆盖层（覆盖内容区，默认隐藏） -->
 
-            <Grid x:Name="BigPageHost" Grid.Column="0" Grid.ColumnSpan="2" Panel.ZIndex="50"
+            <Grid x:Name="BigPageHost" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Panel.ZIndex="50"
 
                   Visibility="Collapsed" Background="{DynamicResource WindowBackground}"/>
 

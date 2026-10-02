@@ -606,7 +606,7 @@
 
                     <DockPanel Grid.Row="0" LastChildFill="True">
 
-                        <Button DockPanel.Dock="Right" Content="{theme:Loc settings.auto_deps_off}" Command="{Binding CloseDetailCommand}" Padding="10,2"/>
+                        <Button DockPanel.Dock="Right" Content="{theme:Loc btn.close}" Command="{Binding CloseDetailCommand}" Padding="10,2"/>
 
                         <TextBlock Text="{Binding CurrentMapDetail.Title}" FontWeight="Bold" FontSize="17"
 
@@ -756,7 +756,7 @@
 
                     <DockPanel Grid.Row="0" LastChildFill="True">
 
-                        <Button DockPanel.Dock="Right" Content="{theme:Loc settings.auto_deps_off}" Command="{Binding CloseModpackDetailCommand}" Padding="10,2"/>
+                        <Button DockPanel.Dock="Right" Content="{theme:Loc btn.close}" Command="{Binding CloseModpackDetailCommand}" Padding="10,2"/>
 
                         <TextBlock Text="{Binding CurrentModpackDetail.Title}" FontWeight="Bold" FontSize="17"
 
@@ -918,7 +918,7 @@
 
                     <DockPanel Grid.Row="0" LastChildFill="True">
 
-                        <Button DockPanel.Dock="Right" Content="{theme:Loc btn.back}" Command="{Binding CloseProjectDetailCommand}" Padding="12,2"/>
+                        <Button DockPanel.Dock="Right" Content="{theme:Loc btn.close}" Command="{Binding CloseProjectDetailCommand}" Padding="12,2"/>
 
                         <TextBlock Text="{Binding CurrentProjectDetail.Title}" FontWeight="Bold" FontSize="17"
 
@@ -1078,7 +1078,7 @@
 
                     <DockPanel Grid.Row="0" LastChildFill="True">
 
-                        <Button DockPanel.Dock="Right" Content="{theme:Loc settings.auto_deps_off}" Command="{Binding CloseInstallCommand}" Padding="10,2"/>
+                        <Button DockPanel.Dock="Right" Content="{theme:Loc btn.close}" Command="{Binding CloseInstallCommand}" Padding="10,2"/>
 
                         <TextBlock Text="{theme:Loc dl.m142}" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
 
