@@ -183,11 +183,19 @@ public class MusicPlayerViewModel : ObservableObject
         var host = ActiveHost;
         if (host is null) return;
 
+        // ★ 拖动期间**整段跳过**，连 DurationSec 也不能写。
+        //   ProgressRatio 是计算属性（PositionSec / DurationSec），而 DurationSec 的 setter
+        //   会 OnPropertyChanged(ProgressRatio)。若在拖动中更新 DurationSec（哪怕值没变、
+        //   SetField 因相等而返回 false 不会通知，但时长从 host 读回的真实值一旦与本地不同就会通知），
+        //   OneWay 绑定的 Slider 就会收到新的 ProgressRatio，把用户拖出来的位置**覆盖回去**
+        //   —— 表现为「进度条被播放进度扯回去」，且与 IsSeeking 保护无关。
+        if (_isSeeking) return;
+
         var hostDuration = host.DurationSec;
         if (hostDuration > 0) DurationSec = hostDuration;
         else if (CurrentTrack is { DurationSec: > 0 } t) DurationSec = t.DurationSec;
 
-        if (!_isSeeking) PositionSec = host.PositionSec;
+        PositionSec = host.PositionSec;
     }
 
     /// <summary>拖动进度条跳转（Slider 传来的值可能是比例或秒，按值域判断）。</summary>

@@ -920,7 +920,7 @@
 
                                 VerticalAlignment="Center">
 
-                        <Button Width="28" Height="24" BorderThickness="0" Background="Transparent"
+                        <Button Width="28" Height="24" Padding="0" BorderThickness="0" Background="Transparent"
 
                                 Command="{Binding PreviousCommand}" ToolTip="上一首">
 
@@ -928,7 +928,7 @@
 
                         </Button>
 
-                        <Button Width="28" Height="24" BorderThickness="0" Background="Transparent"
+                        <Button Width="28" Height="24" Padding="0" BorderThickness="0" Background="Transparent"
 
                                 Command="{Binding PlayPauseCommand}" ToolTip="播放 / 暂停">
 
@@ -958,7 +958,7 @@
 
                         </Button>
 
-                        <Button Width="28" Height="24" BorderThickness="0" Background="Transparent"
+                        <Button Width="28" Height="24" Padding="0" BorderThickness="0" Background="Transparent"
 
                                 Command="{Binding NextCommand}" ToolTip="下一首">
 
