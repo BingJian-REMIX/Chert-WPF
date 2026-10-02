@@ -404,7 +404,11 @@ public class LauncherService : ILogger
             ExtraJvmArgs = extraJvm,
             ServerAddress = cliOverrides?.ServerAddress,
             Fullscreen = vp.Fullscreen,
-            GameDir = ResolveGameDir(GameRoot, versionId, vp)
+            GameDir = ResolveGameDir(GameRoot, versionId, vp),
+
+            // 进入游戏自动调音量（problem3）：用 MC 原生 --volume，
+            // 优先于 options.txt 且不会污染用户的存档设置。null = 不干预。
+            MasterVolume = profile.GameMasterVolume
         };
 
         // 分辨率：每版本覆盖优先，否则用全局

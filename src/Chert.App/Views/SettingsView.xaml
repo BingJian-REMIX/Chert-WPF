@@ -606,8 +606,23 @@
                             </StackPanel>
                         </Border>
                     </Grid>
-
-
+                    <!-- 进入游戏自动调音量（problem3）：用 MC 原生的 volume 启动参数，
+                         不改写 options.txt，因此不会污染用户自己的存档设置。 -->
+                    <StackPanel Grid.Row="14" Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="{theme:Loc settings.game_volume}" VerticalAlignment="Center" Width="90"
+                                   Foreground="{DynamicResource PrimaryForeground}"
+                                   ToolTip="{theme:Loc settings.game_volume_tip}"/>
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                      IsChecked="{Binding GameVolumeEnabled, Mode=TwoWay}"
+                                      VerticalAlignment="Center"/>
+                        <Slider Width="160" Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
+                                VerticalAlignment="Center" Margin="10,0,0,0"
+                                IsEnabled="{Binding GameVolumeEnabled}"
+                                Value="{Binding GameVolume, Mode=TwoWay}"/>
+                        <TextBlock VerticalAlignment="Center" Margin="10,0,0,0" Width="38"
+                                   Text="{Binding GameVolume}"
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+                    </StackPanel>
 
                 </Grid>
 

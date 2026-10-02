@@ -22,6 +22,16 @@ public class LaunchOptions
     public string? GameDir { get; set; }
     /// <summary>是否以全屏启动（注入 --fullscreen 游戏参数）。</summary>
     public bool Fullscreen { get; set; }
+
+    /// <summary>
+    /// 进入游戏时的主音量（0–100）。null 表示不干预，沿用游戏自身 / options.txt 的设置。
+    /// </summary>
+    /// <remarks>
+    /// MC 原生支持 <c>--volume &lt;0-100&gt;</c> 启动参数，优先于 options.txt，
+    /// 因此「启动器里调一次、每次进游戏都生效」用它最直接（无需改写 options.txt，
+    /// 也就不会污染用户的存档设置）。
+    /// </remarks>
+    public int? MasterVolume { get; set; }
 }
 
 /// <summary>解析后的启动参数。</summary>

@@ -213,6 +213,16 @@ public static class GameLauncher
         if (options.Fullscreen)
             resolved.GameArgs.Add("--fullscreen");
 
+        // 进入游戏自动调音量（problem3）：MC 原生 --volume 参数，优先于 options.txt。
+        // 钳位到 0–100；null 表示不干预、沿用用户自己在游戏里调好的音量。
+        if (options.MasterVolume is int vol)
+        {
+            var v = Math.Clamp(vol, 0, 100);
+            resolved.GameArgs.Add("--volume");
+            resolved.GameArgs.Add(v.ToString());
+            LogLine(logger, gameRoot, $"按设置调整游戏主音量：{v}");
+        }
+
         // 解压原生库
         var natives = ClasspathBuilder.GetNativeEntries(gameRoot, merged, nativesDir);
         ClasspathBuilder.ExtractNatives(natives);

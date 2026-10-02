@@ -55,6 +55,11 @@ public class SettingsViewModel : ObservableObject
     private string _javaPath = "";
     private ObservableCollection<JavaChoice> _detectedJavas = new();
     private int _maxMemoryMb = 2048;
+
+    // 进入游戏自动调音量（problem3）：GameVolumeEnabled 关时不传 --volume，
+    // 保留 profile.GameMasterVolume 的原值（用户关掉开关 ≠ 想丢弃之前设的音量）。
+    private bool _gameVolumeEnabled;
+    private int _gameVolume = 80;
     private string _username = "Player";
     private string _extraJvmArgs = "";
     private string _selectedRepairPolicy = "Ask";
@@ -138,6 +143,12 @@ public class SettingsViewModel : ObservableObject
     /// <summary>本机可用 Java 下拉清单（已过 <see cref="JavaValidator"/> 交叉校验）。</summary>
     public ObservableCollection<JavaChoice> DetectedJavas { get => _detectedJavas; set => SetField(ref _detectedJavas, value); }
     public int MaxMemoryMb { get => _maxMemoryMb; set => SetField(ref _maxMemoryMb, value); }
+
+    /// <summary>是否在启动游戏时用启动参数设置主音量（problem3）。</summary>
+    public bool GameVolumeEnabled { get => _gameVolumeEnabled; set => SetField(ref _gameVolumeEnabled, value); }
+
+    /// <summary>进入游戏时设置的主音量（0-100），仅在 <see cref="GameVolumeEnabled"/> 打开时生效。</summary>
+    public int GameVolume { get => _gameVolume; set => SetField(ref _gameVolume, value); }
     public string Username { get => _username; set => SetField(ref _username, value); }
     public string ExtraJvmArgs { get => _extraJvmArgs; set => SetField(ref _extraJvmArgs, value); }
     public string SelectedRepairPolicy { get => _selectedRepairPolicy; set => SetField(ref _selectedRepairPolicy, value); }
@@ -676,6 +687,9 @@ public class SettingsViewModel : ObservableObject
         // 首次打开设置即把可用 Java 列进下拉：该操作较慢且失败无碍，故后台执行不阻塞界面
         _ = LoadValidatedJavasAsync();
         MaxMemoryMb = profile.MaxMemoryMb;
+        // 进入游戏音量（problem3）：null = 从未设置过 -> 开关默认关，不擅自改玩家音量
+        GameVolumeEnabled = profile.GameMasterVolume is int gv;
+        GameVolume = profile.GameMasterVolume ?? 80;
         Username = profile.DefaultUsername;
         ExtraJvmArgs = string.Join(" ", profile.ExtraJvmArgs);
         SelectedRepairPolicy = profile.RepairPolicy.ToString();
@@ -990,6 +1004,8 @@ public class SettingsViewModel : ObservableObject
         {
             JavaPath = string.IsNullOrWhiteSpace(JavaPath) ? null : JavaPath,
             MaxMemoryMb = MaxMemoryMb,
+            // 进入游戏音量（problem3）：开关关时写 null = 不干预，沿用游戏自身 / options.txt
+            GameMasterVolume = GameVolumeEnabled ? Math.Clamp(GameVolume, 0, 100) : null,
             DefaultUsername = Username,
             GameRoot = GameConstants.DefaultGameRoot,
             ExtraJvmArgs = string.IsNullOrWhiteSpace(ExtraJvmArgs)

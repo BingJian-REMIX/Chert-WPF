@@ -263,6 +263,17 @@ public class LauncherProfile
     [JsonPropertyName("musicVolume")]
     public int MusicVolume { get; set; } = 60;
 
+    /// <summary>
+    /// 进入游戏时自动设置的主音量（0-100）。
+    /// <see langword="null"/> 表示不干预 —— 沿用游戏自身 / options.txt 里的音量。
+    /// </summary>
+    /// <remarks>
+    /// 默认 <see langword="null"/> 而非某个数值：擅自改音量会让玩家「怎么变小/没声了」，
+    /// 属于不该默认开启的行为，需用户在「启动 → 游戏音量」里显式设定。
+    /// </remarks>
+    [JsonPropertyName("gameMasterVolume")]
+    public int? GameMasterVolume { get; set; }
+
     /// <summary>启动时自动断点续播（bug #10）：恢复上次停下的曲目与位置。</summary>
     [JsonPropertyName("musicResumeOnLaunch")]
     public bool MusicResumeOnLaunch { get; set; }
