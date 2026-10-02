@@ -288,8 +288,18 @@ public partial class MainWindow : Window
     {
         if (target == WindowState) { RefreshMaximizeIcon(); return; }
 
-        if (!AnimationsEnabled || !IsLoaded || _stateAnimating || WindowState == WindowState.Minimized)
+        if (!AnimationsEnabled || !IsLoaded || _stateAnimating)
         {
+            ApplyWindowState(target);
+            return;
+        }
+
+        // 从最小化还原：窗口此前不可见，几何仍停在被缩小的矩形，
+        // 这里先显式复位到还原矩形再落地——隐藏窗口做过渡不可见，只会增加复杂度与闪屏。
+        if (WindowState == WindowState.Minimized)
+        {
+            var rect = _restoreRect ?? RestoreBounds;
+            Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
             ApplyWindowState(target);
             return;
         }
@@ -359,7 +369,9 @@ public partial class MainWindow : Window
             // 最小化：窗口已不可见，把矩形复位回原尺寸 ——
             // 否则从任务栏还原时窗口会以「缩小后的 40%」尺寸回来。
             // 最大化：不动（系统接管矩形），还原时由 _restoreRect 显式写回。
-            var r = target == WindowState.Minimized ? origin : final;
+            // 最小化：保持动画终点的缩小矩形落地，避免「先弹回原尺寸再消失」的闪屏；
+            // 还原几何由 _restoreRect 在上面的最小化分支负责复位。
+            var r = final;
             Left = r.Left; Top = r.Top; Width = r.Width; Height = r.Height;
         }
         catch { /* 收尾失败不影响状态落地 */ }
@@ -390,8 +402,11 @@ public partial class MainWindow : Window
         return new Rect(from.Left + from.Width / 2 - w / 2, wa.Bottom - h, w, h);
     }
 
-    private void BtnMax_Click(object sender, RoutedEventArgs e) =>
+    private void BtnMax_Click(object sender, RoutedEventArgs e)
+    {
+        if (_stateAnimating) return;
         AnimateWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+    }
 
     private void RefreshMaximizeIcon()
     {
@@ -677,6 +692,9 @@ public partial class MainWindow : Window
         // 先恢复可见性和任务栏按钮，再解除最小化，避免 DWM 残留最小化状态。
         Visibility = Visibility.Visible;
         ShowInTaskbar = true;
+        // 托盘恢复时显式复位几何：最小化动画把窗口缩到了 40% 矩形，不复位会让窗口以缩小尺寸回来。
+        var rect = _restoreRect ?? RestoreBounds;
+        Left = rect.Left; Top = rect.Top; Width = rect.Width; Height = rect.Height;
         if (WindowState == WindowState.Minimized)
             WindowState = WindowState.Normal;
         Activate();
@@ -1983,7 +2001,8 @@ public partial class MainWindow : Window
         // 系统不会替我们处理双击，这里手动接上，并走同一套过渡）
         if (e.ClickCount == 2)
         {
-            AnimateWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
+            if (!_stateAnimating)
+                AnimateWindowState(WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized);
             return;
         }
 
@@ -2022,7 +2041,11 @@ public partial class MainWindow : Window
         DownloadQueuePopup.IsOpen = !DownloadQueuePopup.IsOpen;
     }
 
-    private void BtnMin_Click(object sender, RoutedEventArgs e) => AnimateWindowState(WindowState.Minimized);
+    private void BtnMin_Click(object sender, RoutedEventArgs e)
+    {
+        if (_stateAnimating) return;
+        AnimateWindowState(WindowState.Minimized);
+    }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
