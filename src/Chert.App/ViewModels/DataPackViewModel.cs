@@ -26,13 +26,13 @@ public class DataPackViewModel : ObservableObject
 {
     /// <summary>
     /// 规则库联网更新地址（拉不到就继续用内置规则，不影响使用）。经 jsDelivr 国内直连。
-    /// ★ 仓库名用 <c>Chert-WPF</c>（现名）：GitHub 的旧名重定向对 jsDelivr 的 <c>gh/</c> 路径
-    ///   **不生效**，实测 <c>MCLCS-WPF@main</c> 恒 404，会静默退回内置规则。
-    /// ★ 现状：该 JSON 尚未入库（用户决定先不放仓库），故此地址目前仍取不到内容，
-    ///   功能靠 <see cref="DataPackConflictDetector.BuiltinRules"/> 兜底，功能不受影响。
+    /// ★ 与自动更新的 <c>latest.json</c> **同源**：都托管在
+    ///   <c>remix-laser-raising-studio.github.io/chert-upgrade/</c>，一处维护。
+    ///   （旧配置里的 <c>MCLCS-upgrade</c> 是改名前的仓库名，实测 404。）
+    /// ★ 拉不到时静默回退 <see cref="DataPackConflictDetector.BuiltinRules"/>，功能不受影响。
     /// </summary>
     private const string RulesUpdateUrl =
-        "https://cdn.jsdelivr.net/gh/BingJian-REMIX/Chert-WPF@main/data/datapack-conflict-rules.json";
+        "https://remix-laser-raising-studio.github.io/chert-upgrade/datapack-conflict-rules.json";
 
     private ObservableCollection<SaveChoice> _saves = new();
     private ObservableCollection<DataPackInfo> _packs = new();
