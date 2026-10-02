@@ -205,16 +205,32 @@ public class MusicPlayerViewModel : ObservableObject
         if (seconds > 100 && DurationSec > 0) seconds = seconds / 100.0 * DurationSec;
         if (DurationSec > 0 && seconds <= 100) seconds = seconds / 100.0 * DurationSec;
 
+        // IsSeeking **不在拖动结束时复位**：拖动路径由 SeekInteraction 的
+        // dragStart / dragEnd 独占管理，且 dragEnd 是在 commit **之后**才解除保护
+        // （否则 500ms 的 RefreshProgress 会把拖柄拽回，表现为「进度条被播放进度扯回去」）。
+        // 命令行调用（键盘 / 按钮跳转）没有 dragEnd 兜底，故按「进入前是否已在拖动」决定复位。
+        var wasSeeking = _isSeeking;
+        _isSeeking = true;
         try
         {
-            _isSeeking = true;
-            ActiveHost?.Seek(seconds);
-            PositionSec = seconds;
+            SeekCore(seconds);
         }
         finally
         {
-            _isSeeking = false;
+            // 拖动中（wasSeeking == true）交给 dragEnd 收尾，这里不动。
+            if (!wasSeeking) _isSeeking = false;
         }
+    }
+
+    /// <summary>真正执行跳转（拖动保护的生命周期由调用方负责）。</summary>
+    private void SeekCore(double seconds)
+    {
+        try
+        {
+            ActiveHost?.Seek(seconds);
+            PositionSec = seconds;
+        }
+        catch { /* 播放后端未就绪时忽略 */ }
     }
 
     /// <summary>开始/停止进度刷新（与播放状态同步）。</summary>

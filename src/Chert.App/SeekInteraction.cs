@@ -67,8 +67,12 @@ public static class SeekInteraction
             if (!dragging) return;
             dragging = false;
             if (slider.IsMouseCaptured) slider.ReleaseMouseCapture();
-            dragEnd?.Invoke();
+            // 顺序要紧：**先 commit 再 dragEnd**。
+            // dragEnd 会把 IsSeeking 置 false（解除拖动保护）；若先调它，
+            // 500ms 的 RefreshProgress 会在 commit 生效前把拖柄拽回实际播放位置，
+            // 表现为「进度条被播放进度扯回去」的回归。
             commit(slider.Value);
+            dragEnd?.Invoke();
         }
 
         slider.PreviewMouseLeftButtonDown += (_, e) =>

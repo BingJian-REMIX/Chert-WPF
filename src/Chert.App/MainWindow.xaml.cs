@@ -342,6 +342,11 @@ public partial class MainWindow : Window
         }
 
         _stateAnimating = true;
+        // 过渡期间临时铺一层不透明底色：窗口几何被逐帧拉大时，WPF 内容要等重新布局
+        // 才铺满新尺寸，中间那一帧会露出未初始化的白底（表现为「最大化/还原时背景闪白」）。
+        var restoreBg = _stateAnimBgBackup;
+        _stateAnimBgBackup = true;
+        ApplySolidStateAnimBackground();
         try
         {
             // 最大化时系统接管窗口矩形，要动几何必须先切回 Normal
@@ -368,9 +373,39 @@ public partial class MainWindow : Window
         {
             // 任何意外都直接落到目标状态，绝不把窗口卡在半路
             _stateAnimating = false;
+            RestoreBackgroundAfterStateAnim(restoreBg);
             ApplyWindowState(target);
         }
     }
+
+    /// <summary>过渡期间把窗口底色临时改成不透明（盖住拉伸过程中的白底）。</summary>
+    private void ApplySolidStateAnimBackground()
+    {
+        try
+        {
+            if (TryFindResource("WindowBackground") is SolidColorBrush bg)
+                Background = new SolidColorBrush(Color.FromArgb(0xFF, bg.Color.R, bg.Color.G, bg.Color.B));
+            else
+                Background = new SolidColorBrush(Color.FromArgb(0xFF, 0x1A, 0x1D, 0x24));
+        }
+        catch { /* 取不到资源就保持原样 */ }
+    }
+
+    /// <summary>过渡结束后恢复底色（回到 DynamicResource 或用户自定义背景图）。</summary>
+    private void RestoreBackgroundAfterStateAnim(bool wasSet)
+    {
+        try
+        {
+            _stateAnimBgBackup = false;
+            if (!wasSet) return;
+            // 恢复成资源引用；用户设过背景图时由 ReapplyCustomWindowBackground 复原
+            SetResourceReference(BackgroundProperty, "WindowBackground");
+            App.ReapplyCustomWindowBackground();
+        }
+        catch { /* 恢复失败保持当前底色 */ }
+    }
+
+    private bool _stateAnimBgBackup;
 
     private static DoubleAnimation StateAnim(double from, double to, TimeSpan dur) =>
         new(from, to, dur) { EasingFunction = UiEaseOut, FillBehavior = FillBehavior.Stop };
@@ -394,6 +429,7 @@ public partial class MainWindow : Window
         }
         catch { /* 收尾失败不影响状态落地 */ }
         _stateAnimating = false;
+        RestoreBackgroundAfterStateAnim(_stateAnimBgBackup);
         ApplyWindowState(target);
     }
 
