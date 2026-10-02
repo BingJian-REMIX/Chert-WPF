@@ -133,7 +133,7 @@ public class AiAssistViewModel : ObservableObject
 
         // 设计稿问候语（首条助手气泡）
         Messages.Add(new ChatMessage("assistant",
-            "你好！我是 MCLCS AI 助手。可直接输入问题，支持崩溃分析、Mod 推荐、翻译等。"));
+            "你好！我是燧石 AI 助手。可直接输入问题，支持崩溃分析、Mod 推荐、翻译等。"));
         Messages.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ShowWelcome));
 
         ResolveBrand();                  // 同步推断品牌：设置首字/底色徽章

@@ -4,7 +4,7 @@ namespace Chert.App.ViewModels;
 
 public class MainViewModel : ObservableObject
 {
-    private string _title = "MCLCS — Minecraft 启动器";
+    private string _title = "燧石启动器";
     private int _selectedTabIndex;
 
     public string Title

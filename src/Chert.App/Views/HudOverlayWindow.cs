@@ -42,7 +42,7 @@ public class HudOverlayWindow : Window
     {
         _config = ProfileStore.Load(GameConstants.DefaultGameRoot).Hud;
 
-        Title = "MCLCS HUD";
+        Title = "燧石 HUD";
         WindowStyle = WindowStyle.None;
         AllowsTransparency = true;
         // 清单 #54：窗口随内容自适应（此前固定 240×180：字段多选会被裁切、少选则留大片空白）

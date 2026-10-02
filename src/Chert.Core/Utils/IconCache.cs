@@ -20,7 +20,7 @@ namespace Chert.Core.Utils;
 /// </summary>
 public static class IconCache
 {
-    /// <summary>外联图标缓存根目录（%LocalAppData%/MCLCS/cache/icons）。</summary>
+    /// <summary>外联图标缓存根目录（%LocalAppData%/Chert/cache/icons）。</summary>
     public static string CacheRoot { get; } =
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),

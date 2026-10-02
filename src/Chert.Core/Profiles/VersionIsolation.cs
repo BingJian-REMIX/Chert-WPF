@@ -50,8 +50,8 @@ public static class VersionIsolation
         if (!File.Exists(marker))
         {
             var content = string.IsNullOrWhiteSpace(note)
-                ? $"MCLCS 版本隔离\n创建于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n"
-                : $"MCLCS 版本隔离\n创建于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n来源：{note}\n";
+                ? $"燧石版本隔离\n创建于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n"
+                : $"燧石版本隔离\n创建于 {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n来源：{note}\n";
             File.WriteAllText(marker, content);
         }
         return dir;

@@ -91,7 +91,7 @@ public static class ResourcePackRepairer
             var options = Path.Combine(gameRoot, "options.txt");
             if (File.Exists(options))
             {
-                var bak = options + ".mclcs-bak";
+                var bak = options + ".chert-bak";
                 if (!File.Exists(bak)) File.Copy(options, bak, overwrite: true);
 
                 var lines = File.ReadAllLines(options).ToList();
@@ -101,7 +101,7 @@ public static class ResourcePackRepairer
                 else
                     lines.Add("resourcePacks:[\"vanilla\"]");
                 File.WriteAllLines(options, lines);
-                result.Actions.Add("options.txt 资源包已重置为 vanilla（原文件备份为 options.txt.mclcs-bak）。");
+                result.Actions.Add("options.txt 资源包已重置为 vanilla（原文件备份为 options.txt.chert-bak）。");
             }
             else
             {

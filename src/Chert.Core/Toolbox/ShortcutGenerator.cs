@@ -37,7 +37,7 @@ public static class ShortcutGenerator
         try
         {
             Directory.CreateDirectory(desktopDir);
-            var name = string.IsNullOrWhiteSpace(displayName) ? $"MCLCS - {versionId}" : displayName;
+            var name = string.IsNullOrWhiteSpace(displayName) ? $"燧石 - {versionId}" : displayName;
             var target = LauncherExe();
             var args = TargetArguments(versionId);
 
