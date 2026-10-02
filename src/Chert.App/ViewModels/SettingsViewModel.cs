@@ -712,6 +712,12 @@ public class SettingsViewModel : ObservableObject
         // 清单 #11：触屏模式
         _touch = profile.Touch ?? TouchControlConfig.CreateDefault();
         _touchEnabled = _touch.Enabled;
+        // 「跟随游戏窗口」三项直接读 _touch，加载后要通知，否则 UI 上开关/单选/间距
+        // 停留在绑定前的默认值（看似「设置没生效」）。
+        OnPropertyChanged(nameof(TouchFollowGameWindow));
+        OnPropertyChanged(nameof(TouchFollowLeftSide));
+        OnPropertyChanged(nameof(TouchFollowRightSide));
+        OnPropertyChanged(nameof(TouchFollowMargin));
         OnPropertyChanged(nameof(TouchModeEnabled));
         OnPropertyChanged(nameof(TouchButtonCount));
         DefaultVersionIsolation = profile.DefaultVersionIsolation;
@@ -879,6 +885,64 @@ public class SettingsViewModel : ObservableObject
     /// <summary>当前布局中的虚拟按键数量（展示用）。</summary>
     public int TouchButtonCount => _touch.Buttons.Count;
 
+    // ★ 以下三项为「跟随游戏窗口」配置（problem3）。关闭时面板维持既有行为：
+    //   固定尺寸 + 自由拖动 + 记忆坐标；开启后自动贴游戏窗口左/右边缘并实时跟随。
+    //   每次改动都即时 ApplyConfig，热更新到已打开的面板（与 TouchModeEnabled 同款）。
+
+    /// <summary>是否让触屏面板跟随游戏窗口（自动贴左/右边缘）。</summary>
+    public bool TouchFollowGameWindow
+    {
+        get => _touch.FollowGameWindow;
+        set
+        {
+            if (_touch.FollowGameWindow == value) return;
+            _touch.FollowGameWindow = value;
+            OnPropertyChanged();
+            ApplyTouchConfig();
+        }
+    }
+
+    /// <summary>跟随时贴合左侧（true）/ 右侧（false）。</summary>
+    public bool TouchFollowLeftSide
+    {
+        get => _touch.FollowGameWindowLeftSide;
+        set
+        {
+            if (_touch.FollowGameWindowLeftSide == value) return;
+            _touch.FollowGameWindowLeftSide = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TouchFollowRightSide));   // 两个 RadioButton 互斥
+            ApplyTouchConfig();
+        }
+    }
+
+    /// <summary>跟随时贴合右侧（= !<see cref="TouchFollowLeftSide"/>）。</summary>
+    public bool TouchFollowRightSide
+    {
+        get => !_touch.FollowGameWindowLeftSide;
+        set { if (value) TouchFollowLeftSide = false; }
+    }
+
+    /// <summary>跟同时与游戏窗口边缘的水平间距（像素），钳位 0-200。</summary>
+    public int TouchFollowMargin
+    {
+        get => _touch.FollowGameWindowMargin;
+        set
+        {
+            var v = Math.Clamp(value, 0, 200);
+            if (_touch.FollowGameWindowMargin == v) return;
+            _touch.FollowGameWindowMargin = v;
+            OnPropertyChanged();
+            ApplyTouchConfig();
+        }
+    }
+
+    /// <summary>把当前触屏配置热更新到已打开的面板并落盘（非关键，失败静默）。</summary>
+    private void ApplyTouchConfig()
+    {
+        try { Chert.App.Views.TouchOverlayWindow.ApplyConfig(_touch); } catch { }
+    }
+
     /// <summary>打开触屏按键布局编辑器。</summary>
     public ICommand EditTouchLayoutCommand { get; }
     /// <summary>恢复触屏按键默认布局。</summary>
@@ -901,6 +965,10 @@ public class SettingsViewModel : ObservableObject
                 _touchEnabled = cfg.Enabled;
                 OnPropertyChanged(nameof(TouchModeEnabled));
                 OnPropertyChanged(nameof(TouchButtonCount));
+                OnPropertyChanged(nameof(TouchFollowGameWindow));
+                OnPropertyChanged(nameof(TouchFollowLeftSide));
+                OnPropertyChanged(nameof(TouchFollowRightSide));
+                OnPropertyChanged(nameof(TouchFollowMargin));
             }
         }
         catch { /* 非关键 */ }

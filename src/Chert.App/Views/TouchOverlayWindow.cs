@@ -1,10 +1,12 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Chert.App.Services;
 using Chert.Core.Input;
 using Chert.Core.Profiles;
@@ -23,6 +25,10 @@ public class TouchOverlayWindow : Window
     private TouchControlConfig _config = TouchControlConfig.CreateDefault();
     private Process? _gameProcess;
     private IntPtr _gameHwnd;
+    // 跟随游戏窗口（problem3）：低频轮询游戏窗口矩形，变化时把面板贴到左/右边缘。
+    // 用 DispatcherTimer 而非 WinEventHook —— 钩子要装在游戏进程上，进程重启就得重装，
+    // 而面板本身就是随游戏显示/关闭的一次性窗口，轮询足够且实现简单可靠。
+    private readonly DispatcherTimer _followTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool _dragging;
     private bool _dragMoved;
     private Point _dragStart;
@@ -116,12 +122,72 @@ public class TouchOverlayWindow : Window
     }
 
     // 注意：Window 基类已有 KeyDown / KeyUp 事件，这里必须换名，否则成员重名编译报错
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT
+    {
+        public int Left, Top, Right, Bottom;
+        public int Width => Right - Left;
+        public int Height => Bottom - Top;
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool IsWindowVisible(IntPtr hWnd);
+
+    /// <summary>
+    /// 跟随一次游戏窗口：把面板贴到游戏窗口左/右边缘并纵向居中。
+    /// 读不到窗口（句柄未就绪 / 已最小化 / 已销毁）时静默跳过 —— 位置留上一次的值，
+    /// 下一轮会再试。
+    /// </summary>
+    private void FollowGameWindowOnce()
+    {
+        if (!_config.FollowGameWindow) return;
+        if (_gameHwnd == IntPtr.Zero) return;
+        if (!IsWindowVisible(_gameHwnd)) return;
+        if (!GetWindowRect(_gameHwnd, out var r)) return;
+        if (r.Width <= 0 || r.Height <= 0) return;
+
+        var margin = Math.Max(0, _config.FollowGameWindowMargin);
+        var x = _config.FollowGameWindowLeftSide
+            ? r.Left + margin
+            : r.Right - Width - margin;
+        var y = r.Top + (r.Height - Height) / 2;
+
+        // 位置没变就不写属性，避免无谓的布局与重绘（否则面板会持续闪烁）
+        if (Math.Abs(Left - x) < 1 && Math.Abs(Top - y) < 1) return;
+        Left = x;
+        Top = y;
+    }
+
+    private void StartFollowing()
+    {
+        if (!_config.FollowGameWindow) return;
+        _followTimer.Tick -= OnFollowTick;
+        _followTimer.Tick += OnFollowTick;
+        if (!_followTimer.IsEnabled) _followTimer.Start();
+        FollowGameWindowOnce();   // 先立刻贴一次，避免显示在默认位置再跳过去
+    }
+
+    private void StopFollowing()
+    {
+        _followTimer.Tick -= OnFollowTick;
+        if (_followTimer.IsEnabled) _followTimer.Stop();
+    }
+
+    private void OnFollowTick(object? sender, EventArgs e) => FollowGameWindowOnce();
+
     private void PressKey(int vk) => GameKeySender.KeyDown(_gameHwnd, vk);
 
     private void ReleaseKey(int vk) => GameKeySender.KeyUp(_gameHwnd, vk);
 
     private void LoadPosition()
     {
+        // 跟随模式：位置由 FollowGameWindow 实时决定，不读也不写记忆坐标
+        // （两者同时生效会互相打架 —— 用户拖动面板后下一帧就被拉回边缘）。
+        if (_config.FollowGameWindow) return;
+
         if (_config.Left >= 0 && _config.Top >= 0)
         {
             Left = _config.Left;
@@ -135,6 +201,8 @@ public class TouchOverlayWindow : Window
 
     private void SavePosition()
     {
+        // 跟随模式下位置是算出来的，持久化没意义（下次跟随会覆盖），反而留下脏数据
+        if (_config.FollowGameWindow) return;
         try
         {
             _config.Left = (int)Left;
@@ -160,6 +228,9 @@ public class TouchOverlayWindow : Window
         _ = Task.Run(() =>
         {
             _gameHwnd = GameKeySender.FindGameWindow(process);
+            // 句柄就绪后才开始跟随：首轮 GetWindowRect 拿不到窗口会静默跳过，
+            // 但为省一次无效轮询，等句柄有了再启定时器。
+            Dispatcher.BeginInvoke(new Action(StartFollowing));
         });
         Show();
     }
@@ -195,6 +266,10 @@ public class TouchOverlayWindow : Window
                 Grid.SetRow(inst._canvas, 1);
                 if (inst.Content is Grid g && g.Children.Count > 1) g.Children[1] = inst._canvas;
                 inst.LoadPosition();
+                // 跟随开关可能刚被切换：关 -> 停表（位置交还用户拖动），
+                // 开 -> 启表并立刻贴一次边（否则要等下一个轮询周期才生效）。
+                if (cfg.FollowGameWindow) inst.StartFollowing();
+                else inst.StopFollowing();
                 if (inst._gameProcess is not null && !inst.IsVisible) inst.Show();
             });
         }
@@ -225,6 +300,8 @@ public class TouchOverlayWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
+        // 停掉跟随定时器：否则它会继续 Tick 一个已关闭的窗口（泄漏 + 无谓空转）
+        StopFollowing();
         if (ReferenceEquals(Instance, this)) Instance = null;
     }
 }

@@ -603,6 +603,36 @@
                                 </StackPanel>
                                 <TextBlock Text="{theme:Loc settings.touch_tip}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
                                            Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                <!-- 跟随游戏窗口（problem3）：开启后面板自动贴游戏窗口左/右边缘，
+                                     未开启则维持「固定尺寸 + 自由拖动」。 -->
+                                <WrapPanel Margin="0,8,0,0">
+                                    <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+                                                  IsChecked="{Binding TouchFollowGameWindow, Mode=TwoWay}"
+                                                  VerticalAlignment="Center"/>
+                                    <TextBlock Text="跟随游戏窗口大小" VerticalAlignment="Center" Margin="8,0,0,0"
+                                               Foreground="{DynamicResource PrimaryForeground}"
+                                               ToolTip="面板自动贴合游戏窗口的左/右边缘，并随窗口移动与缩放实时跟随"/>
+                                </WrapPanel>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0"
+                                            Visibility="{Binding TouchFollowGameWindow, Converter={x:Static vm:VisibilityHelper.BoolToVis}, FallbackValue=Collapsed}">
+                                    <TextBlock Text="分布侧" VerticalAlignment="Center" Width="90"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                    <RadioButton Content="左侧" Width="70" VerticalAlignment="Center"
+                                                 IsChecked="{Binding TouchFollowLeftSide, Mode=TwoWay}"/>
+                                    <RadioButton Content="右侧" Width="70" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                 IsChecked="{Binding TouchFollowRightSide, Mode=TwoWay}"/>
+                                    <TextBlock Text="间距" VerticalAlignment="Center" Margin="18,0,6,0"
+                                               Foreground="{DynamicResource PrimaryForeground}"/>
+                                    <TextBox Text="{Binding TouchFollowMargin, UpdateSourceTrigger=PropertyChanged}" Width="52"
+                                             VerticalContentAlignment="Center"
+                                             Background="{DynamicResource InputBackground}"
+                                             Foreground="{DynamicResource InputForeground}"
+                                             BorderBrush="{DynamicResource InputBorder}"/>
+                                    <TextBlock Text="px" VerticalAlignment="Center" Margin="6,0,0,0"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>

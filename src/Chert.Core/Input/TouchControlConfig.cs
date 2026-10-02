@@ -73,6 +73,20 @@ public sealed class TouchControlConfig
     /// <summary>面板左上角屏幕坐标；小于 0 表示用默认位置（屏幕底部居中）。</summary>
     public int Top { get; set; } = -1;
 
+    /// <summary>
+    /// 是否让面板**跟随游戏窗口**（problem3）。
+    /// 关闭时沿用既有行为：固定尺寸 + 自由拖动 + 记忆 <see cref="Left"/>/<see cref="Top"/>。
+    /// 开启后面板自动贴合游戏窗口的左/右边缘，并随游戏窗口移动、缩放、切换最大化实时跟随；
+    /// 此时 <see cref="Left"/>/<see cref="Top"/> 不再持久化（由跟随逻辑接管，避免互相打架）。
+    /// </summary>
+    public bool FollowGameWindow { get; set; }
+
+    /// <summary>跟随时贴合游戏窗口的哪一侧（true = 左侧，false = 右侧）。</summary>
+    public bool FollowGameWindowLeftSide { get; set; } = true;
+
+    /// <summary>跟随时与游戏窗口边缘的水平间距（像素），避免面板压住窗口边框。</summary>
+    public int FollowGameWindowMargin { get; set; } = 8;
+
     /// <summary>虚拟按键列表。</summary>
     public List<TouchButtonConfig> Buttons { get; set; } = new();
 
