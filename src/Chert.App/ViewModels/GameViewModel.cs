@@ -166,6 +166,29 @@ public class GameViewModel : ObservableObject
         LanServers.CollectionChanged += (_, _) => LanEmpty = LanServers.Count == 0;
         Servers.CollectionChanged += (_, _) => ServersEmpty = Servers.Count == 0;
         Recommendations.CollectionChanged += (_, _) => RecommendEmpty = Recommendations.Count == 0;
+
+        // problem3：启动时自动刷新推荐。此前只在用户手点「刷新推荐」时才加载，
+        // 首次进入游戏页推荐区恒为空（截图里「暂无推荐」）。这里后台预热 ——
+        // RecommendationEngine 内部有 1 小时 TTL 缓存（HotRanking.CacheTtl），
+        // 命中缓存时几乎零开销；未命中才真联网，失败会静默回退本地规则。
+        // 用 fire-and-forget：不能阻塞构造（否则游戏页首屏卡住）。
+        _ = WarmupRecommendationsAsync();
+    }
+
+    /// <summary>
+    /// 启动时后台预热推荐列表。吞掉所有异常 —— 推荐是「锦上添花」，
+    /// 绝不能因它拖慢或破坏启动。
+    /// </summary>
+    private async Task WarmupRecommendationsAsync()
+    {
+        try
+        {
+            await RefreshRecommendAsync();
+        }
+        catch
+        {
+            // 网络 / 解析失败已在 RefreshRecommendAsync 内兜底，这里再兜一层
+        }
     }
 
     private string SelectedVersionId =>
@@ -304,17 +327,33 @@ public class GameViewModel : ObservableObject
 
     private async Task RefreshRecommendAsync()
     {
-        Recommendations.Clear();
+        // ★ 该方法既可能被命令（UI 线程）调用，也可能被启动预热（后台线程）调用，
+        //   集合写入必须统一切回 UI 线程，否则跨线程访问 ObservableCollection 会抛。
+        var app = Application.Current;
+        void ApplyAll(List<RecommendationItem>? items)
+        {
+            void Core()
+            {
+                Recommendations.Clear();
+                if (items is null) return;
+                foreach (var it in items.Take(8))
+                    Recommendations.Add(it);
+            }
+            if (app is null || app.Dispatcher.CheckAccess()) Core();
+            else app.Dispatcher.Invoke(Core);
+        }
+
+        ApplyAll(null);   // 立即清空，进入加载态
         try
         {
             using var client = new HttpClient();
             var items = await RecommendationEngine.BuildAsync(_gameRoot, _profile, client, null);
-            foreach (var it in items.Take(8))
-                Recommendations.Add(it);
+            ApplyAll(items);
         }
         catch
         {
             // 联网失败时用本地规则，引擎内部已处理；此处兜底为空
+            ApplyAll(null);
         }
     }
 

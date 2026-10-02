@@ -187,6 +187,13 @@ public partial class App : Application
                 proc.Exited += (_, _) => Chert.App.Services.GameProcessRegistry.ClearIfSame(proc);
             }
             catch { /* 进程已退出 */ }
+
+            // problem3：启动游戏时用 Toast 提示。
+            //   挂在这个事件上可覆盖**全部**启动入口（首页快速启动 / 版本列表 /
+            //   游戏详情 / 服务器加入 / 崩溃恢复），不必在每个入口各写一遍。
+            //   事件由后台线程触发，ToastService 内部已处理跨线程调度。
+            try { NotifyGameStarted(proc); }
+            catch { /* 提示属非关键，失败不影响游戏运行 */ }
         };
         Chert.Core.Launcher.GameLauncher.GameOutputLine += Chert.App.Views.HudOverlayWindow.FeedGameLogLine;
 
@@ -221,6 +228,27 @@ public partial class App : Application
         // 网络 / 解析 / 加载任一失败均静默回退默认外观，绝不阻塞启动。
         Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
         _ = Chert.App.Themes.SeasonalThemeManager.InitializeAsync(GameConstants.DefaultGameRoot);
+    }
+
+    /// <summary>
+    /// 启动游戏后的 Toast 提示（problem3）。
+    /// 多开时额外报当前运行实例数，让用户知道已经开了几个。
+    /// </summary>
+    private static void NotifyGameStarted(System.Diagnostics.Process proc)
+    {
+        int pid = -1;
+        try { pid = proc.Id; } catch { /* 进程可能已退出 */ }
+
+        // 含跨进程扫描：算上「启动器重启前就在跑」的实例
+        var running = Chert.Core.MultiInstance.InstanceTracker
+            .ActiveCountIncludingExternal(Chert.Core.Utils.GameConstants.DefaultGameRoot);
+
+        var text = running > 1
+            ? $"游戏已启动（进程 {pid}）· 当前运行 {running} 个实例"
+            : $"游戏已启动（进程 {pid}）";
+
+        Chert.App.Services.ToastService.Show("启动游戏", text,
+            Chert.App.Services.ToastKind.Success);
     }
 
     /// <summary>
