@@ -410,24 +410,32 @@
 
                                 <ContentControl.ContextMenu>
 
-                                    <!-- ContextMenu 挂在独立的 Popup 视觉树里，不在 ItemsControl 的
-                                         视觉树中，因此 RelativeSource AncestorType=ItemsControl
-                                         找不到祖先、Command 恒为 null（表现为编辑/删除永远点不动）。
-                                         显式把 DataContext 指向 PlacementTarget（卡片自身）即可。 -->
+                                    <!-- ContextMenu 挂在独立的 Popup 视觉树里，**不在** ItemsControl 的
+                                         视觉树中，所以不能直接用 `{Binding EditServerCommand}`
+                                         （DataContext 是 ServerEntry，命令挂在 GameViewModel 上）。
+                                         ★ 命令与参数来自**两个不同对象**，必须分别取：
+                                             · 命令 → ItemsControl 的 DataContext（= GameViewModel）
+                                                       用 RelativeSource AncestorType 走**逻辑树**，
+                                                       能穿透 Popup 找到 ItemsControl；
+                                             · 参数 → PlacementTarget.DataContext（= 当前这条 ServerEntry） -->
 
-                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
+                                    <ContextMenu>
 
                                         <MenuItem Header="{theme:Loc game.edit}"
 
-                                                  Command="{Binding EditServerCommand}"
+                                                  Command="{Binding DataContext.EditServerCommand,
 
-                                                  CommandParameter="{Binding}"/>
+                                                            RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
 
                                         <MenuItem Header="{theme:Loc btn.delete}"
 
-                                                  Command="{Binding DeleteServerCommand}"
+                                                  Command="{Binding DataContext.DeleteServerCommand,
 
-                                                  CommandParameter="{Binding}"/>
+                                                            RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+
+                                                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"/>
 
                                     </ContextMenu>
 

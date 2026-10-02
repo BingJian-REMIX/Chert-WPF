@@ -490,8 +490,9 @@ public class GameViewModel : ObservableObject
                 Title = name is null ? "添加服务器" : "编辑服务器",
                 Content = view,
                 WindowStyle = WindowStyle.None,
-                AllowsTransparency = true,
-                Background = null,
+                // 不设 AllowsTransparency：ModalCardStyle 的 DropShadowEffect 在透明窗口里
+                // 会被渲染成方形硬边（圆角外一圈黑直角）。遮罩本身由 ModalOverlayStyle
+                // 的不透明底承担，无需透明窗口。
                 SizeToContent = SizeToContent.WidthAndHeight,
                 Owner = Application.Current.MainWindow,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,
