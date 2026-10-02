@@ -490,9 +490,13 @@ public class GameViewModel : ObservableObject
                 Title = name is null ? "添加服务器" : "编辑服务器",
                 Content = view,
                 WindowStyle = WindowStyle.None,
-                // 不设 AllowsTransparency：ModalCardStyle 的 DropShadowEffect 在透明窗口里
-                // 会被渲染成方形硬边（圆角外一圈黑直角）。遮罩本身由 ModalOverlayStyle
-                // 的不透明底承担，无需透明窗口。
+                // ★ 恢复 AllowsTransparency + 透明背景：圆角裁剪**只能**在透明窗口里做。
+                //   不透明窗口的窗体区域是矩形，ModalOverlayStyle 的半透明黑遮罩
+                //   （ModalScrimBrush #80000000）铺满整个矩形 → 卡片圆角外就露出黑边
+                //   （用户实机截图里左上角那截黑直角就是这么来的）。
+                //   配合 AddServerView 里「遮罩只覆盖卡片区」的圆角容器即可消除。
+                AllowsTransparency = true,
+                Background = System.Windows.Media.Brushes.Transparent,
                 SizeToContent = SizeToContent.WidthAndHeight,
                 Owner = Application.Current.MainWindow,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner,

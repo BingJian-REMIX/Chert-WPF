@@ -5,14 +5,18 @@
              xmlns:theme="clr-namespace:Chert.App.Themes">
     <!-- 复用全局模态弹窗样式（ModalOverlayStyle 半透明遮罩 + ModalCardStyle 卡片），
          与 UpdateDialog 视觉一致（bug：此前为裸 StackPanel，暗色下呈黑块）。 -->
-    <Grid Style="{StaticResource ModalOverlayStyle}">
-        <!-- Effect 显式置空：ModalCardStyle 自带 DropShadowEffect，而本弹窗外层已有
-             ModalOverlayStyle 的半透明遮罩，两者叠加会在窗口左/上边缘残留黑色直角
-             （阴影被窗口边界裁掉一半 —— 用户实机截图里卡片左上角那截黑边）。
-             置空后圆角由 Border 正常裁剪，观感与 UpdateDialog 等弹窗一致。 -->
-        <Border Style="{StaticResource ModalCardStyle}" MaxWidth="440"
-                HorizontalAlignment="Center" VerticalAlignment="Center"
-                Effect="{x:Null}">
+    <!-- ★ 圆角裁剪只能在 AllowsTransparency 窗口里做，遮罩**不能**铺满整个矩形窗口：
+         ModalScrimBrush（#80000000 半透明黑）铺满矩形时，卡片圆角外就露出黑色直角
+         （用户实机截图左上角那截黑边）。改法：外层 Grid 背景透明（全屏遮罩由 GameView
+         页面本身承担），遮罩只作为**卡片背后**一层同样圆角的容器 —— 圆角外无任何绘制。
+         Effect 置空：DropShadowEffect 在透明窗口里会渲染成方形硬边。 -->
+    <Grid Background="Transparent">
+        <Border Background="{StaticResource ModalScrimBrush}" CornerRadius="14"
+                Padding="1" Margin="-1"
+                HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Style="{StaticResource ModalCardStyle}" MaxWidth="440"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Effect="{x:Null}">
             <!-- DataContext 由 code-behind 注入（含已有名称/地址的编辑场景），此处不再在 XAML 内实例化，
                  否则会要求 AddServerViewModel 提供无参构造函数（bug #11）。 -->
             <StackPanel Margin="16">
@@ -37,6 +41,7 @@
                             Style="{StaticResource PrimaryButtonStyle}"/>
                 </StackPanel>
             </StackPanel>
+            </Border>
         </Border>
     </Grid>
 </UserControl>

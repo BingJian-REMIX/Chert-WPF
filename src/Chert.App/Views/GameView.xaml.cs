@@ -37,19 +37,31 @@ public partial class GameView : UserControl
 
         var vm = DataContext as GameViewModel;
         var entry = (menu.PlacementTarget as FrameworkElement)?.DataContext as ServerEntry;
+
+        // ==== 临时诊断（定位后删除）====
+        var dbg = $"vm={vm?.GetType().Name ?? "NULL"} " +
+                  $"target={menu.PlacementTarget?.GetType().Name ?? "NULL"} " +
+                  $"entry={(entry?.Name ?? "NULL")} items={menu.Items.Count}";
+        foreach (var mi in menu.Items.OfType<MenuItem>())
+            dbg += $" | tag={mi.Tag ?? "null"}({mi.Tag?.GetType().Name}) cmd={mi.Command?.GetType().Name ?? "null"}";
+        Chert.App.Services.ToastService.Show("菜单诊断", dbg);
+        // ==== 诊断结束 ====
+
         if (vm is null || entry is null) return;
 
         // ★ 菜单项的 x:Name 定义在 DataTemplate 内 —— 那属于**局部名字作用域**（每张卡片一份），
         //   code-behind 里直接写 ServerEditItem 编译不过（CS0103）。
         //   改为遍历 ContextMenu 的逻辑树找 MenuItem（它们是菜单的直接逻辑子节点）。
+        // ★★ Equals（值比较）而非 ReferenceEquals（引用比较）：XAML 里 Tag="edit" 的字符串
+        //   由转换器新建，与代码字面量并非同一实例，引用比较恒为 false → 命令挂不上。
         foreach (var item in menu.Items.OfType<MenuItem>())
         {
-            if (ReferenceEquals(item.Tag, "edit"))
+            if (Equals(item.Tag, "edit"))
             {
                 item.Command = vm.EditServerCommand;
                 item.CommandParameter = entry;
             }
-            else if (ReferenceEquals(item.Tag, "delete"))
+            else if (Equals(item.Tag, "delete"))
             {
                 item.Command = vm.DeleteServerCommand;
                 item.CommandParameter = entry;
