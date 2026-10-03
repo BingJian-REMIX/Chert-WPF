@@ -264,6 +264,13 @@ public class LauncherProfile
     public int MusicVolume { get; set; } = 60;
 
     /// <summary>
+    /// 本地客户端模式设置（总开关 / 宽限期 / 歌词固定方式 / 客户端模式歌词开关）。
+    /// 读出时由 <see cref="ProfileStore.Load"/> 调 <see cref="MusicClientPrefs.Normalized"/> 容错。
+    /// </summary>
+    [JsonPropertyName("musicClient")]
+    public MusicClientPrefs MusicClient { get; set; } = new();
+
+    /// <summary>
     /// 进入游戏时**降低**音量的幅度（0-100，单位 %）。
     /// <see langword="null"/> 表示不调整，沿用玩家自己在游戏里设的音量。
     /// </summary>
