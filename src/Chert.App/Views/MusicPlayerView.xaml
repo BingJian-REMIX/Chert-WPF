@@ -15,6 +15,8 @@
 
         <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVisibility"/>
 
+        <conv:NonEmptyToVisibilityConverter x:Key="NonEmptyToVis"/>
+
     </UserControl.Resources>
 
     <Grid Margin="14">
@@ -47,7 +49,15 @@
 
             <Button Content="{theme:Loc music.m184}" Command="{Binding SetSourceCommand}" CommandParameter="McOst"
 
-                    Padding="10,4"/>
+                    Padding="10,4" Margin="0,0,6,0"/>
+
+            <!-- 本地客户端模式（规格 6.1）：总开关关闭时整个入口隐藏 -->
+
+            <Button Content="{theme:Loc music.client_mode}" Command="{Binding SetSourceCommand}" CommandParameter="Client"
+
+                    Padding="10,4"
+
+                    Visibility="{Binding ClientModeAvailable, Converter={StaticResource BoolToVisibility}}"/>
 
         </StackPanel>
 
@@ -57,7 +67,9 @@
 
         <Border Grid.Row="1" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource ControlBorder}"
 
-                BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10"
+
+                Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
             <StackPanel>
 
@@ -167,7 +179,9 @@
 
         <!-- 音源专属操作 -->
 
-        <StackPanel Grid.Row="2" Margin="0,0,0,8">
+        <StackPanel Grid.Row="2" Margin="0,0,0,8"
+
+                    Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
             <!-- 本地 -->
 
@@ -201,7 +215,7 @@
 
         <!-- 列表 -->
 
-        <Grid Grid.Row="3">
+        <Grid Grid.Row="3" Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
             <Grid.RowDefinitions>
 
@@ -385,6 +399,115 @@
                 </ItemsControl>
 
             </ScrollViewer>
+
+        </Grid>
+
+        <!-- 本地客户端模式整页（规格 6.1：空白页 + 状态说明卡片 + 客户端选择/启动 + 歌词叠加层）
+             用 Grid.RowSpan="3" 覆盖上面三行，故这三行在 Client 模式下折叠。 -->
+
+        <Grid Grid.Row="1" Grid.RowSpan="3"
+
+              Visibility="{Binding IsLocalClient, Converter={StaticResource BoolToVisibility}}">
+
+            <Grid.RowDefinitions>
+
+                <RowDefinition Height="*"/>
+
+                <RowDefinition Height="Auto"/>
+
+            </Grid.RowDefinitions>
+
+            <!-- 状态说明卡片 -->
+
+            <Border Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center"
+
+                    MaxWidth="520" Background="{DynamicResource CardBackground}"
+
+                    BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1" CornerRadius="10" Padding="24">
+
+                <StackPanel>
+
+                    <TextBlock Text="{theme:Loc music.client_title}" FontSize="15" FontWeight="Bold"
+
+                               HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+                    <TextBlock Text="{theme:Loc music.client_desc}" FontSize="12" Opacity="0.8"
+
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,6"/>
+
+                    <TextBlock Text="{Binding ClientStatus}" FontSize="12" Opacity="0.75" TextWrapping="Wrap"
+
+                               TextAlignment="Center" Margin="0,0,0,4"/>
+
+                    <TextBlock Text="{Binding ClientRunning}" FontSize="11" Opacity="0.6" TextWrapping="Wrap"
+
+                               TextAlignment="Center" Margin="0,0,0,14"
+
+                               Visibility="{Binding ClientRunning, Converter={StaticResource NonEmptyToVis}}"/>
+
+                    <!-- 客户端程序选择 -->
+
+                    <Grid Margin="0,0,0,12">
+
+                        <Grid.ColumnDefinitions>
+
+                            <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Margin="0,0,10,0"
+
+                                   FontSize="12" Opacity="0.85" TextTrimming="CharacterEllipsis"
+
+                                   Text="{Binding ClientDisplayName, FallbackValue=''}"/>
+
+                        <Button Grid.Column="1" Content="{theme:Loc music.client_choose}"
+
+                                Command="{Binding BrowseClientCommand}" Padding="10,4" Margin="0,0,8,0"/>
+
+                        <Button Grid.Column="2" Content="{theme:Loc music.client_launch}"
+
+                                Command="{Binding LaunchClientCommand}" Padding="10,4"
+
+                                Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+
+                    </Grid>
+
+                    <!-- 歌词叠加层（规格实现项 4：行数随「歌词固定方式」变化） -->
+
+                    <Border Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource ControlBorder}"
+
+                            BorderThickness="1" CornerRadius="8" Padding="14,10" MinHeight="72"
+
+                            Visibility="{Binding HasLyric, Converter={StaticResource BoolToVisibility}}">
+
+                        <Grid>
+
+                            <Grid.RenderTransform>
+
+                                <TranslateTransform x:Name="LyricLift" Y="0"/>
+
+                            </Grid.RenderTransform>
+
+                            <TextBlock Text="{Binding LyricText}" FontSize="13" LineHeight="22" Opacity="0.92"
+
+                                       TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"/>
+
+                        </Grid>
+
+                    </Border>
+
+                    <!-- 无歌词时不显示歌词框，改为一行提示（规格：静默隐藏，不弹错误） -->
+
+                    <TextBlock Text="{theme:Loc music.client_lyric_hint}" FontSize="11" Opacity="0.55"
+
+                               TextAlignment="Center" TextWrapping="Wrap" Margin="0,6,0,0"
+
+                               Visibility="{Binding HasLyric, Converter={StaticResource InvBoolToVisibility}}"/>
+
+                </StackPanel>
+
+            </Border>
 
         </Grid>
 

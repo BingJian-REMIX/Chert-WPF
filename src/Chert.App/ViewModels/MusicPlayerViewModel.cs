@@ -55,6 +55,21 @@ public class MusicPlayerViewModel : ObservableObject
     /// </summary>
     private readonly LyricEngine _lyric = new();
 
+    /// <summary>在线歌词服务（客户端模式下没有本地 .lrc，歌词只能来自这里）。</summary>
+    private readonly LyricService _lyricService = new();
+
+    /// <summary>外部客户端可执行文件路径（用户选择，持久化在 profile）。</summary>
+    private string _clientExePath = "";
+
+    /// <summary>客户端模式状态说明（显示在流媒体页的状态卡片上）。</summary>
+    private string _clientStatus = "";
+
+    /// <summary>已拉起的客户端进程名列表（状态卡片展示）。</summary>
+    private string _clientRunning = "";
+
+    /// <summary>正在为客户端模式的后台拉词，标记避免重复请求。</summary>
+    private CancellationTokenSource? _clientLyricCts;
+
     /// <summary>歌词引擎（供叠加层 / 迷你播放条绑定；单一实例，避免重复解析 LRC）。</summary>
     public LyricEngine Lyric => _lyric;
 
@@ -110,11 +125,16 @@ public class MusicPlayerViewModel : ObservableObject
         ExpandCommand = new RelayCommand(_ => Expanded = !Expanded);
         SeekCommand = new RelayCommand(p => Seek(p));
         RemoveTrackCommand = new RelayCommand(p => RemoveTrack(p as Track));
+        LaunchClientCommand = new AsyncRelayCommand(_ => LaunchClientAsync());
+        BrowseClientCommand = new RelayCommand(_ => BrowseClientExe());
+        SyncClientTrackCommand = new RelayCommand(_ => _ = SyncClientLyricAsync());
 
         var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
         _autoDuck = profile.MusicAutoDuck;
         _volume = profile.MusicVolume;
         _resumeOnLaunch = profile.MusicResumeOnLaunch;
+        _clientExePath = profile.MusicClientExePath ?? "";
+        ClientStatus = HasClientExe ? $"当前客户端：{ClientDisplayName}" : "尚未选择客户端程序";
 
         // bug：导入的本地音乐文件夹应在重启后保持——构造时把上次选择的文件夹重新载入播放列表，
         // 否则关闭再打开启动器后导入的歌曲全部丢失（仅断点续播的单曲会被恢复）。
@@ -222,6 +242,156 @@ public class MusicPlayerViewModel : ObservableObject
     /// <summary>歌词固定方式跟随设置（切换隔离等场景下实时生效）。</summary>
     private LyricPinMode LyricPinModeSetting => ClientPrefs.LyricPin;
 
+    // ---- 本地客户端模式（规格实现项 2 / 6.1）----
+
+    /// <summary>外部客户端可执行文件路径（空 = 尚未选择）。</summary>
+    public string ClientExePath
+    {
+        get => _clientExePath;
+        private set
+        {
+            if (SetField(ref _clientExePath, value))
+            {
+                OnPropertyChanged(nameof(ClientDisplayName));
+                OnPropertyChanged(nameof(HasClientExe));
+                SavePrefs();
+            }
+        }
+    }
+
+    /// <summary>是否已选定客户端程序（流媒体页据此决定「选择程序」还是「启动」）。</summary>
+    public bool HasClientExe => !string.IsNullOrWhiteSpace(_clientExePath);
+
+    /// <summary>
+    /// 「本地客户端模式」入口是否可用（规格联动规则：总开关关闭时后三项在 UI 中灰显或折叠）。
+    /// 这里选折叠 —— 直接隐藏入口，用户不会点到一个注定被拒的模式。
+    /// </summary>
+    public bool ClientModeAvailable => ClientPrefs.Enabled;
+
+    /// <summary>客户端显示名（取文件名，去扩展名）。</summary>
+    public string ClientDisplayName
+    {
+        get
+        {
+            if (!HasClientExe) return "";
+            try { return Path.GetFileNameWithoutExtension(_clientExePath); }
+            catch { return _clientExePath; }
+        }
+    }
+
+    /// <summary>客户端模式状态说明（状态卡片正文）。</summary>
+    public string ClientStatus
+    {
+        get => _clientStatus;
+        private set => SetField(ref _clientStatus, value);
+    }
+
+    /// <summary>由启动器拉起 / 正在运行的客户端进程（状态卡片副文本）。</summary>
+    public string ClientRunning
+    {
+        get => _clientRunning;
+        private set => SetField(ref _clientRunning, value);
+    }
+
+    /// <summary>选择客户端可执行文件。</summary>
+    private void BrowseClientExe()
+    {
+        var picked = UIService.PickFile("音乐客户端 (*.exe)|*.exe", "选择音乐客户端程序");
+        if (string.IsNullOrWhiteSpace(picked)) return;
+        ClientExePath = picked;
+        ClientStatus = $"已选择客户端：{ClientDisplayName}";
+    }
+
+    /// <summary>
+    /// 启动外部客户端并登记到生命周期管理器（规格实现项 2「再次拉起」）。
+    /// <para>登记后，宽限期计时才会把这批进程纳入判定 —— 否则切走音源后客户端永远不会被回收。</para>
+    /// </summary>
+    private async Task LaunchClientAsync()
+    {
+        if (!HasClientExe)
+        {
+            ClientStatus = "尚未选择客户端程序";
+            return;
+        }
+        if (!File.Exists(_clientExePath))
+        {
+            ClientStatus = "客户端程序不存在，请重新选择";
+            ClientExePath = "";
+            return;
+        }
+
+        try
+        {
+            var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = _clientExePath,
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(_clientExePath) ?? Environment.CurrentDirectory,
+            });
+            if (proc is null)
+            {
+                ClientStatus = "启动客户端失败";
+                return;
+            }
+
+            ClientLifecycleService.Register(proc.Id, proc.ProcessName);
+            ClientLifecycleService.Instance.Start();
+            ClientRunning = $"运行中：{proc.ProcessName}（PID {proc.Id}）";
+            ClientStatus = $"已启动 {proc.ProcessName}，切换到其它音源后若长期暂停将自动结束它";
+        }
+        catch (Exception ex)
+        {
+            ClientStatus = "启动客户端失败：" + ex.Message;
+        }
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 为客户端模式的后台曲目拉取在线歌词。
+    /// <para>
+    /// 本地客户端模式没有可用的本地 <c>.lrc</c>（文件在客户端自己的音乐库里），
+    /// 所以歌词必须来自 <see cref="LyricService"/>。查不到就静默清空，不报错。
+    /// </para>
+    /// </summary>
+    private async Task SyncClientLyricAsync()
+    {
+        if (!IsLocalClient) return;
+        if (!ClientPrefs.LyricEnabled) { _lyric.Clear(); RefreshLyricTexts(); return; }
+
+        var title = CurrentTrack?.Title;
+        var artist = CurrentTrack?.Artist;
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            _lyric.Clear();
+            RefreshLyricTexts();
+            return;
+        }
+
+        // 同一首歌已在拉取中就不重复发请求
+        _clientLyricCts?.Cancel();
+        var cts = new CancellationTokenSource();
+        _clientLyricCts = cts;
+
+        try
+        {
+            var lrc = await _lyricService.GetLrcAsync(title, artist, cts.Token);
+            if (cts.IsCancellationRequested) return;
+
+            _lyric.PinMode = LyricPinModeSetting;
+            if (string.IsNullOrWhiteSpace(lrc)) _lyric.Clear();
+            else _lyric.Load("api:" + title, LyricEngine.ParseLrc(lrc));
+
+            // 客户端模式拿不到播放进度，按「当前行」显示即可（有歌词但不随进度跳）
+            RefreshLyricTexts();
+        }
+        catch (OperationCanceledException) { /* 被新一轮请求取代，忽略 */ }
+        catch { /* 歌词属装饰性，失败不影响播放 */ }
+        finally
+        {
+            if (ReferenceEquals(_clientLyricCts, cts)) { _clientLyricCts.Dispose(); _clientLyricCts = null; }
+        }
+    }
+
     /// <summary>
     /// 切歌时载入对应 <c>.lrc</c>。找不到就清空 —— 规格要求「无歌词时静默隐藏，不弹错误提示」。
     /// </summary>
@@ -234,6 +404,15 @@ public class MusicPlayerViewModel : ObservableObject
             if (IsLocalClient && !ClientPrefs.LyricEnabled) { _lyric.Clear(); return; }
 
             _lyric.PinMode = LyricPinModeSetting;
+
+            // 本地客户端模式：文件在客户端自己的音乐库里，本地没有 .lrc —— 走在线 API
+            if (IsLocalClient)
+            {
+                RefreshLyricTexts();
+                _ = SyncClientLyricAsync();
+                return;
+            }
+
             _lyric.TryLoadFromFile(CurrentTrack?.Path);
             RefreshLyricTexts();
         }
@@ -358,6 +537,15 @@ public class MusicPlayerViewModel : ObservableObject
     public ICommand PreviousCommand { get; }
     public ICommand LoadLocalFolderCommand { get; }
     public ICommand SetSourceCommand { get; }
+
+    /// <summary>启动选定的外部音乐客户端（规格实现项 2：切回本地客户端模式时若未运行则拉起）。</summary>
+    public ICommand LaunchClientCommand { get; }
+
+    /// <summary>选择客户端可执行文件。</summary>
+    public ICommand BrowseClientCommand { get; }
+
+    /// <summary>手动重新拉取当前曲目的在线歌词。</summary>
+    public ICommand SyncClientTrackCommand { get; }
     public ICommand SetModeCommand { get; }
     public ICommand AddOnlineCommand { get; }
     public ICommand ScanMcOstCommand { get; }
@@ -568,6 +756,12 @@ public class MusicPlayerViewModel : ObservableObject
                 StopLocalPlaybackForClientMode();
                 RefreshLyricTexts();   // 按「客户端模式下仍用API取歌词」决定显隐
                 StatusText = "本地客户端模式：音乐由外部客户端播放，启动器不再输出音频";
+
+                // 规格实现项 2「再次拉起」：切回本地客户端模式时，若客户端未运行则启动它
+                ClientStatus = HasClientExe
+                    ? $"当前客户端：{ClientDisplayName}"
+                    : "尚未选择客户端程序";
+                _ = SyncClientLyricAsync();
             }
         }
     }
@@ -872,6 +1066,7 @@ public class MusicPlayerViewModel : ObservableObject
             p.MusicAutoDuck = _autoDuck;
             p.MusicVolume = _volume;
             p.MusicResumeOnLaunch = _resumeOnLaunch;
+            p.MusicClientExePath = _clientExePath;
             ProfileStore.Save(p);
         }
         catch { /* 忽略持久化失败 */ }

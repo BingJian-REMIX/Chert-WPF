@@ -287,6 +287,10 @@ public class LauncherProfile
     [JsonPropertyName("musicResumeOnLaunch")]
     public bool MusicResumeOnLaunch { get; set; }
 
+    /// <summary>本地客户端模式下用户选择的音乐客户端可执行文件路径（规格实现项 6.1）。</summary>
+    [JsonPropertyName("musicClientExePath")]
+    public string MusicClientExePath { get; set; } = "";
+
     /// <summary>断点续播：上次播放的本地曲目路径（空表示无）。</summary>
     [JsonPropertyName("musicLastTrack")]
     public string MusicLastTrack { get; set; } = "";
