@@ -33,13 +33,20 @@
                                  Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource ControlBackground}"/>
                 </StackPanel>
 
-                <!-- 按钮行：复用 ModalButtonRowStyle（右置主操作） -->
+                <!-- 按钮行：复用 ModalButtonRowStyle（右置主操作）
+                     GUI / CLI 分离包（2026-10-03）：「只更新 GUI」给只用启动器的用户，
+                     省下 CLI 包的下载量；「全部更新」两者一起更。 -->
                 <StackPanel DockPanel.Dock="Bottom" Style="{StaticResource ModalButtonRowStyle}">
                     <Button x:Name="LaterButton" Content="{theme:Loc update.later}" Width="84" Padding="0,8"
                             Margin="0,0,10,0" Background="{DynamicResource ControlBackground}"
                             Foreground="{DynamicResource PrimaryForeground}" BorderThickness="1"
                             BorderBrush="{DynamicResource ControlBorder}" Click="Later_Click"/>
-                    <Button x:Name="DownloadButton" Content="{theme:Loc update.download}" Width="104" Padding="0,8"
+                    <Button x:Name="GuiOnlyButton" Content="{theme:Loc update.gui_only}" Width="112" Padding="0,8" Margin="0,0,10,0"
+                            Background="{DynamicResource ControlBackground}"
+                            Foreground="{DynamicResource PrimaryForeground}" BorderThickness="1"
+                            BorderBrush="{DynamicResource ControlBorder}" Click="GuiOnly_Click"
+                            ToolTip="{theme:Loc update.gui_only_tip}"/>
+                    <Button x:Name="DownloadButton" Width="104" Padding="0,8"
                             Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
                             Click="Download_Click"/>
                 </StackPanel>

@@ -20,6 +20,15 @@ public class UpdateCheckResult
     public bool SingleFileAvailable { get; set; }
     /// <summary>轻量（framework-dependent）包是否已在 CNB Release 发布（latest.json 的 lightAvailable 字段）。</summary>
     public bool LightAvailable { get; set; }
+
+    /// <summary>GUI 独立包地址（分离包方案）。</summary>
+    public string? GuiDownloadUrl { get; set; }
+    /// <summary>GUI 轻量包地址（分离包方案）。</summary>
+    public string? GuiLightDownloadUrl { get; set; }
+    /// <summary>CLI 独立包地址（分离包方案）。</summary>
+    public string? CliDownloadUrl { get; set; }
+    /// <summary>当前安装形态是否为「自包含」（决定默认拉完整包还是轻量包）。</summary>
+    public bool SelfContainedInstall { get; set; }
     /// <summary>轻量（framework-dependent）包下载入口（latest.json 的 lightDownloadUrl，缺省按 CNB Release v{版本} 格式构造）。</summary>
     public string? LightDownloadUrl { get; set; }
     public bool Mandatory { get; set; }
@@ -153,6 +162,17 @@ public static class LauncherUpdater
                     ? ResolveHttps(info.LightDownloadUrl,
                         $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/Chert-Light-{info.Version}-win-x64.zip")
                     : null;
+                // ── GUI / CLI 分离包（2026-10-03）────────────────────────────
+                // 旧字段（downloadUrl / lightDownloadUrl）保留兼容，新发布走 gui*/cli*。
+                var rel = $"{GameConstants.CnbReleaseBase}/-/releases/download/v{info.Version}/";
+                result.GuiDownloadUrl = ResolveHttps(info.GuiDownloadUrl,
+                    $"{rel}Chert-Launcher-{info.Version}-win-x64-gui.zip");
+                result.GuiLightDownloadUrl = ResolveHttps(info.GuiLightDownloadUrl,
+                    $"{rel}Chert-Light-{info.Version}-win-x64-gui.zip");
+                result.CliDownloadUrl = info.CliAvailable
+                    ? ResolveHttps(info.CliDownloadUrl, $"{rel}chert-cli-{info.Version}-win-x64.zip")
+                    : null;
+
                 result.Mandatory = result.Mandatory || info.Mandatory;
             }
         }
@@ -179,6 +199,16 @@ public static class LauncherUpdater
         [JsonPropertyName("singleFileAvailable")] public bool SingleFileAvailable { get; set; }
         [JsonPropertyName("lightAvailable")] public bool LightAvailable { get; set; }
         [JsonPropertyName("lightDownloadUrl")] public string? LightDownloadUrl { get; set; }
+
+        // ── GUI / CLI 分离包（2026-10-03）────────────────────────────────
+        // 过去一个包里塞了 GUI + CLI 两个自包含 exe，等于**各带一份 .NET 运行时**：
+        // 2.6.0 实测 GUI+CLI 合体 zip 110.86 MB。拆成两个独立包后
+        // 只要 GUI 的用户下载量降到 62.35 MB（省 44%），CLI 按需另下。
+        [JsonPropertyName("guiAvailable")] public bool GuiAvailable { get; set; }
+        [JsonPropertyName("guiDownloadUrl")] public string? GuiDownloadUrl { get; set; }
+        [JsonPropertyName("guiLightDownloadUrl")] public string? GuiLightDownloadUrl { get; set; }
+        [JsonPropertyName("cliAvailable")] public bool CliAvailable { get; set; }
+        [JsonPropertyName("cliDownloadUrl")] public string? CliDownloadUrl { get; set; }
         [JsonPropertyName("changelog")] public string? Changelog { get; set; }
     }
 }
