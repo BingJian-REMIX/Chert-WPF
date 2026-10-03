@@ -156,6 +156,12 @@
 
                                     <TextBlock Text="{Binding Username}" VerticalAlignment="Center"/>
 
+                                    <!-- problem3 多角色：同一 Yggdrasil 服务下可能有多个角色，
+                                         补上服务器主机名才区分得开（空则自动不占位） -->
+                                    <TextBlock Text="{Binding ServerHost}" VerticalAlignment="Center"
+                                               Margin="8,0,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+
                                     <Border Margin="8,0,0,0" Padding="5,1" CornerRadius="3"
 
                                             VerticalAlignment="Center" Background="#607D8B">
@@ -184,7 +190,7 @@
 
                                         </Border.Style>
 
-                                        <TextBlock Text="{Binding AuthType}" FontSize="10" Foreground="White"/>
+                                        <TextBlock Text="{Binding AuthTypeText}" FontSize="10" Foreground="White"/>
 
                                     </Border>
 

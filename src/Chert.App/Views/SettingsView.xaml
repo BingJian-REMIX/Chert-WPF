@@ -881,6 +881,8 @@
                                TextWrapping="Wrap" MaxWidth="640" Margin="0,0,0,8" FontSize="11" Foreground="{DynamicResource SecondaryForeground}"/>
 
                     <ListBox Grid.Row="3" ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
+                             MouseDoubleClick="AccountList_DoubleClick"
+                             ToolTip="双击一个账号即可设为当前账号（多角色切换最常用）">
 
                              Height="140" Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}" Margin="0,8,0,0">
 
@@ -888,11 +890,20 @@
 
                             <DataTemplate>
 
-                                <StackPanel Orientation="Horizontal">
+                                <!-- 两行式（problem3 多角色）：上行角色名，下行「登录方式 · 服务器」。
+                                     原先单行只显示 DisplayName + 英文技术词（authlib / offline），
+                                     同一 Yggdrasil 服务下的多个角色根本分不清谁是谁。 -->
+                                <StackPanel Margin="0,2">
 
-                                    <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Width="160"/>
+                                    <StackPanel Orientation="Horizontal">
 
-                                    <TextBlock Text="{Binding AuthType}" Foreground="{DynamicResource SecondaryForeground}"/>
+                                        <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" FontSize="13"/>
+
+                                        <TextBlock Text="{Binding SubtitleText}" Margin="10,0,0,0"
+                                                   FontSize="11" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                    </StackPanel>
 
                                 </StackPanel>
 

@@ -1225,7 +1225,8 @@ public class SettingsViewModel : ObservableObject
     {
         if (SelectedAccount is null) return;
         AccountStore.MarkUsed(GameConstants.DefaultGameRoot, SelectedAccount.Id);
-        StatusMessage = $"当前账号: {SelectedAccount.DisplayName} ({SelectedAccount.AuthType})";
+        // 用 AuthTypeText（中文）而非 AuthType（authlib / offline 这类技术词）
+        StatusMessage = $"当前账号: {SelectedAccount.DisplayName}（{SelectedAccount.SubtitleText}）";
     }
 
     private void AddOfflineAccount()

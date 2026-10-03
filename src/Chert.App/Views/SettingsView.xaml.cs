@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Controls;
 using Chert.App.ViewModels;
 
@@ -53,6 +54,16 @@ public partial class SettingsView : UserControl
     {
         if (DataContext is SettingsViewModel vm)
             await vm.AddAuthlibAccount(vm.AuthlibServerUrl, vm.AuthlibEmail, AuthlibPw.Password);
+    }
+
+    /// <summary>
+    /// 双击账号条目 = 设为当前账号（problem3 多角色）。
+    /// 多角色时切账号最高频的动作，给个双击直达；单项仍可用下方「设为当前」按钮。
+    /// </summary>
+    private void AccountList_DoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is SettingsViewModel vm && vm.SelectedAccount is not null)
+            vm.SetActiveAccountCommand.Execute(null);
     }
 
     private void OpenUrl_Click(object sender, RoutedEventArgs e)
