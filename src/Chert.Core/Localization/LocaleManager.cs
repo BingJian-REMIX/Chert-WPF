@@ -471,7 +471,7 @@ public static class LocaleManager
   ""update.download_all"": ""全部更新"",
   ""update.gui_only"": ""只更新界面"",
   ""update.gui_only_tip"": ""只更新启动器界面，不下载命令行工具（体积更小）"",
-  ""update.fetching_cli"": ""正在下载命令行工具…""
+  ""update.fetching_cli"": ""正在下载命令行工具…"",
   ""update.downloading_cli_pct"": ""命令行工具下载中 {0}%…"",
   ""update.preparing"": ""准备下载…"",
   ""lbl.traditional"": ""繁體中文"",
@@ -2544,7 +2544,7 @@ public static class LocaleManager
   ""update.download_all"": ""全部更新"",
   ""update.gui_only"": ""只更新介面"",
   ""update.gui_only_tip"": ""只更新啟動器介面，不下載命令列工具（體積更小）"",
-  ""update.fetching_cli"": ""正在下載命令列工具…""
+  ""update.fetching_cli"": ""正在下載命令列工具…"",
   ""update.downloading_cli_pct"": ""命令列工具下載中 {0}%…"",
   ""update.preparing"": ""準備下載…"",
   ""lbl.traditional"": ""繁體中文"",
