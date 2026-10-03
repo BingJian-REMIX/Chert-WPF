@@ -29,6 +29,8 @@
 
             <RowDefinition Height="Auto"/>
 
+            <RowDefinition Height="Auto"/>
+
             <RowDefinition Height="*"/>
 
         </Grid.RowDefinitions>
@@ -177,9 +179,35 @@
 
 
 
+        <!-- 歌词（规格实现项 4：行数随「歌词固定方式」变化；行切换淡入淡出 + 轻微上移） -->
+
+        <Border Grid.Row="2" Margin="0,0,0,8" MinHeight="64" Padding="14,10" CornerRadius="8"
+
+                Background="{DynamicResource CardBackground}"
+
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+
+                Visibility="{Binding HasLyric, Converter={StaticResource BoolToVisibility}}">
+
+            <TextBlock x:Name="LyricBox" Text="{Binding LyricText}" FontSize="13" LineHeight="22"
+
+                       Opacity="0.92" TextWrapping="Wrap" TextAlignment="Center"
+
+                       VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+
+        </Border>
+
+        <!-- 无歌词时不显示歌词框（规格：静默隐藏，不弹错误提示） -->
+
+        <TextBlock Grid.Row="2" Text="{theme:Loc music.set_lyric_pin_tip}" FontSize="11" Opacity="0.55"
+
+                   TextAlignment="Center" Margin="0,0,0,8"
+
+                   Visibility="{Binding HasLyric, Converter={StaticResource InvBoolToVisibility}}"/>
+
         <!-- 音源专属操作 -->
 
-        <StackPanel Grid.Row="2" Margin="0,0,0,8"
+        <StackPanel Grid.Row="3" Margin="0,0,0,8"
 
                     Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
@@ -215,7 +243,7 @@
 
         <!-- 列表 -->
 
-        <Grid Grid.Row="3" Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
+        <Grid Grid.Row="4" Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
             <Grid.RowDefinitions>
 
@@ -405,7 +433,7 @@
         <!-- 本地客户端模式整页（规格 6.1：空白页 + 状态说明卡片 + 客户端选择/启动 + 歌词叠加层）
              用 Grid.RowSpan="3" 覆盖上面三行，故这三行在 Client 模式下折叠。 -->
 
-        <Grid Grid.Row="1" Grid.RowSpan="3"
+        <Grid Grid.Row="1" Grid.RowSpan="4"
 
               Visibility="{Binding IsLocalClient, Converter={StaticResource BoolToVisibility}}">
 
@@ -481,19 +509,11 @@
 
                             Visibility="{Binding HasLyric, Converter={StaticResource BoolToVisibility}}">
 
-                        <Grid>
+                            <TextBlock x:Name="LyricBoxClient" Text="{Binding LyricText}" FontSize="13" LineHeight="22"
 
-                            <Grid.RenderTransform>
+                                       Opacity="0.92" TextWrapping="Wrap" TextAlignment="Center"
 
-                                <TranslateTransform x:Name="LyricLift" Y="0"/>
-
-                            </Grid.RenderTransform>
-
-                            <TextBlock Text="{Binding LyricText}" FontSize="13" LineHeight="22" Opacity="0.92"
-
-                                       TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center"/>
-
-                        </Grid>
+                                       VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
 
                     </Border>
 
