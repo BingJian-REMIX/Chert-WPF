@@ -32,6 +32,7 @@ public partial class SettingsView : UserControl
         GridRecommend.Visibility = tag == "Recommend" ? Visibility.Visible : Visibility.Collapsed;
         GridAccounts.Visibility = tag == "Accounts" ? Visibility.Visible : Visibility.Collapsed;
         AiSettingsHost.Visibility = tag == "Ai" ? Visibility.Visible : Visibility.Collapsed;
+        GridMusic.Visibility = tag == "Music" ? Visibility.Visible : Visibility.Collapsed;
         GridAppearance.Visibility = tag == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
         GridAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -44,6 +45,7 @@ public partial class SettingsView : UserControl
         "download" => "Download",
         "recommend" => "Recommend",
         "account" => "Accounts",
+        "music" => "Music",
         "ai" => "Ai",
         "appearance" => "Appearance",
         "about" => "About",

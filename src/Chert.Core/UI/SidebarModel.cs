@@ -189,9 +189,10 @@ public static class Sidebar
         new("download",   "settings.download",   "download",   2),
         new("recommend",  "settings.recommend",  "recommend",  3),
         new("account",    "settings.account",    "account",    4),
-        new("ai",         "settings.ai",         "ai",         5),
-        new("appearance", "settings.appearance", "appearance", 6),
-        new("about",      "settings.about",      "about",      7, bottom: true)
+        new("music",      "settings.music",      "music",      5),
+        new("ai",         "settings.ai",         "ai",         6),
+        new("appearance", "settings.appearance", "appearance", 7),
+        new("about",      "settings.about",      "about",      8, bottom: true)
     };
 
     /// <summary>游戏页无侧边栏（规格 2.1）。</summary>

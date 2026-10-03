@@ -399,6 +399,128 @@ public class SettingsViewModel : ObservableObject
         set => MusicPlayerViewModel.Instance.ResumeOnLaunch = value;
     }
 
+    // ===== 本地客户端模式（规格 · 设置项定义）=====
+    // 四项都直接读写 profile 里的 MusicClient，并经 Normalized() 兜住
+    // 「配置被手改 / 旧版残留 / 跨设备同步」带来的越界与非法枚举值。
+
+    /// <summary>总开关：关闭时完全不涉及外部客户端进程（规格联动规则：后三项随之不可用）。</summary>
+    public bool ClientModeEnabled
+    {
+        get => LoadClientPrefs().Enabled;
+        set
+        {
+            var p = LoadClientPrefs();
+            if (p.Enabled == value) return;
+            p.Enabled = value;
+            SaveClientPrefs(p);
+            OnPropertyChanged();
+            // 联动：后三项的可用性跟着总开关走
+            OnPropertyChanged(nameof(ClientGraceMinutes));
+            OnPropertyChanged(nameof(ClientGraceText));
+            OnPropertyChanged(nameof(LyricPinModeIndex));
+            OnPropertyChanged(nameof(ClientModeLyricEnabled));
+            MusicPlayerViewModel.Instance.OnClientPrefsChanged();
+        }
+    }
+
+    /// <summary>客户端宽限期（分钟，0–30）。0 = 不自动关闭。</summary>
+    public int ClientGraceMinutes
+    {
+        get => LoadClientPrefs().GraceMinutes;
+        set
+        {
+            var p = LoadClientPrefs();
+            // 先钳到规格区间再判等 —— 用户在滑块上拖出越界值时不应反复写盘
+            var clamped = Math.Clamp(value, MusicClientPrefs.MinGraceMinutes, MusicClientPrefs.MaxGraceMinutes);
+            if (p.GraceMinutes == clamped) return;
+            p.GraceMinutes = clamped;
+            SaveClientPrefs(p);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ClientGraceText));
+            MusicPlayerViewModel.Instance.OnClientPrefsChanged();
+        }
+    }
+
+    /// <summary>宽限期的展示文本（含单位，随开关状态变化）。</summary>
+    public string ClientGraceText
+    {
+        get
+        {
+            var p = LoadClientPrefs();
+            var m = p.GraceMinutes;
+            return m == 0 ? "0" : $"{m} 分钟";
+        }
+    }
+
+    /// <summary>
+    /// 歌词固定方式（枚举下标，供 ComboBox 双向绑定）。
+    /// <para>只存下标、不存枚举名 —— ComboBox 的 ItemsSource 顺序变了也不会读错。</para>
+    /// </summary>
+    public int LyricPinModeIndex
+    {
+        get => (int)LoadClientPrefs().LyricPin;
+        set
+        {
+            var p = LoadClientPrefs();
+            if (!Enum.IsDefined(typeof(LyricPinMode), value)) return;   // 非法下标忽略
+            var mode = (LyricPinMode)value;
+            if (p.LyricPin == mode) return;
+            p.LyricPin = mode;
+            SaveClientPrefs(p);
+            OnPropertyChanged();
+            MusicPlayerViewModel.Instance.OnClientPrefsChanged();
+        }
+    }
+
+    /// <summary>客户端模式下仍用 API 获取歌词（关闭则隐藏歌词区）。</summary>
+    public bool ClientModeLyricEnabled
+    {
+        get => LoadClientPrefs().LyricEnabled;
+        set
+        {
+            var p = LoadClientPrefs();
+            if (p.LyricEnabled == value) return;
+            p.LyricEnabled = value;
+            SaveClientPrefs(p);
+            OnPropertyChanged();
+            MusicPlayerViewModel.Instance.OnClientPrefsChanged();
+        }
+    }
+
+    /// <summary>已选客户端程序路径（代理播放器单例，设置页只读展示）。</summary>
+    public string ClientExePath => MusicPlayerViewModel.Instance.ClientExePath;
+
+    /// <summary>选择客户端程序（代理播放器单例，走同一个文件选择与持久化）。</summary>
+    public ICommand BrowseClientCommand => MusicPlayerViewModel.Instance.BrowseClientCommand;
+
+    /// <summary>读本地客户端模式设置（读失败回落到默认值，绝不让设置页打不开）。</summary>
+    private static MusicClientPrefs LoadClientPrefs()
+    {
+        try
+        {
+            return ProfileStore.Load(LauncherService.Instance.GameRoot).MusicClient.Normalized();
+        }
+        catch
+        {
+            return new MusicClientPrefs();
+        }
+    }
+
+    /// <summary>写回本地客户端模式设置。</summary>
+    private static void SaveClientPrefs(MusicClientPrefs prefs)
+    {
+        try
+        {
+            var p = ProfileStore.Load(LauncherService.Instance.GameRoot);
+            p.MusicClient = prefs;
+            ProfileStore.Save(p);
+        }
+        catch
+        {
+            // 持久化失败不阻断设置页交互，用户仍能继续改其它项
+        }
+    }
+
     // ===== 下载 =====
     public string SelectedDownloadSource { get => _selectedDownloadSource; set => SetField(ref _selectedDownloadSource, value); }
     public int MaxConcurrentDownloads { get => _maxConcurrentDownloads; set => SetField(ref _maxConcurrentDownloads, value); }
@@ -1056,6 +1178,8 @@ public class SettingsViewModel : ObservableObject
             profile.MusicLastTrack = old.MusicLastTrack;
             profile.MusicLastPosition = old.MusicLastPosition;
             profile.MusicLastFolder = old.MusicLastFolder;
+            profile.MusicClient = old.MusicClient;
+            profile.MusicClientExePath = old.MusicClientExePath;
         }
         catch
         {

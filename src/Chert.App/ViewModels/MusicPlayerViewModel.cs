@@ -1058,6 +1058,43 @@ public class MusicPlayerViewModel : ObservableObject
     /// <summary>宿主注入后把当前音量推送到解码器（构造函数里 Host 尚为空）。</summary>
     public void SetVolumeFromHost() => ApplyVolume(_volume);
 
+    /// <summary>
+    /// 设置页改了本地客户端模式的任一项后由外部调用，让播放器即时生效：
+    /// 歌词固定方式（行数）、歌词显隐、以及当前模式是否还成立。
+    /// </summary>
+    /// <remarks>
+    /// 总开关被关掉时若正处于客户端模式，需退回本地文件夹 —— 否则会停在一个
+    /// 「模式叫客户端但开关已关」的矛盾状态（歌词显隐、生命周期判定全按开关走）。
+    /// </remarks>
+    public void OnClientPrefsChanged()
+    {
+        try
+        {
+            if (IsLocalClient && !ClientPrefs.Enabled)
+            {
+                SourceKind = "Local";
+                StatusText = "本地客户端模式已关闭，已切回本地文件夹";
+            }
+
+            _lyric.PinMode = ClientPrefs.LyricPin;
+            OnPropertyChanged(nameof(ClientModeAvailable));
+
+            if (IsLocalClient)
+            {
+                if (ClientPrefs.LyricEnabled) _ = SyncClientLyricAsync();
+                else { _lyric.Clear(); RefreshLyricTexts(); }
+            }
+            else
+            {
+                RefreshLyricTexts();
+            }
+        }
+        catch
+        {
+            // 设置联动属非关键，失败不影响播放
+        }
+    }
+
     private void SavePrefs()
     {
         try
