@@ -33,7 +33,7 @@ public static class LaunchCoordinator
             var gameRoot = LauncherService.Instance.GameRoot;
 
             // §2.3-16 启动前文件变更检测（非阻塞 Toast，可查看详情）
-            await CheckFileChangesAsync(status);
+            await CheckFileChangesAsync(status, versionId);
 
             // §二.4 启动前存档兼容性检测
             var incompatible = SaveCompatibilityDetector.Scan(gameRoot, versionId)
@@ -104,7 +104,14 @@ public static class LaunchCoordinator
     /// 启动前（或启动器焦点回归时）调用；发现新增文件则弹右下角非阻塞 Toast 提示。
     /// 文件变更检测页已移除，此功能 purely 后台自动任务，开关保留在设置 → 通用。
     /// </summary>
-    public static async Task CheckFileChangesAsync(Action<string>? status = null)
+    /// <summary>
+    /// 文件变更检测（启动时调用）。
+    /// <para><b>版本隔离适配</b>：<paramref name="versionId"/> 用于解析该版本**实际的工作目录**
+    /// —— 隔离版查 <c>versions/&lt;id&gt;/</c>，共享版查 <c>gameRoot</c>。此前本方法
+    /// 拿不到版本号，只能查共享位置，于是：隔离版装在自己目录里的 mods / config
+    /// <b>永远检测不到</b>，而共享位置的变动会<b>误报到隔离版头上</b>。</para>
+    /// </summary>
+    public static async Task CheckFileChangesAsync(Action<string>? status = null, string? versionId = null)
     {
         if (!ProfileStore.Load(LauncherService.Instance.GameRoot).FileWatchEnabled)
             return;
@@ -113,10 +120,21 @@ public static class LaunchCoordinator
         {
             var gameRoot = LauncherService.Instance.GameRoot;
 
+            // ★ 版本隔离适配（problem3 终版）：按该版本**实际的工作目录**检测。
+            //   此前无条件传 gameRoot，等于「隔离版也去查共享位置」——
+            //   隔离版装在 versions/<id>/ 的 mods / config 永远检测不到，
+            //   而共享位置的文件变动会误报到隔离版头上。
+            //   WatchDirFor 与启动时的 --gameDir 同源，隔离与共享不再互相干扰。
+            // 调用方未指定版本时回落到「上次使用的版本」，避免退化成查共享位置
+            var vid = versionId;
+            if (string.IsNullOrEmpty(vid))
+                vid = ProfileStore.Load(gameRoot).LastVersionId;
+            var watchDir = FileChangeDetector.WatchDirFor(gameRoot, vid);
+
             // 两段式检测（对齐 MCLCS-Linux FileWatchService）：
             // ① 先比大小/修改时间，无变化直接返回（跳过昂贵的全量哈希）；
             // ② 仅对疑似变更的文件算 SHA-256 按内容确认，剔除 mtime 抖动误报。
-            var diff = await Task.Run(() => FileChangeDetector.DetectTwoStage(gameRoot));
+            var diff = await Task.Run(() => FileChangeDetector.DetectTwoStage(watchDir));
             var added = FileChangeDetector.NewFilesOnly(diff);
             if (added.Count == 0) return;
 
