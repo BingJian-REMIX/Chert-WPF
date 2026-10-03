@@ -23,21 +23,12 @@ public partial class SettingsView : UserControl
             ShowCategory(item.Tag as string ?? "General");
     }
 
-    /// <summary>按分类 tag 切换可见的设置面板（General/Launch/...）。</summary>
+    private FrameworkElement? _currentPanel;
+
+    /// <summary>按分类 tag 切换可见的设置面板（General/Launch/...），并做从右淡入 / 向左淡出切换。</summary>
     public void ShowCategory(string tag)
     {
-        GridGeneral.Visibility = tag == "General" ? Visibility.Visible : Visibility.Collapsed;
-        GridLaunch.Visibility = tag == "Launch" ? Visibility.Visible : Visibility.Collapsed;
-        GridDownload.Visibility = tag == "Download" ? Visibility.Visible : Visibility.Collapsed;
-        GridRecommend.Visibility = tag == "Recommend" ? Visibility.Visible : Visibility.Collapsed;
-        GridAccounts.Visibility = tag == "Accounts" ? Visibility.Visible : Visibility.Collapsed;
-        AiSettingsHost.Visibility = tag == "Ai" ? Visibility.Visible : Visibility.Collapsed;
-        GridMusic.Visibility = tag == "Music" ? Visibility.Visible : Visibility.Collapsed;
-        GridAppearance.Visibility = tag == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
-        GridAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
-
-        // 设置页分类切换入场动画（清单 #17 风格）：仅对新显示的区块做错峰淡入上浮
-        FrameworkElement? revealed = tag switch
+        FrameworkElement? target = tag switch
         {
             "General" => GridGeneral,
             "Launch" => GridLaunch,
@@ -50,8 +41,49 @@ public partial class SettingsView : UserControl
             "About" => GridAbout,
             _ => null
         };
-        if (revealed is not null) MotionFX.Reveal(revealed);
+        if (target is null) return;
+
+        // 同分类不重复动画
+        if (ReferenceEquals(_currentPanel, target)) return;
+
+        // 首屏：直接显示并淡入
+        if (_currentPanel is null)
+        {
+            CollapseAllExcept(target);
+            target.Visibility = Visibility.Visible;
+            MotionFX.SlideInFromRight(target);
+            _currentPanel = target;
+            return;
+        }
+
+        // 切换：旧面板向左滑出淡出，新面板从右滑入淡入（二者在 Grid 同格重叠）
+        var old = _currentPanel;
+        CollapseAllExcept(target, old);
+        target.Visibility = Visibility.Visible;
+        MotionFX.SlideOutToLeft(old, () =>
+        {
+            // 退场结束：仅当没有再次切回它时才折叠，避免快速来回切换被误收
+            if (!ReferenceEquals(_currentPanel, old))
+                old.Visibility = Visibility.Collapsed;
+        });
+        MotionFX.SlideInFromRight(target);
+        _currentPanel = target;
     }
+
+    /// <summary>折叠所有分类面板，仅保留 keep（及可选的 alsoKeep）。</summary>
+    private void CollapseAllExcept(FrameworkElement keep, FrameworkElement? alsoKeep = null)
+    {
+        foreach (var el in new FrameworkElement?[]
+                 {
+                     GridGeneral, GridLaunch, GridDownload, GridRecommend,
+                     GridAccounts, AiSettingsHost, GridMusic, GridAppearance, GridAbout
+                 })
+        {
+            if (el is not null && !ReferenceEquals(el, keep) && !ReferenceEquals(el, alsoKeep))
+                el.Visibility = Visibility.Collapsed;
+        }
+    }
+
 
     /// <summary>由 MainWindow 全局侧边栏路由调用（id 对应 <see cref="SidebarModel.Settings"/>）。</summary>
     public void ShowSidebarItem(string id) => ShowCategory(id switch

@@ -1625,7 +1625,7 @@ public partial class MainWindow : Window
             // 必须等布局完成后再遍历：刚切过去的页面此刻还没进入可视化树，
             // 立即取子元素会拿到 0 个（与侧栏居中的 RequestSidebarCenter 同一处理方式）。
             Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
-                new Action(() => MotionFX.Reveal(page)));
+                new Action(() => MotionFX.SlideInFromRight(page)));
         }
     }
 
