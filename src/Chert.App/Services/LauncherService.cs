@@ -356,7 +356,8 @@ public class LauncherService : ILogger
     public async Task<LaunchResult> LaunchAsync(string versionId,
         IAuthenticator? authenticator = null,
         LaunchCliOverrides? cliOverrides = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool waitForExit = true)
     {
         var profile = ProfileStore.Load(GameRoot);
         var vp = VersionProfileStore.Load(GameRoot, versionId);
@@ -427,10 +428,28 @@ public class LauncherService : ILogger
             svm.DownloadProgress = Math.Clamp(p, 0, 1) * 100;
             svm.DownloadText = $"补全前置原版：{p:P0}";
         });
-        var launchResult = await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, vanillaProgress, ct);
+        var launchResult = await GameLauncher.LaunchAsync(GameRoot, versionId, java, options, this, vanillaProgress, ct, waitForExit);
         Chert.App.ViewModels.StatusBarViewModel.Current.DownloadProgress = 0;
         return launchResult;
     }
+
+    /// <summary>
+    /// 只启动、不等待游戏退出（problem3 多实例）。
+    ///
+    /// <para>供「启动按钮」类入口使用：它们不消费 <see cref="LaunchResult"/> 的崩溃分析，
+    /// 而 <see cref="LaunchResult"/> 的取得要等进程退出 —— 若沿用默认等待，调用方的
+    /// <c>AsyncRelayCommand._isRunning</c> 会在**整个游戏运行期间**都为 true，
+    /// 启动按钮全程灰着，无法再开第二个实例。</para>
+    ///
+    /// <para>需要崩溃分析的入口（LaunchCoordinator / 崩溃恢复流程）必须用
+    /// <see cref="LaunchAsync(string, IAuthenticator?, LaunchCliOverrides?, CancellationToken, bool)"/>
+    /// 的默认 <c>waitForExit: true</c>。</para>
+    /// </summary>
+    public Task<LaunchResult> LaunchAndDetachAsync(string versionId,
+        IAuthenticator? authenticator = null,
+        LaunchCliOverrides? cliOverrides = null,
+        CancellationToken ct = default)
+        => LaunchAsync(versionId, authenticator, cliOverrides, ct, waitForExit: false);
 
     /// <summary>
     /// 解析该版本的有效工作目录。仅当用户<b>已显式保存过</b>版本设置时才用覆盖层，

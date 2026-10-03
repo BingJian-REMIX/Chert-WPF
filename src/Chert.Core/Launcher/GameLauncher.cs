@@ -200,7 +200,8 @@ public static class GameLauncher
         LaunchOptions options,
         ILogger? logger = null,
         System.IProgress<double>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        bool waitForExit = true)
     {
         // 启动前确保 inheritsFrom 链上的前置原版已安装（如 Forge 1.12.2 需原版 1.12.2 的 client jar）。
         // 缺失会导致 ClasspathBuilder 静默跳过原版 jar → classpath 缺原版 → Java 启动找不到原版类 → 退出码 1。
@@ -298,6 +299,18 @@ public static class GameLauncher
         // 同时把 -Xmx 解析出的最大堆内存（MB）传给 HUD，用于内存占用百分比显示。
         var maxMemoryMb = ParseMaxMemoryMb(resolved.JvmArgs);
         GameProcessStarted?.Invoke(proc, maxMemoryMb);
+
+        // ★ waitForExit = false 时**只启动、不等退出**（problem3 多实例）：
+        //   游戏进程交给上层自行跟踪（InstanceTracker / 跨进程扫描），本方法立刻返回，
+        //   调用方的 AsyncRelayCommand 随即释放 _isRunning → 启动按钮恢复可点，
+        //   用户可以接着再开一个实例。
+        //   此时**不产出 LaunchResult 的崩溃分析部分** —— 那需要进程退出才能判定，
+        //   所以只有真正需要分析崩溃的入口（LaunchCoordinator / 崩溃恢复）才用默认 true。
+        if (!waitForExit)
+        {
+            LogLine(logger, gameRoot, $"游戏进程已启动（pid={proc.Id}），本次不等待退出（多实例模式）");
+            return new LaunchResult();
+        }
 
         await proc.WaitForExitAsync(ct);
         var exitCode = proc.ExitCode;

@@ -421,7 +421,8 @@ public class LanLinkViewModel : ObservableObject
                 return;
             }
 
-            await LauncherService.Instance.LaunchAsync(versionId, null, new LaunchCliOverrides
+            // 只启动、不等退出（problem3 多实例）：否则按钮会被锁到游戏关闭
+            await LauncherService.Instance.LaunchAndDetachAsync(versionId, null, new LaunchCliOverrides
             {
                 Username = profile.DefaultUsername,
                 ServerAddress = $"{parsed.Host}:{parsed.Port}"

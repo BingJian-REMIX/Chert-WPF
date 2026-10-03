@@ -252,7 +252,9 @@ public class GameViewModel : ObservableObject
     {
         var id = SelectedVersionId;
         if (string.IsNullOrWhiteSpace(id)) return;
-        await LauncherService.Instance.LaunchAsync(id, null, BuildOverrides());
+        // ★ 只启动、不等退出（problem3 多实例）：否则本命令的 _isRunning 会一直为 true
+        //   直到游戏关闭，启动按钮全程灰着、无法再开第二个实例。
+        await LauncherService.Instance.LaunchAndDetachAsync(id, null, BuildOverrides());
     }
 
     private async Task ScanLanAsync()
@@ -360,14 +362,16 @@ public class GameViewModel : ObservableObject
     private async Task JoinLanAsync(LanServer? s)
     {
         if (s is null) return;
-        await LauncherService.Instance.LaunchAsync(_profile.LastVersionId ?? SelectedVersionId, null,
+        // 同上：只启动不等退出，多开时按钮不被锁住
+        await LauncherService.Instance.LaunchAndDetachAsync(_profile.LastVersionId ?? SelectedVersionId, null,
             BuildOverrides(s.Endpoint));
     }
 
     private async Task JoinServerAsync(ServerEntry? s)
     {
         if (s is null) return;
-        await LauncherService.Instance.LaunchAsync(_profile.LastVersionId ?? SelectedVersionId, null,
+        // 同上：只启动不等退出
+        await LauncherService.Instance.LaunchAndDetachAsync(_profile.LastVersionId ?? SelectedVersionId, null,
             BuildOverrides(s.Address));
     }
 

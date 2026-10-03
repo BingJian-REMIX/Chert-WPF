@@ -67,11 +67,31 @@ public static class LaunchCoordinator
             // 覆盖全部启动路径且无固定 1.5s 竞态，此处不再重复激活。
 
             var policy = ProfileStore.Load(gameRoot).RepairPolicy;
-            var result = await LauncherService.Instance.LaunchAsync(versionId);
-            await HandleLaunchResult(result, versionId, policy, status);
 
-            // 游戏进程结束后恢复音量
-            MusicPlayerViewModel.Instance.OnGameExit();
+            // ★ problem3 多实例：**只启动、不等退出**。
+            //   原先 await 到游戏退出才返回，会让调用方命令的 _isRunning 一直为 true ——
+            //   启动按钮在整个游戏运行期间都是灰的，无法再开第二个实例。
+            //   崩溃跟进（分析 / 自动修复 / 恢复音量）改为后台任务，能力完全保留，
+            //   只是不再占用启动按钮。
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var result = await LauncherService.Instance.LaunchAsync(versionId);
+                    await HandleLaunchResult(result, versionId, policy, status);
+                }
+                catch (Exception ex)
+                {
+                    status?.Invoke($"启动失败：{ex.Message}");
+                }
+                finally
+                {
+                    // 游戏进程结束后恢复音量
+                    MusicPlayerViewModel.Instance.OnGameExit();
+                }
+            });
+
+            status?.Invoke("正在启动游戏…");
         }
         catch (Exception ex)
         {
