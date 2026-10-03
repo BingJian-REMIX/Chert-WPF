@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Chert.Core.Profiles;
 
 /// <summary>
@@ -42,6 +44,7 @@ public sealed class MusicClientPrefs
     public const int MaxGraceMinutes = 30;
 
     /// <summary>启用本地客户端模式（总开关）。关闭时完全不涉及外部客户端进程。</summary>
+    [JsonPropertyName("enabled")]
     public bool Enabled { get; set; } = DefaultEnabled;
 
     /// <summary>
@@ -49,14 +52,17 @@ public sealed class MusicClientPrefs
     /// 播放器切到本地文件夹或 API 模式、且所有由启动器拉起的客户端均处于暂停状态时，
     /// 持续此时间后直接结束这些客户端进程。<b>设为 0 表示不自动关闭</b>。
     /// </summary>
+    [JsonPropertyName("graceMinutes")]
     public int GraceMinutes { get; set; } = DefaultGraceMinutes;
 
     /// <summary>歌词固定方式（只影响叠加层渲染行数）。</summary>
+    [JsonPropertyName("lyricPin")]
     public LyricPinMode LyricPin { get; set; } = LyricPinMode.CurrentOnly;
 
     /// <summary>
     /// 客户端模式下仍用 API 获取歌词。开启时叠加层仍显示歌词，关闭则隐藏。
     /// </summary>
+    [JsonPropertyName("lyricEnabled")]
     public bool LyricEnabled { get; set; } = true;
 
     /// <summary>
