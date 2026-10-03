@@ -156,7 +156,12 @@ public static class LaunchCoordinator
         var pref = ProfileStore.Load(LauncherService.Instance.GameRoot).AutoInstallMissingMods;
         if (pref == AutoInstallPolicy.Never) return;
 
-        var missing = ModManager.MissingDependencies(LauncherService.Instance.GameRoot);
+        // ★ 版本隔离适配（problem3 终版）：Mod 依赖检查必须查**该版本实际的工作目录**。
+        //   此前一律传 GameRoot，等于「隔离版去查共享位置的 mods」——
+        //   隔离版自己装的 mod 缺依赖报不出来，共享位置别人的 mod 缺失却会误报。
+        //   同文件的存档兼容检测（上方）已正确传 versionId，此前两处逻辑不一致。
+        var depDir = FileChangeDetector.WatchDirFor(LauncherService.Instance.GameRoot, versionId);
+        var missing = ModManager.MissingDependencies(depDir);
         if (missing.Count == 0) return;
 
         if (pref == AutoInstallPolicy.Always)
