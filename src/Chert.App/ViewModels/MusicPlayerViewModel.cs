@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
+using Chert.Core.Music;
 using Chert.Core.Toolbox;
 using Chert.Core.Mvvm;
 using Chert.Core.Profiles;
@@ -45,7 +46,22 @@ public class MusicPlayerViewModel : ObservableObject
 
     public ObservableCollection<Track> Tracks { get; } = new();
 
-    private string _sourceKind = "Local"; // Local / Online / McOst
+    // ★ Local / Online / McOst 之外新增 Client（本地客户端模式，规格实现项 6a）：
+    //   该模式下启动器**不自己放**，音频由外部客户端（QQ 音乐 / 网易云 等）负责。
+    private string _sourceKind = "Local"; // Local / Online / McOst / Client
+
+    /// <summary>
+    /// 共享的歌词引擎实例（规格实现项 4：叠加层与迷你播放条共用同一个，避免重复解析）。
+    /// </summary>
+    private readonly LyricEngine _lyric = new();
+
+    /// <summary>歌词引擎（供叠加层 / 迷你播放条绑定；单一实例，避免重复解析 LRC）。</summary>
+    public LyricEngine Lyric => _lyric;
+
+    /// <summary>本地客户端模式设置（含容错归一）。</summary>
+    public MusicClientPrefs ClientPrefs =>
+        (ProfileStore.Load(LauncherService.Instance.GameRoot).MusicClient
+         ?? new MusicClientPrefs()).Normalized();
     private bool _isPlaying;
     private Track? _currentTrack;
     private string _statusText = "未播放";
@@ -196,6 +212,91 @@ public class MusicPlayerViewModel : ObservableObject
         else if (CurrentTrack is { DurationSec: > 0 } t) DurationSec = t.DurationSec;
 
         PositionSec = host.PositionSec;
+
+        // 歌词：与进度同频更新（1s 一跳足够，逐行切换观感与音乐歌词一致）
+        RefreshLyric();
+    }
+
+    // ---- 歌词（规格实现项 3 / 4）----
+
+    /// <summary>歌词固定方式跟随设置（切换隔离等场景下实时生效）。</summary>
+    private LyricPinMode LyricPinModeSetting => ClientPrefs.LyricPin;
+
+    /// <summary>
+    /// 切歌时载入对应 <c>.lrc</c>。找不到就清空 —— 规格要求「无歌词时静默隐藏，不弹错误提示」。
+    /// </summary>
+    private void LoadLyricForCurrentTrack()
+    {
+        try
+        {
+            // 本地客户端模式下，歌词是否显示由「客户端模式下仍用API获取歌词」决定；
+            // 该开关关闭时清空（隐藏），开启时沿用已载入的歌词。
+            if (IsLocalClient && !ClientPrefs.LyricEnabled) { _lyric.Clear(); return; }
+
+            _lyric.PinMode = LyricPinModeSetting;
+            _lyric.TryLoadFromFile(CurrentTrack?.Path);
+            RefreshLyricTexts();
+        }
+        catch
+        {
+            _lyric.Clear();
+            RefreshLyricTexts();
+        }
+    }
+
+    /// <summary>
+    /// 按当前进度刷新歌词显示行（行数由「歌词固定方式」决定）。
+    /// 行内容不变时<b>不通知</b>，避免每秒重建 StackPanel 造成闪烁。
+    /// </summary>
+    private void RefreshLyric()
+    {
+        try
+        {
+            _lyric.PinMode = LyricPinModeSetting;
+            RefreshLyricTexts();
+        }
+        catch { /* 歌词属装饰性，失败不影响播放 */ }
+    }
+
+    private string _lyricText = "";
+    private int _lyricLineCount;
+
+    /// <summary>当前应显示的歌词文本（多行用换行分隔，供叠加层/迷你条 TextBlock）。</summary>
+    public string LyricText
+    {
+        get => _lyricText;
+        private set => SetField(ref _lyricText, value);
+    }
+
+    /// <summary>当前应显示的歌词行数（0 = 无歌词，界面应隐藏）。</summary>
+    public int LyricLineCount
+    {
+        get => _lyricLineCount;
+        private set
+        {
+            if (SetField(ref _lyricLineCount, value))
+                OnPropertyChanged(nameof(HasLyric));
+        }
+    }
+
+    /// <summary>是否有歌词可显示（界面据此隐藏歌词区，无需弹提示）。</summary>
+    public bool HasLyric => LyricLineCount > 0;
+
+    private void RefreshLyricTexts()
+    {
+        // 本地客户端模式下按设置决定是否隐藏
+        if (IsLocalClient && !ClientPrefs.LyricEnabled)
+        {
+            LyricText = "";
+            LyricLineCount = 0;
+            return;
+        }
+
+        var lines = _lyric.GetDisplayLines(PositionSec);
+        var text = string.Join(Environment.NewLine, lines.Select(l => l.Text));
+        if (!string.Equals(text, LyricText, StringComparison.Ordinal))
+            LyricText = text;
+        LyricLineCount = lines.Count;
     }
 
     /// <summary>拖动进度条跳转（Slider 传来的值可能是比例或秒，按值域判断）。</summary>
@@ -279,6 +380,8 @@ public class MusicPlayerViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsLocal));
                 OnPropertyChanged(nameof(IsOnline));
                 OnPropertyChanged(nameof(IsMcOst));
+                OnPropertyChanged(nameof(IsLocalClient));
+                SyncSourceMode();
             }
         }
     }
@@ -286,6 +389,9 @@ public class MusicPlayerViewModel : ObservableObject
     public bool IsLocal => SourceKind == "Local";
     public bool IsOnline => SourceKind == "Online";
     public bool IsMcOst => SourceKind == "McOst";
+
+    /// <summary>是否处于本地客户端模式（启动器不自己播放）。</summary>
+    public bool IsLocalClient => SourceKind == "Client";
 
     public bool IsPlaying
     {
@@ -408,6 +514,7 @@ public class MusicPlayerViewModel : ObservableObject
         try { ActiveHost?.Seek(pos); } catch { }
         PositionSec = pos;
         DurationSec = track.DurationSec;
+        LoadLyricForCurrentTrack();     // 续播同样要载入歌词
         IsPlaying = true;
         StartProgressTimer();
         StatusText = "已续播：" + CurrentTrack.Display;
@@ -442,12 +549,71 @@ public class MusicPlayerViewModel : ObservableObject
             return;
         }
 
-        if (kind is "Local" or "Online" or "McOst")
+        if (kind is "Local" or "Online" or "McOst" or "Client")
         {
+            // 本地客户端模式总开关关闭时降级为 API（规格：关闭时完全不涉及外部客户端进程）
+            if (kind == "Client" && !ClientPrefs.Enabled)
+            {
+                StatusText = "本地客户端模式未启用，请先在「设置 → 音乐」中开启";
+                return;
+            }
+
             SourceKind = kind!;
             if (kind == "McOst" && McOstGroups.Count == 0)
                 ScanMcOst();
+            if (kind == "Client")
+            {
+                // 本地客户端模式下启动器不放音：停掉自己的音源并清空播放列表，
+                // 避免与外部客户端叠音（规格不变量：同一时间只有一个音源在播放）。
+                StopLocalPlaybackForClientMode();
+                RefreshLyricTexts();   // 按「客户端模式下仍用API取歌词」决定显隐
+                StatusText = "本地客户端模式：音乐由外部客户端播放，启动器不再输出音频";
+            }
         }
+    }
+
+    /// <summary>
+    /// 把当前 <see cref="SourceKind"/> 同步到 <see cref="MusicModeManager"/>（规格实现项 5）。
+    /// <para>映射：Local → <see cref="MusicSourceMode.LocalFolder"/>、
+    /// Online → <see cref="MusicSourceMode.Api"/>、
+    /// Client → <see cref="MusicSourceMode.LocalClient"/>。
+    /// McOst（MC 原声）视为本地文件夹的一种，故也映射到 LocalFolder。</para>
+    /// <para>切换时 <see cref="MusicModeManager"/> 会停掉上一个音源（防叠音），
+    /// 并广播模式变更给生命周期管理器 / 歌词引擎 / 叠加层。</para>
+    /// </summary>
+    private void SyncSourceMode()
+    {
+        try
+        {
+            var target = SourceKind switch
+            {
+                "Online" => MusicSourceMode.Api,
+                "Client" => MusicSourceMode.LocalClient,
+                _ => MusicSourceMode.LocalFolder,
+            };
+            var prefs = ClientPrefs;
+            MusicModeManager.StopLocalPlayback = StopLocalPlaybackForClientMode;
+            MusicModeManager.SwitchTo(target, prefs);
+        }
+        catch
+        {
+            // 模式同步属非关键，失败不影响播放
+        }
+    }
+
+    /// <summary>
+    /// 停掉启动器自己的音源（供 <see cref="MusicModeManager.SwitchTo"/> 与
+    /// 切入本地客户端模式时调用）。**不抛异常** —— 模式切换不应因停止失败而中断。
+    /// </summary>
+    private void StopLocalPlaybackForClientMode()
+    {
+        try
+        {
+            if (IsPlaying) ActiveHost?.Pause();
+            StopProgressTimer();
+            IsPlaying = false;
+        }
+        catch { /* 停止失败不影响模式切换 */ }
     }
 
     private void PlayPause()
@@ -530,6 +696,7 @@ public class MusicPlayerViewModel : ObservableObject
         PlayOnActiveHost(CurrentTrack!.Path);
         StartProgressTimer();
         SaveResumePoint();
+        LoadLyricForCurrentTrack();     // 切歌 → 载入对应 .lrc
         StatusText = "正在播放：" + CurrentTrack.Display;
         OnPropertyChanged(nameof(CurrentTrackDisplay));
     }
