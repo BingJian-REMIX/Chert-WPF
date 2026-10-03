@@ -1078,7 +1078,7 @@
 
                     <ListBox Grid.Row="3" ItemsSource="{Binding Accounts}" SelectedItem="{Binding SelectedAccount, Mode=TwoWay}"
                              MouseDoubleClick="AccountList_DoubleClick"
-                             ToolTip="双击一个账号即可设为当前账号（多角色切换最常用）">
+                             ToolTip="双击一个账号即可设为当前账号（多角色切换最常用）"
 
                              Height="140" Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}" Margin="0,8,0,0">
 
