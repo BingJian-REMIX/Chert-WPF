@@ -24,7 +24,9 @@
 
         Background="{DynamicResource WindowBackground}"
 
-        WindowStartupLocation="CenterScreen" UseLayoutRounding="True">
+        WindowStartupLocation="CenterScreen" UseLayoutRounding="True"
+
+        PreviewKeyDown="MainWindow_PreviewKeyDown">
 
     <Window.Resources>
 
@@ -522,7 +524,9 @@
 
                 <ScrollViewer x:Name="TopTabsScroll" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
 
-                              PreviewMouseWheel="TopTabsScroll_PreviewMouseWheel">
+                              PreviewMouseWheel="TopTabsScroll_PreviewMouseWheel"
+                              KeyDown="TopTabsScroll_KeyDown"
+                              Focusable="True">
 
                     <StackPanel x:Name="TopTabsPanel" Orientation="Horizontal"
 
@@ -682,7 +686,7 @@
 
                 <StackPanel Orientation="Horizontal" x:Name="MusicMini">
 
-                    <Button x:Name="MusicPrevBtn" Width="26" Height="22" Padding="0" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicPrevBtn" Width="26" Height="22" Style="{StaticResource MiniIconButtonStyle}"
 
                             Command="{Binding PreviousCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
@@ -692,7 +696,7 @@
 
                     </Button>
 
-                    <Button x:Name="MusicPlayBtn" Width="26" Height="22" Padding="0" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicPlayBtn" Width="26" Height="22" Style="{StaticResource MiniIconButtonStyle}"
 
                             Command="{Binding PlayPauseCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
@@ -724,7 +728,7 @@
 
                     </Button>
 
-                    <Button x:Name="MusicNextBtn" Width="26" Height="22" Padding="0" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicNextBtn" Width="26" Height="22" Style="{StaticResource MiniIconButtonStyle}"
 
                             Command="{Binding NextCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 
@@ -760,7 +764,7 @@
 
                             IsEnabled="{Binding HasProgress, Source={x:Static vm:MusicPlayerViewModel.Instance}, Mode=OneWay}"/>
 
-                    <Button x:Name="MusicExpandBtn" Width="24" Height="22" Padding="0" BorderThickness="0" Background="Transparent"
+                    <Button x:Name="MusicExpandBtn" Width="24" Height="22" Style="{StaticResource MiniIconButtonStyle}"
 
                             Command="{Binding ExpandCommand, Source={x:Static vm:MusicPlayerViewModel.Instance}}"
 

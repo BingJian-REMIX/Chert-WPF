@@ -24,6 +24,49 @@
         基于 ToggleButton 改造：灰色轨道 / 主题色轨道，白色旋钮左右滑动。
         用法：<ToggleButton Style="{StaticResource ToggleSwitchStyle}" IsChecked="{Binding X}"/>
     -->
+    <!--
+        ===== MiniIconButtonStyle（状态栏迷你播放条 / 紧凑工具条的小图标按钮） =====
+        底栏迷你条只有 22~26px 高，原先 Background="Transparent" 且无任何触发器 ——
+        鼠标停在上面没有任何反馈，与标题栏按钮的 hover 反馈不一致。
+
+        三档状态：静止透明 → 悬浮 ControlHoverBackground（150ms 淡入）→ 按下 ControlPressedBackground。
+        动效用 ColorAnimation 改 Border.Background 的 Color（不是直接动画 DynamicResource 画刷，
+        那是合并字典里的共享/已冻结画刷，动画它会抛异常）。
+        焦点：这类小按钮点完即走，不参与 Tab 序（Focusable=False），但保留 IsTabStop=false 语义。
+    -->
+    <Style x:Key="MiniIconButtonStyle" TargetType="Button">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Focusable" Value="False"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            CornerRadius="4"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource ControlHoverBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background"
+                                    Value="{DynamicResource ControlPressedBackground}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
         <Setter Property="Width" Value="44"/>
         <Setter Property="Height" Value="24"/>

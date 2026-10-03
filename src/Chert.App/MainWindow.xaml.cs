@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -2105,6 +2106,59 @@ public partial class MainWindow : Window
         // Delta 上滚为正 → 标签向左移动（HorizontalOffset 减小）
         TopTabsScroll.ScrollToHorizontalOffset(TopTabsScroll.HorizontalOffset - e.Delta);
         e.Handled = true;
+    }
+
+    /// <summary>
+    /// P01 安卓顶栏：键盘导航（上下 / 左右方向键切换子标签）。
+    /// <para>
+    /// 顶栏是横向 ScrollViewer（纵向滚动条 Disabled），WPF 默认的上下键不会让它滚动；
+    /// 但用户按 Up/Down 的意图是「换一个标签」，所以这里接管并同步滚动入视。
+    /// </para>
+    /// <para>
+    /// 焦点不在顶栏时也能用：安卓式布局没有侧边栏，顶栏是唯一副页入口，
+    /// 键盘用户若无别的途径到达。故在窗口级处理，且焦点在输入框时不抢。
+    /// </para>
+    /// </summary>
+    private void TopTabsScroll_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (TopTabsBar.Visibility != Visibility.Visible || _topTabs.Count == 0) return;
+
+        var step = e.Key switch
+        {
+            Key.Down or Key.Right => 1,
+            Key.Up or Key.Left => -1,
+            _ => 0,
+        };
+        if (step == 0) return;
+
+        // TopTabsPanel 的子元素顺序 = _topTabs 的插入顺序，按它建立有序 id 列表
+        var ordered = new List<string>(_topTabs.Count);
+        foreach (var child in TopTabsPanel.Children)
+        {
+            foreach (var kv in _topTabs)
+                if (ReferenceEquals(kv.Value.Root, child)) { ordered.Add(kv.Key); break; }
+        }
+        if (ordered.Count == 0) return;
+
+        int cur = _sidebarState.SelectedId is { } sel ? ordered.IndexOf(sel) : -1;
+        int next = cur < 0
+            ? (step > 0 ? 0 : ordered.Count - 1)
+            : Math.Clamp(cur + step, 0, ordered.Count - 1);
+
+        SelectSidebarItem(ordered[next]);
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// P01：安卓顶栏在窗口级捕获方向键（顶栏本身不易获得键盘焦点）。
+    /// 焦点位于可编辑控件时不拦截 —— 否则全局搜索框里打不了字。
+    /// </summary>
+    private void MainWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (TopTabsBar.Visibility != Visibility.Visible) return;
+        if (Keyboard.FocusedElement is TextBoxBase or PasswordBox or ComboBox) return;
+        if (e.Key is not (Key.Down or Key.Up or Key.Left or Key.Right)) return;
+        TopTabsScroll_KeyDown(TopTabsScroll, e);
     }
 
     private void PlayPageTransition()

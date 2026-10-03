@@ -7,6 +7,7 @@
     <SolidColorBrush x:Key="WindowBackground" Color="#F5F5F5"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#FFFFFF"/>
     <SolidColorBrush x:Key="ControlBorder" Color="#D1D5DB"/>
+    <SolidColorBrush x:Key="ControlPressedBackground" Color="#DCDCDC"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#F0F0F0"/>
 
     <!-- 卡片（规格 1.4：圆角阴影；半透明玻璃质感，随亮/暗主题切换） -->
