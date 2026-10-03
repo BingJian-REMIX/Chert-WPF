@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Windows.Controls;
+using Chert.App.Services;
 using Chert.App.ViewModels;
 
 namespace Chert.App.Views;
@@ -12,6 +14,7 @@ namespace Chert.App.Views;
 public sealed class MediaElementPlayer : IMediaPlayer
 {
     private readonly MediaElement _media;
+    private string? _currentPath;
 
     public MediaElementPlayer(MediaElement media)
     {
@@ -20,13 +23,30 @@ public sealed class MediaElementPlayer : IMediaPlayer
         _media.UnloadedBehavior = MediaState.Manual;
         _media.MediaEnded += (_, _) => Ended?.Invoke();
         _media.MediaFailed += (_, e) =>
-            MusicPlayerViewModel.Instance.StatusText = "解码失败：" + e.ErrorException.Message;
+        {
+            var msg = "解码失败：" + e.ErrorException?.Message;
+            MusicPlayerViewModel.Instance.StatusText = msg;
+            // 依赖系统解码器的格式（FLAC/WAV/M4A/WMA/AAC）在缺少解码器时只抛 MediaFailed，
+            // 这里补一条友好 Toast 提示用户安装对应解码器（OGG 走 NAudio 有兜底，不在此列）。
+            if (!string.IsNullOrEmpty(_currentPath))
+            {
+                var ext = Path.GetExtension(_currentPath).ToLowerInvariant();
+                if (ext is ".flac" or ".wav" or ".m4a" or ".wma" or ".aac")
+                {
+                    ToastService.Show("无法播放该音频",
+                        $"格式 {ext.ToUpperInvariant()} 需要系统解码器。Windows 11 已内置 FLAC 解码；" +
+                        "较旧的 Windows 10 请在 Microsoft Store 安装「HEVC 和 AVC 扩展」后重试。",
+                        ToastKind.Warning);
+                }
+            }
+        };
     }
 
     public event Action? Ended;
 
     public void LoadAndPlay(string path)
     {
+        _currentPath = path;
         if (Uri.TryCreate(path, UriKind.Absolute, out var uri) ||
             Uri.TryCreate(path, UriKind.Relative, out uri))
         {

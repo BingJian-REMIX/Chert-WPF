@@ -55,7 +55,10 @@
 
                      Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
 
-                     BorderBrush="{DynamicResource InputBorder}">
+                     BorderBrush="{DynamicResource InputBorder}"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     ScrollViewer.CanContentScroll="True">
 
                 <ListBox.ItemTemplate>
 

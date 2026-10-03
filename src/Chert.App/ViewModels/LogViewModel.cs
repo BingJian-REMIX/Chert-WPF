@@ -1,6 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Chert.Core.Mvvm;
 using Chert.Core.Toolbox;
 using Chert.App.Services;
@@ -16,6 +19,11 @@ public class LogViewModel : ObservableObject
     private string _keyword = "";
     private bool _onlyErrors;
     private string _statusMessage = "";
+
+    private List<LogLine> _allLines = new();          // 已解析的全部行（内存缓存，过滤不再读盘）
+    private readonly DispatcherTimer _filterTimer;
+    private int _loadToken;                            // 防止快速切换文件时旧加载覆盖新结果
+    private const int MaxDisplayLines = 50000;         // 单次最多绑定给界面的行数
 
     // ===== P11：聊天记录（与崩溃报告共用 ChatExtractor）=====
 
@@ -103,7 +111,10 @@ public class LogViewModel : ObservableObject
         set
         {
             if (SetField(ref _keyword, value))
-                ApplyFilter();
+            {
+                _filterTimer.Stop();
+                _filterTimer.Start();   // 去抖：停止输入 250ms 后再过滤，避免逐字符重读磁盘
+            }
         }
     }
 
@@ -113,7 +124,10 @@ public class LogViewModel : ObservableObject
         set
         {
             if (SetField(ref _onlyErrors, value))
-                ApplyFilter();
+            {
+                _filterTimer.Stop();
+                _filterTimer.Start();   // 去抖：切换开关后统一过滤
+            }
         }
     }
 
@@ -131,6 +145,8 @@ public class LogViewModel : ObservableObject
         RefreshCommand = new RelayCommand(_ => Refresh());
         ExportCommand = new RelayCommand(_ => Export());
         ExportChatCommand = new RelayCommand(p => ExportChat(p as string ?? "txt"), _ => HasChat);
+        _filterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _filterTimer.Tick += (_, _) => { _filterTimer.Stop(); ApplyFilter(); };
         Refresh();
     }
 
@@ -144,9 +160,16 @@ public class LogViewModel : ObservableObject
     private void ApplyFilter()
     {
         if (SelectedFile is null) return;
-        var text = LogManager.ReadLog(SelectedFile.FullPath);
-        var all = LogManager.ParseLines(text);
-        Lines = new ObservableCollection<LogLine>(LogManager.Filter(all, Keyword, OnlyErrors));
+        var filtered = LogManager.Filter(_allLines, Keyword, OnlyErrors, MaxDisplayLines, out int total);
+        Lines = new ObservableCollection<LogLine>(filtered);
+        var isFiltering = !string.IsNullOrWhiteSpace(Keyword) || OnlyErrors;
+        StatusMessage = filtered.Count < total
+            ? (isFiltering
+                ? $"匹配 {total} 行，已显示最近 {filtered.Count} 行（文件共 {_allLines.Count} 行）"
+                : $"已显示最近 {filtered.Count} 行（文件共 {_allLines.Count} 行）")
+            : (isFiltering
+                ? $"匹配 {total} 行（文件共 {_allLines.Count} 行）"
+                : $"共 {_allLines.Count} 行");
     }
 
     private void Export()
@@ -159,29 +182,41 @@ public class LogViewModel : ObservableObject
         StatusMessage = ok ? $"已导出到 {target}" : "导出失败";
     }
 
-    private void LoadSelected()
+    private async Task LoadSelectedAsync()
     {
-        if (SelectedFile is null)
+        var file = SelectedFile;
+        if (file is null)
         {
+            _allLines.Clear();
             Lines = new();
             ChatEntries = new();
             HasChat = false;
-            ChatCount = 0;          // 同步条数，供开关旁的「（无）」显示
+            ChatCount = 0;
             ChatStatus = "未选择文件";
+            StatusMessage = "";
             return;
         }
-        var text = LogManager.ReadLog(SelectedFile.FullPath);
-        var all = LogManager.ParseLines(text);
-        Lines = new ObservableCollection<LogLine>(LogManager.Filter(all, Keyword, OnlyErrors));
-
-        // P11：聊天记录与日志正文同源，一次读取同时提取
-        var chat = ChatExtractor.Extract(text);
+        var token = ++_loadToken;
+        StatusMessage = $"读取中：{file.Name}";
+        string text = "";
+        List<LogLine> all = new();
+        List<ChatEntry> chat = new();
+        await Task.Run(() =>
+        {
+            text = LogManager.ReadLog(file.FullPath);
+            all = LogManager.ParseLines(text);
+            chat = ChatExtractor.Extract(text);
+        });
+        if (token != _loadToken) return;   // 已被更新的选择覆盖，丢弃陈旧结果
+        _allLines = all;
         ChatEntries = new ObservableCollection<ChatEntry>(chat);
         HasChat = chat.Count > 0;
-        ChatCount = chat.Count;   // 同步条数
-        ChatStatus = chat.Count > 0
-            ? $"从 {SelectedFile.Name} 提取到 {chat.Count} 条聊天记录。"
-            : $"未在 {SelectedFile.Name} 中找到聊天记录。";
+        ChatCount = chat.Count;
+        ChatStatus = HasChat
+            ? $"从 {file.Name} 提取到 {chat.Count} 条聊天记录。"
+            : $"未在 {file.Name} 中找到聊天记录。";
+        ApplyFilter();
+        StatusMessage = $"已载入 {file.Name}（{_allLines.Count} 行）";
     }
 
     /// <summary>P11：把聊天记录导出为 txt / md。</summary>
@@ -210,9 +245,5 @@ public class LogViewModel : ObservableObject
         }
     }
 
-    private Task LoadSelectedAsync()
-    {
-        LoadSelected();
-        return Task.CompletedTask;
-    }
+    // 旧 LoadSelected/LoadSelectedAsync 已合并为上方异步版本
 }

@@ -65,6 +65,7 @@ public class RedundantCleanViewModel : ObservableObject
     private async Task ScanAsync()
     {
         IsBusy = true;
+        await Task.Yield();   // 先让页面绘制首帧，再开始占用线程扫描
         try
         {
             var root = LauncherService.Instance.GameRoot;

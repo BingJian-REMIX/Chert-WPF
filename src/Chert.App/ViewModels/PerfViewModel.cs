@@ -118,7 +118,13 @@ public class PerfViewModel : ObservableObject, IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
         _timer.Tick += (_, _) => Sample();
         _timer.Start();
-        Sample();
+
+        // 延后到首帧渲染后再做跨进程采样，避免阻塞页面打开（构造期先给个占位状态）
+        StatusMessage = "正在采集性能数据…";
+        if (System.Windows.Application.Current?.Dispatcher is { } disp)
+            disp.BeginInvoke(DispatcherPriority.Loaded, (Action)Sample);
+        else
+            Sample();
     }
 
     [StructLayout(LayoutKind.Sequential)]

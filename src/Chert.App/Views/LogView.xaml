@@ -125,6 +125,9 @@
                 <TextBlock Text="{Binding ChatCountText}" VerticalAlignment="Center" Margin="6,0,0,0"
                            Foreground="{DynamicResource SecondaryForeground}" FontSize="11"/>
 
+                <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="16,0,0,0"
+                           Foreground="{DynamicResource SecondaryForeground}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+
             </StackPanel>
 
             <!-- P11：聊天记录改为开关控制的下方折叠区（不再是页签） -->
@@ -137,7 +140,10 @@
                 <ListBox Grid.Row="0" ItemsSource="{Binding Lines}"
                          Background="{DynamicResource InputBackground}" BorderBrush="{DynamicResource InputBorder}"
                          Foreground="{DynamicResource PrimaryForeground}"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12">
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="12"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         ScrollViewer.CanContentScroll="True">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <TextBlock Text="{Binding Text}" TextWrapping="Wrap"

@@ -35,6 +35,22 @@ public partial class SettingsView : UserControl
         GridMusic.Visibility = tag == "Music" ? Visibility.Visible : Visibility.Collapsed;
         GridAppearance.Visibility = tag == "Appearance" ? Visibility.Visible : Visibility.Collapsed;
         GridAbout.Visibility = tag == "About" ? Visibility.Visible : Visibility.Collapsed;
+
+        // 设置页分类切换入场动画（清单 #17 风格）：仅对新显示的区块做错峰淡入上浮
+        FrameworkElement? revealed = tag switch
+        {
+            "General" => GridGeneral,
+            "Launch" => GridLaunch,
+            "Download" => GridDownload,
+            "Recommend" => GridRecommend,
+            "Accounts" => GridAccounts,
+            "Ai" => AiSettingsHost,
+            "Music" => GridMusic,
+            "Appearance" => GridAppearance,
+            "About" => GridAbout,
+            _ => null
+        };
+        if (revealed is not null) MotionFX.Reveal(revealed);
     }
 
     /// <summary>由 MainWindow 全局侧边栏路由调用（id 对应 <see cref="SidebarModel.Settings"/>）。</summary>
