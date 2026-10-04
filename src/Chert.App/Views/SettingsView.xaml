@@ -1006,6 +1006,204 @@
 
                        TextWrapping="Wrap" Margin="0,10,0,0"/>
 
+            <!-- 在线音源（规格 MusicSourceMode.Api）：由启动器自己通过网络接口取流播放 -->
+
+            <Border Grid.Row="6" Margin="0,12,0,0" Padding="12,10" CornerRadius="8"
+
+                    Background="{DynamicResource CardBackground}"
+
+                    BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+
+                <StackPanel>
+
+                    <TextBlock Text="{theme:Loc music.set_api_section}" FontWeight="Bold" FontSize="13"
+
+                               Margin="0,0,0,2"/>
+
+                    <TextBlock Text="{theme:Loc music.set_api_section_tip}" FontSize="11" Opacity="0.7"
+
+                               TextWrapping="Wrap" Margin="0,0,0,10"/>
+
+                    <!-- ① 总开关 -->
+
+                    <WrapPanel Margin="0,3">
+
+                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                                      IsChecked="{Binding ApiEnabled, Mode=TwoWay}"/>
+
+                        <TextBlock Text="{theme:Loc music.set_api_enabled}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                                   Foreground="{DynamicResource PrimaryForeground}"/>
+
+                    </WrapPanel>
+
+                    <StackPanel Margin="0,10,0,0" IsEnabled="{Binding ApiEnabled}">
+
+                        <!-- ② 数据源：切协议会连带重置服务地址（两种协议形态不兼容） -->
+
+                        <WrapPanel Margin="0,3">
+
+                            <TextBlock Text="{theme:Loc music.set_api_kind}" VerticalAlignment="Center"
+
+                                       Margin="0,0,10,0" Width="90"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <ComboBox Width="260" SelectedIndex="{Binding ApiKindIndex, Mode=TwoWay}">
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_kind_meting}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_kind_netease}"/>
+
+                            </ComboBox>
+
+                        </WrapPanel>
+
+                        <!-- ③ 服务地址 -->
+
+                        <WrapPanel Margin="0,8,0,0">
+
+                            <TextBlock Text="{theme:Loc music.set_api_baseurl}" VerticalAlignment="Center"
+
+                                       Margin="0,0,10,0" Width="90"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <TextBox Width="300" Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
+
+                                     Padding="6,4" VerticalAlignment="Center"
+
+                                     Background="{DynamicResource InputBackground}"
+
+                                     Foreground="{DynamicResource InputForeground}"
+
+                                     BorderBrush="{DynamicResource InputBorder}"/>
+
+                            <Button Content="{theme:Loc music.set_api_default}" Command="{Binding ApiRestoreDefaultUrlCommand}"
+
+                                    Margin="8,0,0,0" Padding="10,5" VerticalAlignment="Center"/>
+
+                        </WrapPanel>
+
+                        <TextBlock Text="{theme:Loc music.set_api_baseurl_tip}" FontSize="11" Opacity="0.65"
+
+                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+
+                        <!-- ④ 平台（仅 Meting 聚合协议用得上） -->
+
+                        <WrapPanel Margin="0,8,0,0"
+
+                                   Visibility="{Binding ApiPlatformVisible, Converter={StaticResource BoolToVis}}">
+
+                            <TextBlock Text="{theme:Loc music.set_api_platform}" VerticalAlignment="Center"
+
+                                       Margin="0,0,10,0" Width="90"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <ComboBox Width="180" SelectedIndex="{Binding ApiPlatformIndex, Mode=TwoWay}">
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_netease}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_tencent}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_kugou}"/>
+
+                            </ComboBox>
+
+                        </WrapPanel>
+
+                        <!-- ⑤ 音质 -->
+
+                        <WrapPanel Margin="0,8,0,0">
+
+                            <TextBlock Text="{theme:Loc music.set_api_quality}" VerticalAlignment="Center"
+
+                                       Margin="0,0,10,0" Width="90"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <ComboBox Width="180" SelectedIndex="{Binding ApiQualityIndex, Mode=TwoWay}">
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_quality_standard}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_quality_higher}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_quality_exquisite}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_quality_lossless}"/>
+
+                            </ComboBox>
+
+                        </WrapPanel>
+
+                        <!-- ⑥ 登录状态（只有部分数据源支持扫码登录） -->
+
+                        <WrapPanel Margin="0,12,0,0">
+
+                            <TextBlock Text="{theme:Loc music.set_api_account}" VerticalAlignment="Center" Margin="0,0,10,0"
+
+                                       Foreground="{DynamicResource PrimaryForeground}"/>
+
+                            <TextBlock Text="{Binding ApiAccountLabel}" VerticalAlignment="Center"
+
+                                       Opacity="0.85" Margin="0,0,12,0"/>
+
+                            <Button Content="{theme:Loc music.api_login}" Command="{Binding ApiLoginCommand}"
+
+                                    Padding="10,5" Margin="0,0,8,0"
+
+                                    Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"
+
+                                    Visibility="{Binding ApiCanLogin, Converter={StaticResource BoolToVis}}"/>
+
+                            <Button Content="{theme:Loc music.api_logout}" Command="{Binding ApiLogoutCommand}"
+
+                                    Padding="10,5"
+
+                                    Visibility="{Binding ApiLoggedIn, Converter={StaticResource BoolToVis}}"/>
+
+                        </WrapPanel>
+
+                        <TextBlock Text="{theme:Loc music.set_api_login_unsupported}" FontSize="11" Opacity="0.65"
+
+                                   Margin="0,6,0,0"
+
+                                   Visibility="{Binding ApiCanLogin, Converter={StaticResource BoolToVisInvert}}"/>
+
+                        <!-- 二维码：由服务端返回 data URL，经转换器解码成 BitmapImage -->
+
+                        <Border Margin="0,10,0,0" Padding="12" CornerRadius="8" HorizontalAlignment="Left"
+
+                                Background="{DynamicResource InputBackground}"
+
+                                Visibility="{Binding MusicPlayer.LoginPanelVisible, Converter={StaticResource BoolToVis}}">
+
+                            <StackPanel>
+
+                                <Image Width="170" Height="170" Stretch="Uniform"
+
+                                       Source="{Binding MusicPlayer.LoginQrDataUrl, Converter={StaticResource DataUrlToImage}}"/>
+
+                                <TextBlock Text="{Binding MusicPlayer.LoginStatusText}" FontSize="11" Opacity="0.8"
+
+                                           TextAlignment="Center" Margin="0,8,0,8" MaxWidth="200" TextWrapping="Wrap"/>
+
+                                <Button Content="{theme:Loc music.api_cancel}" Command="{Binding ApiCancelLoginCommand}"
+
+                                        Padding="10,4" HorizontalAlignment="Center"/>
+
+                            </StackPanel>
+
+                        </Border>
+
+                    </StackPanel>
+
+                </StackPanel>
+
+            </Border>
+
         </Grid>
 
 

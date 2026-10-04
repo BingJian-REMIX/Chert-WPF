@@ -20,6 +20,7 @@ public static class ProfileStore
             // 配置可能被手改 / 来自旧版本 / 跨设备同步：宽限期钳制 0–30、非法枚举回退默认，
             // 免得「9999 分钟」或非法歌词行数渗进业务逻辑。
             p.MusicClient = (p.MusicClient ?? new MusicClientPrefs()).Normalized();
+            p.MusicApi = (p.MusicApi ?? new MusicApiPrefs()).Normalized();
             return p;
         }
         catch

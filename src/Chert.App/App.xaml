@@ -28,6 +28,8 @@
             <conv:InverseBoolToVisibilityConverter x:Key="BoolToVisInvert"/>
             <!-- 非空字符串 → 可见（详情文本、空状态提示） -->
             <conv:NonEmptyToVisibilityConverter x:Key="NonEmptyToVis"/>
+            <!-- data URL 或图片地址 → BitmapImage（在线音源的扫码登录二维码） -->
+            <conv:DataUrlToImageConverter x:Key="DataUrlToImage"/>
             <!-- 进度 0–100 → 环形进度条虚线串（bug.txt #7 细环形，对齐 Linux） -->
             <conv:ProgressToRingDashConverter x:Key="ProgressToRingDash"/>
             <!-- 下载队列状态 → 暂停/取消按钮是否可用 -->

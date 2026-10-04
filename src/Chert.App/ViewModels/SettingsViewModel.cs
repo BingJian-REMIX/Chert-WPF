@@ -11,6 +11,7 @@ using Chert.Core.Hud;
 using Chert.Core.Input;
 using Chert.Core.Launcher;
 using Chert.Core.Localization;
+using Chert.Core.Music;
 using Chert.Core.Mvvm;
 using Chert.Core.Profiles;
 using Chert.Core.Recommend;
@@ -509,6 +510,141 @@ public class SettingsViewModel : ObservableObject
         }
     }
 
+    // ===== 在线音源（对接 MusicSourceMode.Api）=====
+    // 五项都在自己的读写里即时 NotifyApiChanged()：切换数据源要求播放器立刻重建
+    // provider 并重新判定登录态，否则用户改完地址还要重启才生效。
+
+    private static void NotifyApiChanged() => MusicPlayerViewModel.Instance.OnApiPrefsChanged();
+
+    private static MusicApiPrefs LoadApiPrefs()
+    {
+        try { return ProfileStore.Load(LauncherService.Instance.GameRoot).MusicApi.Normalized(); }
+        catch { return new MusicApiPrefs(); }
+    }
+
+    private static void SaveApiPrefs(MusicApiPrefs prefs)
+    {
+        try
+        {
+            var p = ProfileStore.Load(LauncherService.Instance.GameRoot);
+            p.MusicApi = prefs;
+            ProfileStore.Save(p);
+        }
+        catch { /* 写盘失败不阻断设置页交互 */ }
+    }
+
+    /// <summary>总开关：关闭后音乐页不再显示「在线」入口。</summary>
+    public bool ApiEnabled
+    {
+        get => LoadApiPrefs().Enabled;
+        set
+        {
+            var p = LoadApiPrefs();
+            if (p.Enabled == value) return;
+            p.Enabled = value;
+            SaveApiPrefs(p);
+            OnPropertyChanged();
+            NotifyApiChanged();
+        }
+    }
+
+    /// <summary>
+    /// 数据源协议（下拉下标）。
+    /// <para>切协议会<b>连带重置服务地址</b>：两套协议的请求形态与字段名完全不同，
+    /// 沿用旧地址只会得到一串解析失败。</para>
+    /// </summary>
+    public int ApiKindIndex
+    {
+        get => (int)LoadApiPrefs().Kind;
+        set
+        {
+            if (!Enum.IsDefined(typeof(MusicApiKind), value)) return;
+            var p = LoadApiPrefs();
+            var kind = (MusicApiKind)value;
+            if (p.Kind == kind) return;
+            p.Kind = kind;
+            p.BaseUrl = MusicApiPrefs.DefaultUrlFor(kind);
+            SaveApiPrefs(p);
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ApiBaseUrl));
+            OnPropertyChanged(nameof(ApiPlatformVisible));
+            OnPropertyChanged(nameof(ApiCanLogin));
+            NotifyApiChanged();
+        }
+    }
+
+    /// <summary>服务根地址（不含结尾斜杠）。</summary>
+    public string ApiBaseUrl
+    {
+        get => LoadApiPrefs().BaseUrl;
+        set
+        {
+            var v = (value ?? "").Trim();
+            var p = LoadApiPrefs();
+            if (p.BaseUrl == v) return;
+            p.BaseUrl = v;
+            SaveApiPrefs(p);
+            OnPropertyChanged();
+            NotifyApiChanged();
+        }
+    }
+
+    /// <summary>平台（仅 Meting 协议用得上 —— 网易云 API 本身就是网易云）。</summary>
+    public int ApiPlatformIndex
+    {
+        get => (int)LoadApiPrefs().Platform;
+        set
+        {
+            if (!Enum.IsDefined(typeof(MusicApiPlatform), value)) return;
+            var p = LoadApiPrefs();
+            var v = (MusicApiPlatform)value;
+            if (p.Platform == v) return;
+            p.Platform = v;
+            SaveApiPrefs(p);
+            OnPropertyChanged();
+            NotifyApiChanged();
+        }
+    }
+
+    /// <summary>平台下拉是否显示。</summary>
+    public bool ApiPlatformVisible => LoadApiPrefs().Kind == MusicApiKind.Meting;
+
+    /// <summary>在线播放音质。</summary>
+    public int ApiQualityIndex
+    {
+        get => (int)LoadApiPrefs().Quality;
+        set
+        {
+            if (!Enum.IsDefined(typeof(MusicApiQuality), value)) return;
+            var p = LoadApiPrefs();
+            var v = (MusicApiQuality)value;
+            if (p.Quality == v) return;
+            p.Quality = v;
+            SaveApiPrefs(p);
+            OnPropertyChanged();
+            NotifyApiChanged();
+        }
+    }
+
+    public bool ApiCanLogin => MusicPlayerViewModel.Instance.CanOnlineLogin;
+
+    public bool ApiLoggedIn => MusicPlayerViewModel.Instance.IsOnlineLoggedIn;
+
+    public string ApiAccountLabel => MusicPlayerViewModel.Instance.ApiAccountLabel;
+
+    /// <summary>把地址恢复为当前协议推荐的默认值。</summary>
+    public ICommand ApiRestoreDefaultUrlCommand { get; }
+
+    public ICommand ApiLoginCommand => MusicPlayerViewModel.Instance.StartApiLoginCommand;
+    public ICommand ApiLogoutCommand => MusicPlayerViewModel.Instance.ApiLogoutCommand;
+    public ICommand ApiCancelLoginCommand => MusicPlayerViewModel.Instance.CancelApiLoginCommand;
+
+    /// <summary>
+    /// 播放器单例。设置页需要直接绑定它的二维码 / 登录状态
+    /// （这些状态属于播放器会话，不属于设置项，没必要再代理一层）。
+    /// </summary>
+    public MusicPlayerViewModel MusicPlayer => MusicPlayerViewModel.Instance;
+
     // ===== 下载 =====
     public string SelectedDownloadSource { get => _selectedDownloadSource; set => SetField(ref _selectedDownloadSource, value); }
     public int MaxConcurrentDownloads { get => _maxConcurrentDownloads; set => SetField(ref _maxConcurrentDownloads, value); }
@@ -749,6 +885,8 @@ public class SettingsViewModel : ObservableObject
 
     public SettingsViewModel()
     {
+        ApiRestoreDefaultUrlCommand = new RelayCommand(_ =>
+            ApiBaseUrl = MusicApiPrefs.DefaultUrlFor(LoadApiPrefs().Kind));
         SaveCommand = new RelayCommand(_ => Save());
         AutoDetectJavaCommand = new AsyncRelayCommand(_ => AutoDetectJavaAsync());
         RefreshAccountsCommand = new RelayCommand(_ => RefreshAccounts());

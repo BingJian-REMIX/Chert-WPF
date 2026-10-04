@@ -47,7 +47,13 @@
 
                     Padding="10,4" Margin="0,0,6,0"/>
 
-            <!-- 流媒体音源入口本期屏蔽（清单 #70，待评估后再启用） -->
+            <!-- 在线音源（API 模式）：未启用时干脆不给入口，免得用户点进去必然失败 -->
+
+            <Button Content="{theme:Loc music.source_api}" Command="{Binding SetSourceCommand}" CommandParameter="Online"
+
+                    Padding="10,4" Margin="0,0,6,0"
+
+                    Visibility="{Binding ApiEnabled, Converter={StaticResource BoolToVisibility}}"/>
 
             <Button Content="{theme:Loc music.m184}" Command="{Binding SetSourceCommand}" CommandParameter="McOst"
 
@@ -223,7 +229,155 @@
 
             </StackPanel>
 
-            <!-- 在线流媒体（清单 #70）：本期屏蔽，相关逻辑保留在 MusicPlayerViewModel 内待评估后启用 -->
+            <!-- 在线音源（规格 MusicSourceMode.Api）：搜索、歌单、登录 -->
+
+            <StackPanel Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibility}}">
+
+                <!-- 搜索行：回车等同于点「搜索」 -->
+
+                <Grid Margin="0,0,0,6">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+
+                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0" Text="{Binding OnlineKeyword, UpdateSourceTrigger=PropertyChanged}"
+
+                             IsEnabled="{Binding OnlineIdle}" Padding="6,4" VerticalContentAlignment="Center"
+
+                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                             BorderBrush="{DynamicResource InputBorder}"
+
+                             ToolTip="{theme:Loc music.api_keyword_tip}">
+
+                        <TextBox.InputBindings>
+
+                            <KeyBinding Key="Enter" Command="{Binding SearchOnlineCommand}"/>
+
+                        </TextBox.InputBindings>
+
+                    </TextBox>
+
+                    <Button Grid.Column="1" Content="{theme:Loc music.api_search}" Command="{Binding SearchOnlineCommand}"
+
+                            IsEnabled="{Binding OnlineIdle}" Margin="6,0,0,0" Padding="10,4"
+
+                            Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
+
+                    <!-- 「我的歌单 / 登录」只有支持登录的数据源才出现 -->
+
+                    <Button Grid.Column="2" Content="{theme:Loc music.api_my_playlists}" Command="{Binding RefreshMyPlaylistsCommand}"
+
+                            Margin="6,0,0,0" Padding="10,4"
+
+                            Visibility="{Binding CanOnlineLogin, Converter={StaticResource BoolToVisibility}}"/>
+
+                    <Button Grid.Column="3" Content="{theme:Loc music.api_login}" Command="{Binding StartApiLoginCommand}"
+
+                            Margin="6,0,0,0" Padding="10,4"
+
+                            Visibility="{Binding CanOnlineLogin, Converter={StaticResource BoolToVisibility}}"/>
+
+                    <Button Grid.Column="4" Content="{theme:Loc music.api_logout}" Command="{Binding ApiLogoutCommand}"
+
+                            Margin="6,0,0,0" Padding="10,4"
+
+                            Visibility="{Binding IsOnlineLoggedIn, Converter={StaticResource BoolToVisibility}}"/>
+
+                </Grid>
+
+                <!-- 账户 + 状态（歌单入口在下方，登录后才会出现） -->
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6"
+
+                            Visibility="{Binding CanOnlineLogin, Converter={StaticResource BoolToVisibility}}">
+
+                    <TextBlock Text="{theme:Loc music.api_account}" VerticalAlignment="Center" Margin="0,0,8,0" Opacity="0.8"/>
+
+                    <TextBlock Text="{Binding ApiAccountLabel}" VerticalAlignment="Center" Opacity="0.9"/>
+
+                </StackPanel>
+
+                <!-- 我的歌单：空集合时 ItemsControl 自然不占高度，无需额外显隐控制 -->
+
+                <ItemsControl ItemsSource="{Binding MyPlaylists}" Margin="0,0,0,6">
+
+                    <ItemsControl.ItemsPanel>
+
+                        <ItemsPanelTemplate>
+
+                            <WrapPanel/>
+
+                        </ItemsPanelTemplate>
+
+                    </ItemsControl.ItemsPanel>
+
+                    <ItemsControl.ItemTemplate>
+
+                        <DataTemplate>
+
+                            <Button Command="{Binding DataContext.ImportPlaylistCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+
+                                    CommandParameter="{Binding}" Margin="0,2,6,2" Padding="8,4"
+
+                                    Background="Transparent" BorderThickness="0"
+
+                                    Foreground="{DynamicResource InputForeground}"
+
+                                    ToolTip="{theme:Loc music.api_my_playlists}">
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+
+                                    <TextBlock Text="{Binding MetaText}" FontSize="11" Opacity="0.6" Margin="8,0,0,0"/>
+
+                                </StackPanel>
+
+                            </Button>
+
+                        </DataTemplate>
+
+                    </ItemsControl.ItemTemplate>
+
+                </ItemsControl>
+
+                <!-- 手填歌单 ID（部分数据源没有「搜歌单」能力） -->
+
+                <Grid Margin="0,0,0,6">
+
+                    <Grid.ColumnDefinitions>
+
+                        <ColumnDefinition Width="240"/><ColumnDefinition Width="Auto"/>
+
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox Grid.Column="0" Text="{Binding PlaylistIdInput, UpdateSourceTrigger=PropertyChanged}"
+
+                             Padding="6,4" VerticalContentAlignment="Center"
+
+                             Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                             BorderBrush="{DynamicResource InputBorder}"
+
+                             ToolTip="{theme:Loc music.api_playlist_id}"/>
+
+                    <Button Grid.Column="1" Content="{theme:Loc music.api_import}" Command="{Binding ImportPlaylistCommand}"
+
+                            Margin="6,0,0,0" Padding="10,4"/>
+
+                </Grid>
+
+                <TextBlock Text="{Binding OnlineStatus}" FontSize="11" Opacity="0.75" Margin="0,0,0,2"
+
+                           Visibility="{Binding OnlineStatus, Converter={StaticResource NonEmptyToVis}}"/>
+
+            </StackPanel>
 
             <!-- MC 原声 -->
 
@@ -246,6 +400,8 @@
         <Grid Grid.Row="4" Visibility="{Binding IsLocalClient, Converter={StaticResource InvBoolToVisibility}}">
 
             <Grid.RowDefinitions>
+
+                <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
                 <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
 
@@ -427,6 +583,78 @@
                 </ItemsControl>
 
             </ScrollViewer>
+
+            <!-- 在线搜索结果（点一条即点播：先换直链再加入播放列表，列宽与播放列表一致） -->
+
+            <TextBlock Grid.Row="2" Text="{theme:Loc music.api_results}" FontSize="12" FontWeight="SemiBold"
+
+                       Foreground="{DynamicResource SecondaryForeground}" Margin="8,10,0,2"
+
+                       Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibility}}"/>
+
+            <ListBox Grid.Row="3" Visibility="{Binding IsOnline, Converter={StaticResource BoolToVisibility}}"
+
+                     ItemsSource="{Binding OnlineResults}"
+
+                     Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}"
+
+                     BorderBrush="{DynamicResource InputBorder}"
+
+                     HorizontalContentAlignment="Stretch"
+
+                     MaxHeight="300"
+
+                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+
+                <ListBox.ItemTemplate>
+
+                    <DataTemplate>
+
+                        <Button Command="{Binding DataContext.PlayOnlineTrackCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+
+                                CommandParameter="{Binding}" HorizontalContentAlignment="Stretch" Padding="0,4"
+
+                                Background="Transparent" BorderThickness="0" Foreground="{DynamicResource InputForeground}">
+
+                            <Grid>
+
+                                <Grid.ColumnDefinitions>
+
+                                    <ColumnDefinition Width="2*"/><ColumnDefinition Width="2*"/><ColumnDefinition Width="1.4*"/>
+
+                                    <ColumnDefinition Width="1.4*"/><ColumnDefinition Width="64"/>
+
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding Title}" TextTrimming="CharacterEllipsis"/>
+
+                                <TextBlock Grid.Column="1" Text="{Binding Artist}" TextTrimming="CharacterEllipsis"
+
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                <TextBlock Grid.Column="2" Text="{Binding Album}" TextTrimming="CharacterEllipsis"
+
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                <TextBlock Grid.Column="3" Text="{Binding MetaText}" TextTrimming="CharacterEllipsis"
+
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+                                <TextBlock Grid.Column="4" Text="{Binding DurationText}"
+
+                                           Foreground="{DynamicResource SecondaryForeground}"/>
+
+                            </Grid>
+
+                        </Button>
+
+                    </DataTemplate>
+
+                </ListBox.ItemTemplate>
+
+            </ListBox>
 
         </Grid>
 
