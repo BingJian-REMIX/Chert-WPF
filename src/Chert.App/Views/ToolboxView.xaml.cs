@@ -32,6 +32,8 @@ public partial class ToolboxView : UserControl
             // bug #13：开发工具面板按入口切换内部模式（命令速查 / Mod 骨架 / 资源包创建）
             if (lookup == "dev" && panel.View is DevToolsView dev)
                 dev.SetMode(id);
+            // 副标签切换：内容整块从右滑入淡入（与设置页分类切换同一观感）
+            MotionFX.SlideInSubTab(PanelHost);
             return;
         }
 
@@ -41,7 +43,11 @@ public partial class ToolboxView : UserControl
             "crash" => (UserControl)new CrashAnalysisView(),
             _ => null
         };
-        if (extra is not null) Vm.SelectedView = extra;
+        if (extra is not null)
+        {
+            Vm.SelectedView = extra;
+            MotionFX.SlideInSubTab(PanelHost);
+        }
     }
 
     /// <summary>由全局搜索调用：标题栏全局搜索已通过 <see cref="ShowPanel"/> 跳到匹配面板，

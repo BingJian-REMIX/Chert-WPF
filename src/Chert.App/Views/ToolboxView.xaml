@@ -169,7 +169,7 @@
 
                  无限高度，内部 ScrollViewer 因父容器无约束高度而不出滚动条，表现为“不能滚动”。 -->
 
-            <ContentControl Grid.Row="1" Content="{Binding SelectedView}"/>
+            <ContentControl x:Name="PanelHost" Grid.Row="1" Content="{Binding SelectedView}"/>
 
         </Grid>
 

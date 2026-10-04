@@ -120,7 +120,12 @@
         <ScrollViewer Grid.Column="1" Margin="0" VerticalScrollBarVisibility="Auto">
 
             <Grid>
+                <!-- 行 0 = 各分类面板（9 个面板同格重叠，靠 Visibility 切换）；
+                     行 1 = 保存按钮；行 2 = 保存状态文本。
+                     注：面板与按钮若同处一行，未设 VerticalAlignment 的按钮会被默认 Stretch
+                     拉满整行高度并盖住面板内容（「巨型绿色块」bug）。 -->
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
@@ -1639,11 +1644,11 @@
 
                 <!-- 保存 -->
 
-                <Button Content="{theme:Loc settings.save_settings}" Command="{Binding SaveCommand}" Width="120" HorizontalAlignment="Left"
+                <Button Grid.Row="1" Content="{theme:Loc settings.save_settings}" Command="{Binding SaveCommand}" Width="120" HorizontalAlignment="Left" VerticalAlignment="Top"
 
                         Margin="0,16,0,0" Padding="0,6" Background="{DynamicResource AccentBrush}" Foreground="White" BorderThickness="0"/>
 
-                <TextBlock Grid.Row="1" Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,8,0,0"/>
+                <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,8,0,0"/>
 
             </Grid>
 

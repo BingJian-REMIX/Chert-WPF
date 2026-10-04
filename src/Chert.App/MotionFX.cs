@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 
 namespace Chert.App;
 
@@ -181,13 +182,26 @@ internal static class MotionFX
         element.Opacity = 0;
         if (tf is not null) tf.X = SlideOffsetX;
 
-        element.BeginAnimation(UIElement.OpacityProperty,
-            new DoubleAnimation(0, 1, dur) { EasingFunction = RevealEase, FillBehavior = FillBehavior.HoldEnd });
+        // 收尾必须「先清动画、再落本地值」：FillBehavior.HoldEnd 会让动画**永久接管** Opacity，
+        // 之后任何 element.Opacity = x 都只是改本地值、被动画压住（表现为内容再也显示不出来）。
+        // 原实现只在 tf != null 时收尾，元素自带 RenderTransform（tf == null）时 Opacity 动画会永久残留。
+        var finished = false;
+        void Finish()
+        {
+            if (finished) return;
+            finished = true;
+            element.BeginAnimation(UIElement.OpacityProperty, null);
+            element.Opacity = 1;
+            ClearSlideTransform(element, tf);
+        }
+
+        var opacityAnim = new DoubleAnimation(0, 1, dur) { EasingFunction = RevealEase, FillBehavior = FillBehavior.HoldEnd };
+        opacityAnim.Completed += (_, _) => Finish();
+        element.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
 
         if (tf is not null)
         {
             var slide = new DoubleAnimation(SlideOffsetX, 0, dur) { EasingFunction = RevealEase, FillBehavior = FillBehavior.HoldEnd };
-            slide.Completed += (_, _) => ClearSlideTransform(element, tf);
             tf.BeginAnimation(TranslateTransform.XProperty, slide);
         }
     }
@@ -223,5 +237,23 @@ internal static class MotionFX
         }
 
         element.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
+    }
+
+    // ===== 副标签（侧边栏二级项）切换 =====
+
+    /// <summary>
+    /// 副标签切换：让新内容整块从右侧滑入并淡入（与设置页分类切换同一观感）。
+    /// 下载页 / 工具箱页的副标签由数据绑定驱动，内容控件在属性变更的当帧还没有实际尺寸，
+    /// 因此必须延迟到 <see cref="DispatcherPriority.Loaded"/> 再播放 —— 与 MainWindow 切页的 Reveal 同一处理方式。
+    /// </summary>
+    public static void SlideInSubTab(FrameworkElement? element)
+    {
+        if (element is null || !MainWindow.AnimationsEnabled) return;
+
+        if (element.Dispatcher.CheckAccess())
+            element.Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
+                new Action(() => SlideInFromRight(element)));
+        else
+            SlideInFromRight(element);
     }
 }
