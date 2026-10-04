@@ -17,9 +17,8 @@ public partial class DownloadPageView : UserControl
     /// <summary>由 MainWindow 侧边栏路由调用，切换到指定副标签并加载内容。</summary>
     public void ShowSubTab(string? id)
     {
-        ViewModel.SetSubTab(id);
-        // 副标签切换：内容整个从右滑入淡入（此前只有设置页有过渡，这里补齐）
-        MotionFX.SlideInSubTab(ContentHost);
+        // 副标签切换：旧内容向左滚出并淡出、新内容从右滚入并淡入（快照残影交叉过渡）
+        MotionFX.SlideSwap(ContentHost, () => ViewModel.SetSubTab(id));
     }
 
     /// <summary>全局搜索：预填搜索关键词并触发搜索。</summary>

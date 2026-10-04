@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
 namespace Chert.App;
@@ -242,18 +243,93 @@ internal static class MotionFX
     // ===== 副标签（侧边栏二级项）切换 =====
 
     /// <summary>
-    /// 副标签切换：让新内容整块从右侧滑入并淡入（与设置页分类切换同一观感）。
-    /// 下载页 / 工具箱页的副标签由数据绑定驱动，内容控件在属性变更的当帧还没有实际尺寸，
-    /// 因此必须延迟到 <see cref="DispatcherPriority.Loaded"/> 再播放 —— 与 MainWindow 切页的 Reveal 同一处理方式。
+    /// 副标签「左右滚动」交叉切换：旧内容向左滚出并淡出、新内容从右滚入并淡入，两侧同时进行。
+    /// <para>
+    /// 设置页的分类切换之所以好看，是因为新旧面板是两个**不同的**元素，可以一个退场一个进场。
+    /// 而下载页 / 工具箱页的副标签是**同一个宿主控件**（ContentControl / Grid），换页只是把
+    /// 绑定的内容换掉 —— 元素本身没动，所以只对新内容做滑入，观感就是「闪一下」。
+    /// </para>
+    /// <para>
+    /// 这里在换内容**之前**先给旧内容拍一张位图残影（<see cref="RenderTargetBitmap"/>）盖在宿主原位，
+    /// 换完之后让残影向左滚出、宿主从右滚入，两边同时做，才是真正的左右滚动交叉过渡。
+    /// </para>
+    /// <para>
+    /// 残影插在宿主**紧后面**（而不是追加到末尾），这样弹窗等后声明的兄弟元素依旧压在残影之上。
+    /// </para>
     /// </summary>
-    public static void SlideInSubTab(FrameworkElement? element)
+    /// <param name="host">内容宿主（必须已在布局中、有自己的尺寸）。</param>
+    /// <param name="swap">真正的换页动作（同步执行）。</param>
+    public static void SlideSwap(FrameworkElement? host, Action? swap)
     {
-        if (element is null || !MainWindow.AnimationsEnabled) return;
+        if (swap is null) return;
+        if (host is null || !MainWindow.AnimationsEnabled || host.ActualWidth < 1 || host.ActualHeight < 1)
+        {
+            swap();
+            return;
+        }
 
-        if (element.Dispatcher.CheckAccess())
-            element.Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
-                new Action(() => SlideInFromRight(element)));
-        else
-            SlideInFromRight(element);
+        var layer = host.Parent as Panel;
+        Image? ghost = null;
+
+        if (layer is not null)
+        {
+            try
+            {
+                var dpi = VisualTreeHelper.GetDpi(host);
+                var pw = (int)Math.Ceiling(host.ActualWidth * dpi.DpiScaleX);
+                var ph = (int)Math.Ceiling(host.ActualHeight * dpi.DpiScaleY);
+                if (pw > 0 && ph > 0)
+                {
+                    var bmp = new RenderTargetBitmap(pw, ph, 96 * dpi.DpiScaleX, 96 * dpi.DpiScaleY, PixelFormats.Pbgra32);
+                    bmp.Render(host);
+
+                    ghost = new Image
+                    {
+                        Source = bmp,
+                        Width = host.ActualWidth,
+                        Height = host.ActualHeight,
+                        Stretch = Stretch.Fill,
+                        IsHitTestVisible = false,
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        VerticalAlignment = VerticalAlignment.Top,
+                        Margin = host.Margin,
+                        RenderTransform = new TranslateTransform(0, 0)
+                    };
+                    Grid.SetRow(ghost, Grid.GetRow(host));
+                    Grid.SetColumn(ghost, Grid.GetColumn(host));
+                    Grid.SetRowSpan(ghost, Grid.GetRowSpan(host));
+                    Grid.SetColumnSpan(ghost, Grid.GetColumnSpan(host));
+
+                    int idx = layer.Children.IndexOf(host);
+                    layer.Children.Insert(idx < 0 ? layer.Children.Count : idx + 1, ghost);
+                }
+            }
+            catch
+            {
+                ghost = null;   // 截图失败（软件渲染 / 尺寸为 0 等）时退化成纯滑入
+            }
+        }
+
+        // 换内容（绑定直接替换子元素 / 数据）
+        swap();
+
+        if (ghost is null || layer is null)
+        {
+            SlideInFromRight(host);
+            return;
+        }
+
+        var dur = TimeSpan.FromMilliseconds(SlideMs);
+
+        // 新内容：从右滚入 + 淡入
+        SlideInFromRight(host);
+
+        // 旧内容残影：向左滚出 + 淡出，播完移除
+        var tf = (TranslateTransform)ghost.RenderTransform;
+        var fade = new DoubleAnimation(1, 0, dur) { EasingFunction = RevealEase, FillBehavior = FillBehavior.HoldEnd };
+        fade.Completed += (_, _) => layer.Children.Remove(ghost);
+        ghost.BeginAnimation(UIElement.OpacityProperty, fade);
+        tf.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(0, -SlideOffsetX, dur) { EasingFunction = RevealEase, FillBehavior = FillBehavior.HoldEnd });
     }
 }

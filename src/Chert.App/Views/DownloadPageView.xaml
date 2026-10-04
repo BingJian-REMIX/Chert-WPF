@@ -584,7 +584,10 @@
 
               Visibility="{Binding IsDetailOpen, Converter={StaticResource BoolToVisibility}}">
 
-            <Border Style="{StaticResource ModalCardStyle}" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- MaxWidth 覆盖样式默认的 540：内层 Grid 宽 560 + Margin 18*2 + Padding 22*2 + 边框 2 = 642，
+                 卡片若被 540 卡住，超出的部分会被 DropShadowEffect 的中间渲染层裁掉（关闭按钮整颗消失）。 -->
+
+            <Border Style="{StaticResource ModalCardStyle}" MaxWidth="660" HorizontalAlignment="Center" VerticalAlignment="Center">
 
                 <Grid Margin="18" Width="560" MaxHeight="620">
 
@@ -732,7 +735,10 @@
 
               Visibility="{Binding IsModpackDetailOpen, Converter={StaticResource BoolToVisibility}}">
 
-            <Border Style="{StaticResource ModalCardStyle}" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- MaxWidth 覆盖样式默认的 540：内层 Grid 宽 560 + Margin 18*2 + Padding 22*2 + 边框 2 = 642，
+                 卡片若被 540 卡住，超出的部分会被 DropShadowEffect 的中间渲染层裁掉（关闭按钮整颗消失）。 -->
+
+            <Border Style="{StaticResource ModalCardStyle}" MaxWidth="660" HorizontalAlignment="Center" VerticalAlignment="Center">
 
                 <Grid Margin="18" Width="560" MaxHeight="640">
 
@@ -896,7 +902,10 @@
 
               Visibility="{Binding IsProjectDetailOpen, Converter={StaticResource BoolToVisibility}}">
 
-            <Border Style="{StaticResource ModalCardStyle}" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <!-- MaxWidth 覆盖样式默认的 540：内层 Grid 宽 560 + Margin 18*2 + Padding 22*2 + 边框 2 = 642，
+                 卡片若被 540 卡住，超出的部分会被 DropShadowEffect 的中间渲染层裁掉（关闭按钮整颗消失）。 -->
+
+            <Border Style="{StaticResource ModalCardStyle}" MaxWidth="660" HorizontalAlignment="Center" VerticalAlignment="Center">
 
                 <Grid Margin="18" Width="560" MaxHeight="640">
 

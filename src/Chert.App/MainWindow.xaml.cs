@@ -1027,9 +1027,11 @@ public partial class MainWindow : Window
     private void SetTabTheme(MainTabKind kind)
     {
         var solid = Brush($"Tab{kind}Brush");
-        // 覆写 App 级资源，所有 DynamicResource 引用即时刷新
+        // 覆写 App 级资源，所有 DynamicResource 引用即时刷新。
+        // 注意：这里**只**改标题栏。侧边栏选中指示条（SidebarIndicatorBrush）不跟着索引贴走 ——
+        // 它由 App.ApplyAccentColor 绑定到「设置 → 外观 → 主题色」，与侧边栏右边线同色。
+        // 曾在此一并覆写成索引贴色，导致改了主题色指示条也不变（「没有跟随主题色」的根因）。
         Application.Current.Resources["TitleBarBrush"] = solid;
-        Application.Current.Resources["SidebarIndicatorBrush"] = solid;
         // 索引贴与对应页面「一体」：页面顶部以同色渲染，消除顶栏后方的白色漏出，
         // 让选中标签的颜色向下延续到内容区（一条渐隐的同色带）。
         ApplyPageTint(kind);

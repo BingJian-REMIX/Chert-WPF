@@ -398,8 +398,11 @@ public partial class App : Application
         res["ProgressForeground"] = new SolidColorBrush(color);
         res["ButtonBackground"] = new SolidColorBrush(color);
         res["ButtonHoverBackground"] = new SolidColorBrush(Darken(color, 0.18));
-        // 清单 #60：侧边栏右边线跟随个性化主题色
+        // 清单 #60：侧边栏右边线 + 选中指示条统一跟随个性化主题色（设置 → 外观 → 主题色）。
+        // 此前 SidebarIndicatorBrush 每切一次主标签就被 MainWindow.SetTabTheme 覆写成
+        // 「当前索引贴色」，于是用户在设置里改了主题色、侧边栏指示条却纹丝不动 —— 现已解除该覆盖。
         res["SidebarEdgeBrush"] = new SolidColorBrush(color);
+        res["SidebarIndicatorBrush"] = new SolidColorBrush(color);
     }
 
     /// <summary>将字体缩放系数应用到全局字号（bug #10：字体缩放失效）。</summary>

@@ -46,7 +46,8 @@
 
         TitleBarBrush         —— 标题栏背景，随当前主标签变色（TabThemeConfig.TitleBarFollowsTab）。
                                  默认初始化为游戏绿，避免启动瞬间无色。
-        SidebarIndicatorBrush —— 侧边栏选中项左侧 3px 竖向指示线（规格 1.4），用当前主标签色。
+        SidebarIndicatorBrush —— 侧边栏选中项左侧 3px 竖向指示线（规格 1.4），
+                                 跟随「设置 → 外观 → 主题色」，与 SidebarEdgeBrush 同色（不再随主标签变色）。
         TabForegroundBrush    —— 贴在同色索引贴上的文字色（恒白，保证对比度）。
     -->
     <SolidColorBrush x:Key="TitleBarBrush"         Color="#4CAF50"/>

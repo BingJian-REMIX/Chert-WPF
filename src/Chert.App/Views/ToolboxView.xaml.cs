@@ -28,12 +28,14 @@ public partial class ToolboxView : UserControl
         var panel = Vm.PanelItems.FirstOrDefault(p => p.Id == lookup);
         if (panel is not null)
         {
-            Vm.SelectedPanel = panel;
-            // bug #13：开发工具面板按入口切换内部模式（命令速查 / Mod 骨架 / 资源包创建）
-            if (lookup == "dev" && panel.View is DevToolsView dev)
-                dev.SetMode(id);
-            // 副标签切换：内容整块从右滑入淡入（与设置页分类切换同一观感）
-            MotionFX.SlideInSubTab(PanelHost);
+            // 副标签切换：旧面板向左滚出并淡出、新面板从右滚入并淡入（与设置页分类切换同一观感）
+            MotionFX.SlideSwap(PanelHost, () =>
+            {
+                Vm.SelectedPanel = panel;
+                // bug #13：开发工具面板按入口切换内部模式（命令速查 / Mod 骨架 / 资源包创建）
+                if (lookup == "dev" && panel.View is DevToolsView dev)
+                    dev.SetMode(id);
+            });
             return;
         }
 
@@ -44,10 +46,7 @@ public partial class ToolboxView : UserControl
             _ => null
         };
         if (extra is not null)
-        {
-            Vm.SelectedView = extra;
-            MotionFX.SlideInSubTab(PanelHost);
-        }
+            MotionFX.SlideSwap(PanelHost, () => Vm.SelectedView = extra);
     }
 
     /// <summary>由全局搜索调用：标题栏全局搜索已通过 <see cref="ShowPanel"/> 跳到匹配面板，
