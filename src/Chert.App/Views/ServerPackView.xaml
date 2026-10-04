@@ -75,7 +75,9 @@
 
         <!-- ===== 概览 ===== -->
 
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Padding="10,7" Margin="0,0,0,10">
+        <Border Grid.Row="1" Background="{DynamicResource CardBackground}"
+                BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1"
+                CornerRadius="12" Padding="10,7" Margin="0,0,0,10">
 
             <StackPanel Orientation="Horizontal">
 
@@ -87,7 +89,7 @@
 
                     <Run Text="{theme:Loc server.m237}"/>
 
-                    <Run Text="{Binding Stats.TotalMb}" FontWeight="Bold" Foreground="{DynamicResource PrimaryForeground}"/>
+                    <Run Text="{Binding Stats.TotalMb, Mode=OneWay}" FontWeight="Bold" Foreground="{DynamicResource PrimaryForeground}"/>
 
                     <Run Text="{theme:Loc server.m238}"/>
 

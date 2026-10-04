@@ -199,6 +199,18 @@
     </Style>
 
     <!--
+        ===== CardBorder（Border 专用卡片外观） =====
+        CardStyle 是 ContentControl 样式（含 ControlTemplate），不能直接套在 Border 上。
+        这里提供外观等价的 Border 样式：圆角 + 1px 边框 + 卡片背景，供 Border 元素复用。
+    -->
+    <Style x:Key="CardBorderStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorder}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="12"/>
+    </Style>
+
+    <!--
         ===== 横向滚动卡片流（规格 1.4：卡片流横向滚动） =====
         组合：ScrollViewer（横向）+ StackPanel（横向排布，卡片间 14px 间距由 CardStyle.Margin 提供）。
     -->
