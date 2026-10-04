@@ -211,18 +211,6 @@
 
                     </WrapPanel>
 
-                    <WrapPanel Grid.Row="7" Margin="0,3">
-
-                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-
-                                      IsChecked="{Binding MusicResumeOnLaunch, Mode=TwoWay}"/>
-
-                        <TextBlock Text="{theme:Loc settings.music_resume}" VerticalAlignment="Center" Margin="8,0,0,0"
-
-                                   Foreground="{DynamicResource PrimaryForeground}"/>
-
-                    </WrapPanel>
-
                     <WrapPanel Grid.Row="6" Margin="0,3">
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
