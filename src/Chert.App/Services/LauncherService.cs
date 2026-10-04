@@ -407,9 +407,6 @@ public class LauncherService : ILogger
             Fullscreen = vp.Fullscreen,
             GameDir = ResolveGameDir(GameRoot, versionId, vp),
 
-            // 进入游戏自动降音量（problem3）：按「降低幅度」下发，实际音量由
-            // GameLauncher 依据 options.txt 里的当前音量换算；null = 不调整。
-            VolumeDuckPercent = profile.GameVolumeDuckPercent
         };
 
         // 分辨率：每版本覆盖优先，否则用全局

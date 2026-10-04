@@ -271,17 +271,6 @@ public class LauncherProfile
     public MusicClientPrefs MusicClient { get; set; } = new();
 
     /// <summary>
-    /// 进入游戏时**降低**音量的幅度（0-100，单位 %）。
-    /// <see langword="null"/> 表示不调整，沿用玩家自己在游戏里设的音量。
-    /// </summary>
-    /// <remarks>
-    /// 语义是「降低幅度」而非「目标音量」：实际下发的音量 = 玩家当前音量 × (100 - 幅度)。
-    /// 用幅度表达的好处是**不依赖读出玩家当前音量**（options.txt 可能缺失 / 损坏 / 被模组改写），
-    /// 也不会把玩家自己调低的音量在每次启动时又抬回去。
-    /// 默认 <see langword="null"/>（不调整）—— 擅自改音量属于不该默认开启的行为。
-    /// </remarks>
-    [JsonPropertyName("gameVolumeDuckPercent")]
-    public int? GameVolumeDuckPercent { get; set; }
 
     /// <summary>启动时自动断点续播（bug #10）：恢复上次停下的曲目与位置。</summary>
     [JsonPropertyName("musicResumeOnLaunch")]
