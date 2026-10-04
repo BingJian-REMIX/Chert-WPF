@@ -203,18 +203,6 @@
 
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 
-                                      IsChecked="{Binding MusicAutoDuck, Mode=TwoWay}"/>
-
-                        <TextBlock Text="{theme:Loc settings.music_autoduck}" VerticalAlignment="Center" Margin="8,0,0,0"
-
-                                   Foreground="{DynamicResource PrimaryForeground}"/>
-
-                    </WrapPanel>
-
-                    <WrapPanel Grid.Row="6" Margin="0,3">
-
-                        <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
-
                                       IsChecked="{Binding FileWatchEnabled, Mode=TwoWay}"/>
 
                         <TextBlock Text="{theme:Loc tool.filewatch}" VerticalAlignment="Center" Margin="8,0,0,0"
@@ -223,7 +211,7 @@
 
                     </WrapPanel>
 
-                    <StackPanel Grid.Row="8" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="6" Orientation="Horizontal" Margin="0,3">
 
                         <TextBlock Text="{theme:Loc settings.default_isolation}" VerticalAlignment="Center" Width="150"/>
 
@@ -239,7 +227,7 @@
 
                     </StackPanel>
 
-                    <StackPanel Grid.Row="9" Orientation="Horizontal" Margin="0,3">
+                    <StackPanel Grid.Row="7" Orientation="Horizontal" Margin="0,3">
                         <TextBlock Text="{theme:Loc settings.toast_duration}" VerticalAlignment="Center" Width="150"/>
                         <ComboBox Width="170" Margin="8,0,0,0"
                                   SelectedValue="{Binding ToastDurationSeconds, Mode=TwoWay}" SelectedValuePath="Tag">
@@ -251,7 +239,7 @@
                         </ComboBox>
                     </StackPanel>
 
-                    <WrapPanel Grid.Row="10" Margin="0,3">
+                    <WrapPanel Grid.Row="8" Margin="0,3">
                         <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
                                       IsChecked="{Binding SeasonalEffectsEnabled, Mode=TwoWay}"/>
                         <TextBlock Text="{theme:Loc settings.seasonal_effects}" VerticalAlignment="Center" Margin="8,0,0,0"
@@ -850,8 +838,19 @@
 
             <!-- 播放偏好 -->
 
-
             <WrapPanel Grid.Row="1" Margin="0,3">
+
+                <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
+
+                              IsChecked="{Binding MusicAutoDuck, Mode=TwoWay}"/>
+
+                <TextBlock Text="{theme:Loc settings.music_autoduck}" VerticalAlignment="Center" Margin="8,0,0,0"
+
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+
+            </WrapPanel>
+
+            <WrapPanel Grid.Row="2" Margin="0,3">
 
                 <ToggleButton Style="{StaticResource ToggleSwitchStyle}"
 
@@ -865,7 +864,7 @@
 
             <!-- 本地客户端模式：总开关 -->
 
-            <Border Grid.Row="2" Margin="0,12,0,4" Padding="12,10" CornerRadius="8"
+            <Border Grid.Row="3" Margin="0,12,0,4" Padding="12,10" CornerRadius="8"
 
                     Background="{DynamicResource CardBackground}"
 
@@ -975,7 +974,7 @@
 
             <!-- 客户端程序（仅本地客户端模式用得到） -->
 
-            <Border Grid.Row="3" Margin="0,4,0,0" Padding="12,10" CornerRadius="8" IsEnabled="{Binding ClientModeEnabled}"
+            <Border Grid.Row="4" Margin="0,4,0,0" Padding="12,10" CornerRadius="8" IsEnabled="{Binding ClientModeEnabled}"
 
                     Background="{DynamicResource CardBackground}"
 
@@ -1003,7 +1002,7 @@
 
             <!-- 说明：客户端模式下的播放由外部客户端完成，启动器只负责回收与歌词 -->
 
-            <TextBlock Grid.Row="4" Text="{theme:Loc music.set_client_tip}" FontSize="11" Opacity="0.65"
+            <TextBlock Grid.Row="5" Text="{theme:Loc music.set_client_tip}" FontSize="11" Opacity="0.65"
 
                        TextWrapping="Wrap" Margin="0,10,0,0"/>
 
