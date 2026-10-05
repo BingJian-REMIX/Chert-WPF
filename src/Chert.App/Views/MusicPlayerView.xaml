@@ -167,7 +167,13 @@
 
                     <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
 
-                        <theme:PngIcon Token="mic" Size="16" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                        <!-- 音量图标：图标集里没有 volume token，拿麦克风当音量会让人误解成录音，故自绘喇叭 -->
+
+                        <Path Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"
+
+                              Stretch="Uniform" Fill="{DynamicResource PrimaryForeground}"
+
+                              Data="M3 9v6h4l5 5V4L7 9H3z M16.5 12A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4z M14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z"/>
 
                         <Slider Minimum="0" Maximum="100" Width="140" Value="{Binding Volume}"
 
@@ -303,6 +309,33 @@
 
                 </StackPanel>
 
+                <!-- 扫码登录面板：与设置页同源。放在音乐页是因为「点了登录却看不到码」——
+                     二维码只渲染在设置页时，用户在音乐页点登录会觉得完全没反应。 -->
+
+                <Border Margin="0,0,0,8" Padding="12" CornerRadius="8" HorizontalAlignment="Left"
+
+                        Background="{DynamicResource InputBackground}"
+
+                        Visibility="{Binding LoginPanelVisible, Converter={StaticResource BoolToVisibility}}">
+
+                    <StackPanel>
+
+                        <Image Width="170" Height="170" Stretch="Uniform"
+
+                               Source="{Binding LoginQrDataUrl, Converter={StaticResource DataUrlToImage}}"/>
+
+                        <TextBlock Text="{Binding LoginStatusText}" FontSize="11" Opacity="0.8"
+
+                                   TextAlignment="Center" Margin="0,8,0,8" MaxWidth="200" TextWrapping="Wrap"/>
+
+                        <Button Content="{theme:Loc music.api_cancel}" Command="{Binding CancelApiLoginCommand}"
+
+                                Padding="10,4" HorizontalAlignment="Center"/>
+
+                    </StackPanel>
+
+                </Border>
+
                 <!-- 我的歌单：空集合时 ItemsControl 自然不占高度，无需额外显隐控制 -->
 
                 <ItemsControl ItemsSource="{Binding MyPlaylists}" Margin="0,0,0,6">
@@ -348,16 +381,21 @@
                 </ItemsControl>
 
                 <!-- 手填歌单 ID（部分数据源没有「搜歌单」能力） -->
+                <!-- 必须有可见标签：只给一个空输入框 + 悬停才出现的提示，用户不知道要填什么 -->
 
-                <Grid Margin="0,0,0,6">
+                <Grid Margin="0,0,0,4">
 
                     <Grid.ColumnDefinitions>
 
-                        <ColumnDefinition Width="240"/><ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/><ColumnDefinition Width="240"/><ColumnDefinition Width="Auto"/>
 
                     </Grid.ColumnDefinitions>
 
-                    <TextBox Grid.Column="0" Text="{Binding PlaylistIdInput, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBlock Grid.Column="0" Text="{theme:Loc music.api_playlist_id}" VerticalAlignment="Center"
+
+                               Margin="0,0,10,0" Opacity="0.85"/>
+
+                    <TextBox Grid.Column="1" Text="{Binding PlaylistIdInput, UpdateSourceTrigger=PropertyChanged}"
 
                              Padding="6,4" VerticalContentAlignment="Center"
 
@@ -367,11 +405,15 @@
 
                              ToolTip="{theme:Loc music.api_playlist_id}"/>
 
-                    <Button Grid.Column="1" Content="{theme:Loc music.api_import}" Command="{Binding ImportPlaylistCommand}"
+                    <Button Grid.Column="2" Content="{theme:Loc music.api_import}" Command="{Binding ImportPlaylistCommand}"
 
                             Margin="6,0,0,0" Padding="10,4"/>
 
                 </Grid>
+
+                <TextBlock Text="{theme:Loc music.api_playlist_id_tip}" FontSize="11" Opacity="0.6"
+
+                           TextWrapping="Wrap" Margin="0,0,0,6"/>
 
                 <TextBlock Text="{Binding OnlineStatus}" FontSize="11" Opacity="0.75" Margin="0,0,0,2"
 
@@ -696,6 +738,16 @@
                     <TextBlock Text="{Binding ClientStatus}" FontSize="12" Opacity="0.75" TextWrapping="Wrap"
 
                                TextAlignment="Center" Margin="0,0,0,4"/>
+
+                    <!-- 宽限期倒计时：结束客户端**之前**必须先让用户看见，否则就是无声杀进程 -->
+
+                    <TextBlock Text="{Binding ClientGraceCountdown}" FontSize="12" FontWeight="SemiBold"
+
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,2,0,4"
+
+                               Foreground="{DynamicResource AccentBrush}"
+
+                               Visibility="{Binding HasClientGraceCountdown, Converter={StaticResource BoolToVisibility}}"/>
 
                     <TextBlock Text="{Binding ClientRunning}" FontSize="11" Opacity="0.6" TextWrapping="Wrap"
 
