@@ -1506,16 +1506,27 @@ public class MusicPlayerViewModel : ObservableObject
         catch { /* 登录态失效：静默清空即可 */ }
     }
 
-    /// <summary>把当前登录态（凭证 + 昵称头像）写回配置。</summary>
+    /// <summary>
+    /// 把当前登录态写回配置。
+    /// <para><b>凭证是按厂家分开存的</b>：酷狗的 token 与网易云的 cookie 互不相干，
+    /// 写进同一个字段会导致「在 A 家登录 → 切到 B 家显示已登录 → 实际取不到数据」。
+    /// 因此这里整体回写 <see cref="OnlineMusicService.Prefs"/>（含每个厂家各自的条目），
+    /// 另外单独同步一份到旧字段，供旧版本启动器读取。</para>
+    /// </summary>
     private void PersistApiCredential()
     {
         try
         {
-            var p = ProfileStore.Load(GameConstants.DefaultGameRoot);
             var exp = Online.ExportCredential();
+
+            var p = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            p.MusicApi = Online.Prefs;                    // 含各厂家地址与凭证
+
+            // 旧字段：仅作兼容（老版本只认这一份），新逻辑一律读 Vendors
             p.MusicApi.Credential = exp?.Credential ?? "";
             p.MusicApi.AccountName = exp?.Nickname ?? "";
             p.MusicApi.AccountAvatar = exp?.AvatarUrl ?? "";
+
             ProfileStore.Save(p);
         }
         catch { /* 持久化失败不影响本次会话 */ }

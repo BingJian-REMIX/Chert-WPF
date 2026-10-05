@@ -1054,7 +1054,7 @@
 
                                 <ComboBoxItem Content="{theme:Loc music.set_api_kind_meting}"/>
 
-                                <ComboBoxItem Content="{theme:Loc music.set_api_kind_netease}"/>
+                                <ComboBoxItem Content="{theme:Loc music.set_api_kind_vendor}"/>
 
                             </ComboBox>
 
@@ -1090,7 +1090,7 @@
 
                                    TextWrapping="Wrap" Margin="0,4,0,0"/>
 
-                        <!-- ④ 平台（仅 Meting 聚合协议用得上） -->
+                        <!-- ④ 厂家（Meting 下决定搜哪家，厂家 API 下决定跟哪个自建服务对话） -->
 
                         <WrapPanel Margin="0,8,0,0"
 
@@ -1110,9 +1110,27 @@
 
                                 <ComboBoxItem Content="{theme:Loc music.set_api_platform_kugou}"/>
 
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_kuwo}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_baidu}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_xiami}"/>
+
+                                <ComboBoxItem Content="{theme:Loc music.set_api_platform_all}"/>
+
                             </ComboBox>
 
                         </WrapPanel>
+
+                        <!-- ④b 厂家自建服务说明：没有可用项目的厂家要明确告知，而不是让用户干等 -->
+
+                        <TextBlock Text="{Binding ApiVendorHint}" FontSize="11" Opacity="0.7"
+
+                                   TextWrapping="Wrap" Margin="0,4,0,0"
+
+                                   Visibility="{Binding ApiVendorHint, Converter={StaticResource NonEmptyToVis}}"
+
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
 
                         <!-- ⑤ 音质 -->
 

@@ -549,47 +549,77 @@ public class SettingsViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 数据源协议（下拉下标）。
-    /// <para>切协议会<b>连带重置服务地址</b>：两套协议的请求形态与字段名完全不同，
-    /// 沿用旧地址只会得到一串解析失败。</para>
+    /// 数据源（下拉下标）：0 = Meting 聚合（免登录），1 = 厂家自建 API（可扫码登录）。
+    /// <para>枚举里仍保留 <c>NeteaseApi</c> 只为兼容旧配置，界面不再单独暴露它 ——
+    /// 它与「厂家自建 API + 网易云」完全等价，留两个入口只会让用户困惑该选哪个。</para>
+    /// <para>切到 Meting 会<b>连带重置服务地址</b>：两套协议的请求形态完全不同，
+    /// 沿用旧地址必然得到一串解析失败。</para>
     /// </summary>
     public int ApiKindIndex
     {
-        get => (int)LoadApiPrefs().Kind;
+        get => LoadApiPrefs().Kind == MusicApiKind.Meting ? 0 : 1;
         set
         {
-            if (!Enum.IsDefined(typeof(MusicApiKind), value)) return;
             var p = LoadApiPrefs();
-            var kind = (MusicApiKind)value;
+            var kind = value == 0 ? MusicApiKind.Meting : MusicApiKind.VendorApi;
             if (p.Kind == kind) return;
+
             p.Kind = kind;
-            p.BaseUrl = MusicApiPrefs.DefaultUrlFor(kind);
+            p.Normalized();
+            if (kind == MusicApiKind.Meting)
+                p.BaseUrl = MusicApiPrefs.DefaultMetingUrl;   // 厂家地址不能拿去问 Meting 实例
+
             SaveApiPrefs(p);
             OnPropertyChanged();
             OnPropertyChanged(nameof(ApiBaseUrl));
             OnPropertyChanged(nameof(ApiPlatformVisible));
             OnPropertyChanged(nameof(ApiCanLogin));
+            OnPropertyChanged(nameof(ApiVendorHint));
+            OnPropertyChanged(nameof(ApiVendorLoginSupported));
             NotifyApiChanged();
         }
     }
 
-    /// <summary>服务根地址（不含结尾斜杠）。</summary>
+    /// <summary>
+    /// 服务根地址（不含结尾斜杠）。
+    /// <para>Meting 模式下它是<b>聚合实例</b>的地址（一个实例服务所有厂家）；
+    /// 厂家模式下它是<b>当前厂家自己那个服务</b>的地址 —— 两者含义不同，分开存取。</para>
+    /// </summary>
     public string ApiBaseUrl
     {
-        get => LoadApiPrefs().BaseUrl;
+        get
+        {
+            var p = LoadApiPrefs();
+            return p.Kind == MusicApiKind.Meting ? p.BaseUrl : p.UrlFor(VendorPlatformOf(p));
+        }
         set
         {
-            var v = (value ?? "").Trim();
+            var v = (value ?? "").Trim().TrimEnd('/');
             var p = LoadApiPrefs();
-            if (p.BaseUrl == v) return;
-            p.BaseUrl = v;
+
+            if (p.Kind == MusicApiKind.Meting)
+            {
+                if (p.BaseUrl == v) return;
+                p.BaseUrl = v;
+            }
+            else
+            {
+                var platform = VendorPlatformOf(p);
+                if (p.UrlFor(platform) == v) return;
+                p.SetUrl(platform, v);
+            }
+
             SaveApiPrefs(p);
             OnPropertyChanged();
             NotifyApiChanged();
         }
     }
 
-    /// <summary>平台（仅 Meting 协议用得上 —— 网易云 API 本身就是网易云）。</summary>
+    /// <summary>
+    /// 厂家 / 搜索范围（下拉下标，与 <see cref="MusicApiPlatform"/> 的数值顺序一致）。
+    /// <para>「全部平台」只在 Meting 下有意义（并发搜多家再合并）；
+    /// 厂家模式下选它会退回网易云 —— 登录这类动作必须落在具体厂家上。</para>
+    /// </summary>
     public int ApiPlatformIndex
     {
         get => (int)LoadApiPrefs().Platform;
@@ -602,12 +632,57 @@ public class SettingsViewModel : ObservableObject
             p.Platform = v;
             SaveApiPrefs(p);
             OnPropertyChanged();
+            // 每家的服务地址与登录能力都不同，切厂家后这些展示必须跟着变
+            OnPropertyChanged(nameof(ApiBaseUrl));
+            OnPropertyChanged(nameof(ApiVendorHint));
+            OnPropertyChanged(nameof(ApiVendorLoginSupported));
+            OnPropertyChanged(nameof(ApiCanLogin));
+            OnPropertyChanged(nameof(ApiLoggedIn));
+            OnPropertyChanged(nameof(ApiAccountLabel));
             NotifyApiChanged();
         }
     }
 
-    /// <summary>平台下拉是否显示。</summary>
-    public bool ApiPlatformVisible => LoadApiPrefs().Kind == MusicApiKind.Meting;
+    /// <summary>厂家下拉是否显示（两种数据源都要选厂家，故恒为 true）。</summary>
+    public bool ApiPlatformVisible => true;
+
+    /// <summary>
+    /// 「真正要对话的那个厂家」。
+    /// <para>「全部平台」只是搜索范围，登录、服务地址这类动作必须落到具体厂家 ——
+    /// 这里统一退回网易云（自建项目最成熟的一家），与 <see cref="OnlineMusicService"/> 的取法保持一致，
+    /// 否则界面显示的地址会和实际请求用的地址不是同一个。</para>
+    /// </summary>
+    private static MusicApiPlatform VendorPlatformOf(MusicApiPrefs p) =>
+        p.Platform == MusicApiPlatform.All ? MusicApiPlatform.Netease : p.Platform;
+
+    /// <summary>
+    /// 当前厂家的自建 API 说明（建议部署的项目 + 注意事项）。
+    /// 没有可用自建项目的厂家会明确告知「已退回 Meting 聚合」，而不是让用户对着一个连不上的输入框猜。
+    /// </summary>
+    public string ApiVendorHint
+    {
+        get
+        {
+            var p = LoadApiPrefs();
+            if (p.Kind == MusicApiKind.Meting) return "";
+
+            var profile = VendorApiProfiles.For(VendorPlatformOf(p));
+            return profile is null
+                ? "该厂家暂无可用的自建 API 项目，已自动退回 Meting 聚合（免登录，搜索与播放仍可用）。"
+                : "建议部署：" + profile.Project + "。" + profile.Notes;
+        }
+    }
+
+    /// <summary>当前厂家是否真的能扫码登录（酷我 / 百度 / 虾米没有可用项目）。</summary>
+    public bool ApiVendorLoginSupported
+    {
+        get
+        {
+            var p = LoadApiPrefs();
+            if (p.Kind == MusicApiKind.Meting) return false;
+            return VendorApiProfiles.CanLogin(VendorPlatformOf(p));
+        }
+    }
 
     /// <summary>在线播放音质。</summary>
     public int ApiQualityIndex
@@ -886,7 +961,10 @@ public class SettingsViewModel : ObservableObject
     public SettingsViewModel()
     {
         ApiRestoreDefaultUrlCommand = new RelayCommand(_ =>
-            ApiBaseUrl = MusicApiPrefs.DefaultUrlFor(LoadApiPrefs().Kind));
+        {
+            var p = LoadApiPrefs();
+            ApiBaseUrl = MusicApiPrefs.DefaultUrlFor(p.Kind, VendorPlatformOf(p));
+        });
         SaveCommand = new RelayCommand(_ => Save());
         AutoDetectJavaCommand = new AsyncRelayCommand(_ => AutoDetectJavaAsync());
         RefreshAccountsCommand = new RelayCommand(_ => RefreshAccounts());

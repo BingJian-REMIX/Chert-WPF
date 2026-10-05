@@ -638,7 +638,9 @@
 
                                            Foreground="{DynamicResource SecondaryForeground}"/>
 
-                                <TextBlock Grid.Column="3" Text="{Binding MetaText}" TextTrimming="CharacterEllipsis"
+                                <!-- 来源厂家：聚合搜索下结果混着多家，不标出处用户不知道自己点的是哪家的歌 -->
+
+                                <TextBlock Grid.Column="3" Text="{Binding PlatformText}" TextTrimming="CharacterEllipsis"
 
                                            Foreground="{DynamicResource SecondaryForeground}"/>
 
