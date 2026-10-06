@@ -73,6 +73,32 @@
                                    Foreground="{DynamicResource PrimaryForeground}"/>
                         <TextBlock Text="{Binding ShareText}" Margin="0,2,0,0" FontSize="11" TextWrapping="Wrap"
                                    Foreground="{DynamicResource SecondaryForeground}"/>
+
+                        <!-- 邀请码：整段可复制（跨网段 / 隔着聊天软件时不必手抄 host:port） -->
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="{theme:Loc lan.gen_invite}" Command="{Binding GenerateInviteCommand}" Padding="10,4"
+                                    ToolTip="{theme:Loc lan.gen_invite_tip}"/>
+                            <Button Content="{theme:Loc lan.copy_invite}" Command="{Binding CopyInviteCommand}" Padding="10,4" Margin="8,0,0,0"
+                                    ToolTip="{theme:Loc lan.copy_invite_tip}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding InviteCode, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
+                                 Margin="0,6,0,0" MaxHeight="72" FontSize="11"
+                                 VerticalScrollBarVisibility="Auto" AcceptsReturn="True"
+                                 Background="{DynamicResource ControlBackground}"
+                                 Foreground="{DynamicResource PrimaryForeground}">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasInvite}" Value="True">
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                        <TextBlock Text="{Binding InviteSummary}" Margin="0,2,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
                     </StackPanel>
                 </Border>
 
@@ -123,6 +149,8 @@
                             <Button Content="{theme:Loc lan.gen_code}" Command="{Binding GeneratePairCodeCommand}" Padding="10,4"/>
                             <TextBlock Text="{Binding PairCode}" VerticalAlignment="Center" Margin="12,0,0,0"
                                        FontSize="18" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            <Button Content="{theme:Loc lan.copy_code}" Command="{Binding CopyPairCodeCommand}"
+                                    Padding="10,2" Margin="12,0,0,0"/>
                         </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <TextBlock Text="{theme:Loc lan.input_code}" VerticalAlignment="Center" Width="70"

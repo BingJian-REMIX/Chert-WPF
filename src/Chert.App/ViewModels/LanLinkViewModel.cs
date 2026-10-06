@@ -6,6 +6,7 @@ using Chert.Core.Lan;
 using Chert.Core.Localization;
 using Chert.Core.Mvvm;
 using Chert.Core.Profiles;
+using Chert.Core.Servers;
 using Chert.Core.Utils;
 
 namespace Chert.App.ViewModels;
@@ -50,6 +51,8 @@ public class LanLinkViewModel : ObservableObject
     private string _manualIp = "";
     private string _localEndpoint = "";
     private string _joinEndpoint = "";
+    private string _inviteCode = "";
+    private string _inviteSummary = "";
     private LanPeerCard? _selected;
 
     public LanLinkViewModel()
@@ -61,11 +64,14 @@ public class LanLinkViewModel : ObservableObject
         GeneratePairCodeCommand = new RelayCommand(_ => GeneratePairCode());
         PairCommand = new AsyncRelayCommand(_ => PairAsync());
         PublishCommand = new RelayCommand(_ => PublishLocal());
-        DetectCommand = new RelayCommand(_ => DetectLocal());
+        DetectCommand = new AsyncRelayCommand(_ => DetectLocalAsync());
         InviteCommand = new AsyncRelayCommand(_ => InviteAsync());
         RequestOpenCommand = new AsyncRelayCommand(_ => RequestOpenAsync());
         JoinCommand = new AsyncRelayCommand(_ => JoinAsync());
         CopyShareCommand = new RelayCommand(_ => CopyShare());
+        GenerateInviteCommand = new RelayCommand(_ => GenerateInvite());
+        CopyInviteCommand = new RelayCommand(_ => CopyInvite());
+        CopyPairCodeCommand = new RelayCommand(_ => CopyPairCode());
 
         _service.StatusChanged += () => Application.Current?.Dispatcher.Invoke(() =>
         {
@@ -164,6 +170,26 @@ public class LanLinkViewModel : ObservableObject
 
     public bool HasSelection => _selected is not null;
 
+    /// <summary>生成的邀请码（CHERT1: 长码）。为空表示还没生成。</summary>
+    public string InviteCode
+    {
+        get => _inviteCode;
+        set
+        {
+            if (!SetField(ref _inviteCode, value)) return;
+            OnPropertyChanged(nameof(HasInvite));
+        }
+    }
+
+    /// <summary>邀请码旁的说明：校验码 + 有效期。</summary>
+    public string InviteSummary
+    {
+        get => _inviteSummary;
+        set => SetField(ref _inviteSummary, value);
+    }
+
+    public bool HasInvite => _inviteCode.Length > 0;
+
     /// <summary>可复制给对方的邀请文本。</summary>
     public string ShareText =>
         LocalEndpoint.Length == 0
@@ -182,6 +208,9 @@ public class LanLinkViewModel : ObservableObject
     public ICommand RequestOpenCommand { get; }
     public ICommand JoinCommand { get; }
     public ICommand CopyShareCommand { get; }
+    public ICommand GenerateInviteCommand { get; }
+    public ICommand CopyInviteCommand { get; }
+    public ICommand CopyPairCodeCommand { get; }
 
     // ===== 实现 =====
 
@@ -335,19 +364,43 @@ public class LanLinkViewModel : ObservableObject
         StatusText = "已投递 /publish，2 秒后点「读取本机端口」";
     }
 
-    /// <summary>从日志尾部读取本机已开放的局域网端口。</summary>
-    private void DetectLocal()
+    /// <summary>
+    /// 读取本机已开放的局域网端口。先读游戏日志（最可靠），读不到再监听 3 秒
+    /// <c>224.0.2.60:4445</c> 组播兜底 —— Minecraft 开放后每 1.5 秒广播一次，
+    /// 日志被清 / 版本措辞变了 / 不是本启动器拉起的游戏时，只有广播还能拿到端口。
+    /// </summary>
+    private async Task DetectLocalAsync()
     {
         var port = LanWorldShare.TryReadPublishedPort(GameConstants.DefaultGameRoot);
+
         if (port is null)
         {
-            StatusText = "没读到端口。确认游戏里已经「对局域网开放」，或先点「一键开放」。";
+            StatusText = LocaleManager.T("lan.detect_scanning");
+            var self = LanWorldShare.GetLocalIPv4();
+            var found = await LanServerScanner.ScanAsync(3000);
+            var mine = found.FirstOrDefault(x => x.Address == self) ?? found.FirstOrDefault();
+            if (mine is not null) port = mine.Port;
+        }
+
+        if (port is null)
+        {
+            StatusText = LocaleManager.T("lan.detect_fail");
             return;
         }
 
         LocalEndpoint = LanWorldShare.BuildEndpoint(LanWorldShare.GetLocalIPv4(), port.Value);
-        StatusText = $"本机世界地址 {LocalEndpoint}";
+        StatusText = $"{LocaleManager.T("lan.detect_ok")} {LocalEndpoint}";
+        // 地址变了，旧邀请码就作废（否则对方拿到的是过期地址）
+        if (HasInvite && !InviteCodeContains(LocalEndpoint))
+        {
+            InviteCode = "";
+            InviteSummary = LocaleManager.T("lan.invite_stale");
+        }
     }
+
+    /// <summary>邀请码里是否含当前地址（粗判：长码是压缩过的，只能解出来看）。</summary>
+    private bool InviteCodeContains(string endpoint)
+        => LanInviteCode.TryDecode(InviteCode, out var code, out _) && code!.Endpoint == endpoint;
 
     private async Task InviteAsync()
     {
@@ -401,16 +454,40 @@ public class LanLinkViewModel : ObservableObject
     private async Task JoinAsync()
     {
         var text = (JoinEndpoint ?? "").Trim();
-        if (text.Length == 0) { StatusText = "请先填写世界地址"; return; }
+        if (text.Length == 0) { StatusText = LocaleManager.T("lan.join_need_addr"); return; }
 
-        if (LanWorldShare.ParseEndpoint(text) is not { } parsed)
+        // 支持三种写法：CHERT1: 邀请码、chert-lan://host:port、裸 host:port
+        var (endpointText, code, error) = LanInviteCode.Resolve(text);
+        if (error.Length > 0)
         {
-            StatusText = $"地址格式不对：{text}（应为 host:port）";
+            StatusText = InviteErrorText(error);
             return;
         }
 
+        if (LanWorldShare.ParseEndpoint(endpointText) is not { } parsed)
+        {
+            StatusText = string.Format(LocaleManager.T("lan.err_endpoint_fmt"), text);
+            return;
+        }
+
+        // 长码：把来源与校验码回显出来，便于和对方核对（防粘贴到别人的旧码）
+        if (code is not null)
+        {
+            var from = code.DeviceName.Length > 0 ? code.DeviceName : code.Endpoint;
+            StatusText = string.Format(LocaleManager.T("lan.invite_from"), from, code.Fingerprint);
+            if (code.PairCode.Length > 0 && Selected is not null && !_service.IsPaired(Selected.Peer))
+            {
+                var token = await _service.PairAsync(Selected.Peer, code.PairCode);
+                if (token is not null)
+                {
+                    Selected.Paired = true;
+                    OnPropertyChanged(nameof(Selected));
+                }
+            }
+        }
+
         Busy = true;
-        StatusText = $"正在加入 {parsed.Host}:{parsed.Port} …";
+        StatusText = $"{LocaleManager.T("lan.joining")} {parsed.Host}:{parsed.Port} …";
         try
         {
             var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
@@ -441,17 +518,91 @@ public class LanLinkViewModel : ObservableObject
 
     private void CopyShare()
     {
-        if (ShareText.Length == 0) { StatusText = "还没有可分享的地址"; return; }
+        if (ShareText.Length == 0) { StatusText = LocaleManager.T("lan.copy_none"); return; }
         try
         {
             System.Windows.Clipboard.SetText(ShareText);
-            StatusText = "邀请文本已复制到剪贴板";
+            StatusText = LocaleManager.T("lan.copy_done");
         }
         catch
         {
-            StatusText = "复制失败，请手动选中文本复制";
+            StatusText = LocaleManager.T("lan.copy_fail");
         }
     }
+
+    /// <summary>
+    /// 生成「邀请码」：把世界地址 / 设备名 / MC 版本 / 配对码 / 有效期打包成一段
+    /// <c>CHERT1:</c> 开头的短文本，对方整段粘贴即可加入（此前只能手抄 host:port）。
+    /// </summary>
+    private void GenerateInvite()
+    {
+        if (LocalEndpoint.Length == 0)
+        {
+            StatusText = LocaleManager.T("lan.invite_need_endpoint");
+            return;
+        }
+
+        var code = new LanInviteCode
+        {
+            ExpiresAt = DateTimeOffset.UtcNow.Add(LanInviteCode.Ttl).ToUnixTimeSeconds(),
+            Endpoint = LocalEndpoint,
+            DeviceName = Environment.MachineName,
+            McVersion = CurrentVersionId(),
+            // 有待用的配对码就一起带上，对方加入后不必再单独配对
+            PairCode = _service.PendingPairCode ?? ""
+        }.Encode();
+
+        InviteCode = code;
+        var fingerprint = LanInviteCode.TryDecode(code, out var parsed, out _) ? parsed!.Fingerprint : "";
+        InviteSummary = $"{LocaleManager.T("lan.check")} {fingerprint} · " +
+                        string.Format(LocaleManager.T("lan.invite_valid"), (int)LanInviteCode.Ttl.TotalMinutes);
+        StatusText = LocaleManager.T("lan.invite_ready");
+    }
+
+    private void CopyInvite()
+    {
+        if (!HasInvite) { StatusText = LocaleManager.T("lan.invite_need_endpoint"); return; }
+        try
+        {
+            System.Windows.Clipboard.SetText(InviteCode);
+            StatusText = LocaleManager.T("lan.invite_copied");
+        }
+        catch
+        {
+            StatusText = LocaleManager.T("lan.copy_fail");
+        }
+    }
+
+    private void CopyPairCode()
+    {
+        if (PairCode.Length == 0) { StatusText = LocaleManager.T("lan.code_none"); return; }
+        try
+        {
+            System.Windows.Clipboard.SetText(PairCode);
+            StatusText = LocaleManager.T("lan.code_copied");
+        }
+        catch
+        {
+            StatusText = LocaleManager.T("lan.copy_fail");
+        }
+    }
+
+    /// <summary>当前选中的版本（写进邀请码，对方能提前发现版本不一致）。</summary>
+    private static string CurrentVersionId()
+    {
+        try { return ProfileStore.Load(GameConstants.DefaultGameRoot).LastVersionId ?? ""; }
+        catch { return ""; }
+    }
+
+    /// <summary>邀请码解析失败的原因 → 人话。</summary>
+    private static string InviteErrorText(string error) => error switch
+    {
+        "invite_expired" => LocaleManager.T("lan.err_expired"),
+        "invite_checksum" => LocaleManager.T("lan.err_broken"),
+        "invite_version_mismatch" => LocaleManager.T("lan.err_version"),
+        "invite_bad_endpoint" => LocaleManager.T("lan.err_endpoint"),
+        _ => LocaleManager.T("lan.err_generic")
+    };
 
     /// <summary>收到别人的邀请：在屏幕上确认后才执行（局域网不可信，绝不静默加入）。</summary>
     private void OnInviteReceived(LanInviteRequest request)
