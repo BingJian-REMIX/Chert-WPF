@@ -34,6 +34,8 @@
 
         <conv:InverseBoolToVisibilityConverter x:Key="InvBoolToVisibility"/>
 
+        <conv:QueueActionHintConverter x:Key="QueueActionHint"/>
+
     </Window.Resources>
 
     <!-- 让 WindowStyle=None 窗口真正无边框：消除 Windows 在窗口最外缘残留的 DWM 白边；
@@ -300,7 +302,8 @@
 
                                                 CommandParameter="{Binding}"
 
-                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='pause'}"/>
+                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='pause'}"
+                                                ToolTip="{Binding Status, Converter={StaticResource QueueActionHint}, ConverterParameter='pause'}"/>
 
                                         <Button Grid.Column="3" Content="{theme:Loc btn.cancel}" Padding="6,2"
 
@@ -308,7 +311,8 @@
 
                                                 CommandParameter="{Binding}"
 
-                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='cancel'}"/>
+                                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter='cancel'}"
+                                                ToolTip="{Binding Status, Converter={StaticResource QueueActionHint}, ConverterParameter='cancel'}"/>
 
                                     </Grid>
 

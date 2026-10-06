@@ -175,8 +175,16 @@ public class DownloadPageViewModel : ObservableObject
     public string CurrentSubTab
     {
         get => _currentSubTab;
-        set => SetField(ref _currentSubTab, value);
+        set
+        {
+            if (!SetField(ref _currentSubTab, value)) return;
+            OnPropertyChanged(nameof(IsMod));
+            OnPropertyChanged(nameof(IsInstall));
+        }
     }
+
+    /// <summary>当前是否为「安装」副标签（手动安装指定版本；该页不参与在线搜索）。</summary>
+    public bool IsInstall => _currentSubTab == "install";
 
     /// <summary>当前是否为 Mod 副标签（仅 Mod 需要加载器筛选，资源包/光影不需要）。</summary>
     public bool IsMod => _currentSubTab == "mod";
@@ -707,7 +715,7 @@ public class DownloadPageViewModel : ObservableObject
     public void SetSubTab(string? id)
     {
         if (string.IsNullOrWhiteSpace(id)) id = "minecraft";
-        if (id is not ("minecraft" or "mod" or "shader" or "resourcepack" or "modpack" or "map")) id = "minecraft";
+        if (id is not ("minecraft" or "mod" or "shader" or "resourcepack" or "modpack" or "map" or "install")) id = "minecraft";
 
         CurrentSubTab = id;
         OnPropertyChanged(nameof(IsMod));
@@ -721,7 +729,9 @@ public class DownloadPageViewModel : ObservableObject
         if (id == "modpack")
             RefreshModpackSources();
 
-        _ = SearchAsync();
+        // 「安装」页是表单页，不联网搜索：否则状态栏会一直停在「正在加载…」，而卡片永远不会来。
+        if (id != "install")
+            _ = SearchAsync();
     }
 
     /// <summary>刷新整合包来源列表（当前仅 Modrinth 常驻）。</summary>
@@ -1279,6 +1289,16 @@ public class DownloadPageViewModel : ObservableObject
         }
 
         var loader = ParseLoader(SelectedLoader);
+
+        // 去重：重复点「加入队列」会把同一资源塞两份 —— 下载两遍、覆盖同一个文件。
+        var dedupKey = $"{kind}|{card.Id}|{dir}|{SelectedGameVersion ?? ""}|{loader}|none|";
+        var dup = Queue.FirstOrDefault(q => q.IsActive && q.DedupKey == dedupKey);
+        if (dup is not null)
+        {
+            StatusMessage = $"已在队列中（{dup.Status}），无需重复添加：{card.Title}";
+            return;
+        }
+
         Queue.Add(new DownloadQueueItem
         {
             ProjectId = card.Id,
@@ -1557,6 +1577,13 @@ public class DownloadPageViewModel : ObservableObject
             "resourcepack" => PathEx.ResourcePacksDir(GameConstants.DefaultGameRoot),
             _ => PathEx.ModsDir(GameConstants.DefaultGameRoot)
         };
+
+        var dedupKey = $"mod|{detail.Id}|{dir}|{SelectedGameVersion ?? ""}|{ParseLoader(SelectedLoader)}|none|{ver.FileUrl ?? ""}";
+        if (Queue.Any(q => q.IsActive && q.DedupKey == dedupKey))
+        {
+            ProjectDetailHint = "该版本已在队列中，无需重复添加";
+            return;
+        }
 
         Queue.Add(new DownloadQueueItem
         {

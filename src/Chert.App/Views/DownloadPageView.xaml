@@ -10,6 +10,8 @@
 
              xmlns:conv="clr-namespace:Chert.App.Converters"
 
+             xmlns:views="clr-namespace:Chert.App.Views"
+
              xmlns:ctrl="clr-namespace:System.Windows.Controls;assembly=PresentationFramework"
 
              Foreground="{DynamicResource PrimaryForeground}">
@@ -505,6 +507,18 @@
             </Grid>
 
         </Grid>
+
+
+
+        <!-- 「安装」副标签：手动安装指定版本。此前 InstallView 全项目无入口，是死代码。 -->
+
+        <Border Grid.Row="2" Background="{DynamicResource ControlBackground}"
+
+                Visibility="{Binding IsInstall, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+
+            <views:InstallView/>
+
+        </Border>
 
 
 

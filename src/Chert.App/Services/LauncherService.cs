@@ -335,23 +335,30 @@ public class LauncherService : ILogger
     public async Task<string?> InstallVersionAsync(string mcVersion, string loader,
         IProgress<double>? progress = null, CancellationToken ct = default)
     {
+        // 进度适配：各安装器上报 (已完成, 总数)，这里折算成 0-1 的 double。
+        // 此前一律传 null —— 装版本时进度条永远不动，用户只能干等一个没有任何反馈的窗口。
+        IProgress<(int Done, int Total)>? stageProgress = progress is null
+            ? null
+            : new Progress<(int Done, int Total)>(p =>
+                progress.Report(p.Total <= 0 ? 0 : Math.Clamp((double)p.Done / p.Total, 0, 1)));
+
         string? id;
         switch (loader.ToLowerInvariant())
         {
             case "fabric":
-                id = await new FabricInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new FabricInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, stageProgress, ct);
                 break;
             case "forge":
-                id = await new ForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new ForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, stageProgress, ct);
                 break;
             case "neoforge":
-                id = await new NeoForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new NeoForgeInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, stageProgress, ct);
                 break;
             case "quilt":
-                id = await new QuiltInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                id = await new QuiltInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, stageProgress, ct);
                 break;
             default:
-                await new VanillaInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, null, ct);
+                await new VanillaInstaller(GameRoot, _client, _downloader, this).InstallAsync(mcVersion, stageProgress, ct);
                 id = mcVersion;
                 break;
         }
