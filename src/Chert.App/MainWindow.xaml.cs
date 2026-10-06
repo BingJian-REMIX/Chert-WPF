@@ -672,6 +672,19 @@ public partial class MainWindow : Window
 
         Closing += (_, _) => Chert.App.Services.GlobalHotkeyService.Detach();
 
+        // 关闭前提醒：此前带一堆下载在跑也直接退出，进度全丢、.part 残留，用户毫不知情
+        Closing += (_, e) =>
+        {
+            var vm = Chert.App.ViewModels.DownloadPageViewModel.Current;
+            var running = vm?.Queue.Count(q => q.Status is "下载中" or "排队中" or "安装中") ?? 0;
+            if (running == 0) return;
+            var goOn = MessageBox.Show(
+                $"还有 {running} 个下载 / 安装任务未完成。\n\n"
+                + "关闭后已下载的部分会保留，下次可继续（失败项可点「重试」）；确定现在退出吗？",
+                "任务进行中", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (goOn != MessageBoxResult.Yes) e.Cancel = true;
+        };
+
         // 启动时自动检查更新（设置项 AutoUpdateCheck，默认开启）：发现新版本则拉取 tag 日志并弹窗。
         // 与「设置页-检查更新」共用 UpdateNotifier，失败静默忽略，不阻塞启动。
         Loaded += (_, _) =>

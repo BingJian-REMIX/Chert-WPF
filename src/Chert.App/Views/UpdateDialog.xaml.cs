@@ -24,6 +24,9 @@ public partial class UpdateDialog : Window
 {
     private readonly UpdateCheckResult _result;
 
+    /// <summary>更新下载的取消源。此前下载不可取消，关窗口也只是把它藏起来。</summary>
+    private CancellationTokenSource? _updateCts;
+
     public UpdateDialog(UpdateCheckResult result)
     {
         InitializeComponent();
@@ -41,6 +44,9 @@ public partial class UpdateDialog : Window
                             (result.Status == "emgent"
                                 ? LocaleManager.T("update.emgent_note")
                                 : (result.Mandatory ? LocaleManager.T("update.recommend_note") : ""));
+
+        // 点「更新」后允许取消：关掉窗口即中止下载（此前关窗后下载仍在后台跑完再强杀进程）
+        Closing += (_, _) => _updateCts?.Cancel();
 
         ChangelogBox.Markdown = string.IsNullOrWhiteSpace(result.Changelog)
             ? LocaleManager.T("update.no_changelog")
@@ -124,6 +130,7 @@ public partial class UpdateDialog : Window
         DownloadButton.IsEnabled = false;
         GuiOnlyButton.IsEnabled = false;
         LaterButton.IsEnabled = false;
+        _updateCts = new CancellationTokenSource();
         ProgressPanel.Visibility = Visibility.Visible;
         StatusText.Text = LocaleManager.T("update.fetching");
 
@@ -144,7 +151,7 @@ public partial class UpdateDialog : Window
 
         try
         {
-            await LauncherService.Instance.DownloadFileAsync(guiUrl, guiZip, progress);
+            await LauncherService.Instance.DownloadFileAsync(guiUrl, guiZip, progress, _updateCts.Token);
             if (cliZip is not null)
             {
                 // CLI 包单独下载，进度条保持满格并改文案，避免用户以为卡住
@@ -154,7 +161,7 @@ public partial class UpdateDialog : Window
                     ProgressBar.Value = 1;
                     StatusText.Text = LocaleManager.Tf("update.downloading_cli_pct", Math.Round(p * 100));
                 });
-                await LauncherService.Instance.DownloadFileAsync(cliUrl!, cliZip, cliProgress);
+                await LauncherService.Instance.DownloadFileAsync(cliUrl!, cliZip, cliProgress, _updateCts.Token);
             }
 
             // 当前启动器安装目录（供脚本覆盖替换用）
@@ -221,6 +228,14 @@ Start-Process -FilePath $exe
             Process.Start(new ProcessStartInfo("powershell",
                 $"-ExecutionPolicy Bypass -File \"{scriptPath}\"") { UseShellExecute = true });
             Environment.Exit(0);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText.Text = LocaleManager.T("update.cancelled");
+            ProgressPanel.Visibility = Visibility.Collapsed;
+            DownloadButton.IsEnabled = true;
+            GuiOnlyButton.IsEnabled = true;
+            LaterButton.IsEnabled = true;
         }
         catch (Exception ex)
         {

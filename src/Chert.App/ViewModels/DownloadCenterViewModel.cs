@@ -134,6 +134,12 @@ public class DownloadQueueItem : ObservableObject
 
 
 
+    /// <summary>
+    /// 失败原因。此前 catch 里只把状态写成「失败」，异常信息被丢掉，
+    /// 用户只知道没下成，不知道为什么。
+    /// </summary>
+    public string ErrorMessage { get; set; } = "";
+
     private string _status = "排队中";
 
     public string Status

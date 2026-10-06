@@ -542,6 +542,10 @@
 
                             <ColumnDefinition Width="60"/>
 
+                            <ColumnDefinition Width="60"/>
+
+                            <ColumnDefinition Width="60"/>
+
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0">
@@ -554,9 +558,13 @@
 
                         </StackPanel>
 
-                        <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <!-- 失败时把原因挂在 ToolTip 上：状态栏只写「失败」两个字，用户无从判断 -->
+                        <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                   ToolTip="{Binding ErrorMessage}"/>
 
                         <Button Grid.Column="2" Content="{theme:Loc dl.pause}"
+
+                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter=pause}"
 
                                 Command="{Binding DataContext.PauseItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
 
@@ -564,9 +572,27 @@
 
                         <Button Grid.Column="3" Content="{theme:Loc btn.cancel}"
 
+                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter=cancel}"
+
                                 Command="{Binding DataContext.CancelItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
 
                                 CommandParameter="{Binding}" Padding="2"/>
+
+                        <Button Grid.Column="4" Content="{theme:Loc dl.resume}"
+
+                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter=resume}"
+
+                                Command="{Binding DataContext.ResumeItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+
+                                CommandParameter="{Binding}" Padding="2" Margin="4,0"/>
+
+                        <Button Grid.Column="5" Content="{theme:Loc dl.retry}"
+
+                                IsEnabled="{Binding Status, Converter={StaticResource QueueActionEnabledConverter}, ConverterParameter=retry}"
+
+                                Command="{Binding DataContext.RetryItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+
+                                CommandParameter="{Binding}" Padding="2" Margin="4,0"/>
 
                     </Grid>
 
