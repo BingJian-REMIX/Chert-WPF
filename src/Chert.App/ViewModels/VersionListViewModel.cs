@@ -331,9 +331,12 @@ public class VersionListViewModel : ObservableObject
                         ApplyFilter();
                     });
             }
-            catch
+            catch (Exception ex)
             {
-                // 单个版本扫描失败不影响其余版本
+                // 单个版本扫描失败不影响其余版本；但空 catch 会让「扫描失败」和
+                // 「确实无缺失」在界面上完全不可区分，这里至少落到启动器日志。
+                try { Chert.Core.Toolbox.LogManager.Append(gameRoot, $"前置扫描失败 {entry.Id}：{ex.Message}"); }
+                catch { /* 日志失败不影响扫描 */ }
             }
         }
     }

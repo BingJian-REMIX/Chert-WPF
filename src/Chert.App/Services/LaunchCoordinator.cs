@@ -52,7 +52,8 @@ public static class LaunchCoordinator
                 });
                 if (!proceed)
                 {
-                    status?.Invoke("已取消启动：存档版本高于目标游戏版本。");
+                    // 关闭窗口等同于「未确认风险」，不再替用户编理由（原文案把「未确认」写成「已确认不兼容」）
+                    status?.Invoke($"已取消启动：{incompatible.Count} 个存档的兼容性风险未确认。");
                     return;
                 }
             }
@@ -180,7 +181,35 @@ public static class LaunchCoordinator
         }
         else
         {
-            status?.Invoke($"检测到 {missing.Count} 个缺失前置，可在「Mod 管理」页一键安装");
+            // 【修复】策略 = 每次询问（Ask）此前落进这个 else 分支，只往状态栏写了一行日志，
+            // 从不弹窗 —— 与「始终安装 / 从不安装」没有区别。这里真正询问一次。
+            var preview = string.Join("、", missing.Take(5));
+            var more = missing.Count > 5 ? $" 等共 {missing.Count} 个" : "";
+            var install = false;
+            await Application.Current.Dispatcher.InvokeAsync(() =>
+            {
+                install = MessageBox.Show(
+                    $"检测到缺失前置：{preview}{more}\n\n是否立即自动安装后再启动？",
+                    "缺失前置", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            });
+
+            if (!install)
+            {
+                status?.Invoke($"检测到 {missing.Count} 个缺失前置，已跳过自动安装");
+                return;
+            }
+
+            var askPlan = new CrashRepairPlan
+            {
+                CanRepair = true,
+                Strategy = RepairStrategy.InstallMissingModDependency,
+                MissingModDependencies = missing,
+                VersionId = versionId
+            };
+            var askOk = await LauncherService.Instance.ApplyRepairAsync(askPlan);
+            status?.Invoke(askOk
+                ? $"已自动安装 {missing.Count} 个缺失前置，继续启动…"
+                : $"缺失前置自动安装失败（{missing.Count} 个），继续启动");
         }
     }
 

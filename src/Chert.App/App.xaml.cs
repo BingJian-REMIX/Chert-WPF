@@ -88,13 +88,34 @@ public partial class App : Application
         }
     }
 
+    /// <summary>命令里未捕获异常的统一出口：记日志 + Toast，不弹崩溃框。</summary>
+    private static void ReportCommandError(Exception ex)
+    {
+        WriteCrashLog("CommandError", ex);
+        if (ex is OperationCanceledException) return;
+        var msg = ex.Message;
+        if (string.IsNullOrWhiteSpace(msg)) msg = ex.GetType().Name;
+        try { Chert.App.Services.ToastService.Show("操作未完成", msg, Chert.App.Services.ToastKind.Warning); }
+        catch { /* 提示失败不影响主流程 */ }
+    }
+
     /// <summary>尽可能用原生 MessageBox 展示致命错误（WPF/Win32 存活时可用）。</summary>
     private static void ShowFatalBox(string prefix, Exception? ex)
     {
         try
         {
-            var detail = ex is null ? "" : $"\n\n{ex.GetType().Name}: {ex.Message}";
-            MessageBox.Show(prefix + detail, $"{GameConstants.LauncherDisplayName} 崩溃", MessageBoxButton.OK, MessageBoxImage.Error);
+            // 可预期的失败（缺 Java / 文件占用 / 网络 / 用户取消）不该报成「崩溃」：
+            // 只有真正的意外异常才用崩溃标题与错误图标。
+            var business = ex is null
+                || ex is InvalidOperationException or NotSupportedException or IOException
+                     or UnauthorizedAccessException or OperationCanceledException
+                     or System.Net.Http.HttpRequestException or System.Text.Json.JsonException;
+            var title = business
+                ? GameConstants.LauncherDisplayName
+                : $"{GameConstants.LauncherDisplayName} 崩溃";
+            var detail = ex is null ? "" : $"\n\n{ex.Message}";
+            MessageBox.Show(prefix + detail, title, MessageBoxButton.OK,
+                business ? MessageBoxImage.Warning : MessageBoxImage.Error);
         }
         catch
         {
@@ -109,6 +130,11 @@ public partial class App : Application
         // 必须最先执行：读取用户自定义的游戏目录，之后所有 GameConstants.DefaultGameRoot 才是正确值（bug #26）
         GameConstants.LoadGameRootOverride();
         Chert.App.Services.LauncherService.Reinitialize(GameConstants.DefaultGameRoot);
+
+        // 命令（ICommand）里未捕获的异常：写日志 + Toast，不再冒泡成「启动器崩溃」弹窗。
+        // 典型场景：启动游戏时缺 Java，ResolveJavaAsync 抛的业务异常经 async void
+        // 冒到 AppDomain.UnhandledException，用户看到的是「崩溃」而不是「缺 Java」。
+        Chert.Core.Mvvm.CommandErrors.Reporter = ReportCommandError;
 
         // 载入上次保存的个人资料（语言 / 外观）
         // ★ 配置迁移（2.6 新增）：从启动器自动更新到本版本时，用户的旧配置还留在游戏目录里。

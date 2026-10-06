@@ -312,6 +312,22 @@ public class VersionSettingsViewModel : ObservableObject
     // ---- 持久化 ----
     public void Save()
     {
+        // 【修复】切换隔离模式 = 静默切换该版本的工作目录，用户的 mods / 存档会「消失」
+        // （其实在另一个目录里）。此前只有一行 11px 灰字说明，保存时先明确确认。
+        var previous = VersionProfileStore.Load(_gameRoot, _versionId);
+        if (previous is not null && previous.Isolation != Isolation)
+        {
+            var goOn = MessageBox.Show(
+                "切换隔离模式会改变该版本的游戏工作目录，切换后本版本将不再读取原目录里的 "
+                + "mods / 存档 / 配置（文件不会丢失，切回来即可恢复）。\n\n确定继续吗？",
+                "切换隔离模式", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (goOn != MessageBoxResult.Yes)
+            {
+                Status = "已取消保存（隔离模式未变更）";
+                return;
+            }
+        }
+
         var p = new VersionProfile
         {
             DisplayName = DisplayName.Trim(),
@@ -336,6 +352,10 @@ public class VersionSettingsViewModel : ObservableObject
     // ---- 删除版本 ----
     private void DeleteVersion()
     {
+        // 【修复】「版本锁定」此前只拦装加载器 / 删 Mod / 加 Mod，删整个版本却没拦 ——
+        // 上锁的实例依然能被一键删除，锁定形同虚设。
+        if (GuardLocked("删除版本")) return;
+
         var dir = Path.Combine(_gameRoot, "versions", _versionId);
         if (!Directory.Exists(dir))
         {
@@ -513,6 +533,12 @@ public class VersionSettingsViewModel : ObservableObject
             ModTabKind.Shaders => Path.Combine(dir, "shaderpacks", name),
             _ => Path.Combine(dir, name)
         };
+
+        // 【修复】同页删版本有二次确认，删 Mod / 材质包却没有：误点一下文件就没了
+        var confirm = MessageBox.Show(
+            $"确定要移除「{name}」吗？\n\n{target}\n\n该操作不可恢复。",
+            "移除文件", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (confirm != MessageBoxResult.Yes) return;
 
         try
         {

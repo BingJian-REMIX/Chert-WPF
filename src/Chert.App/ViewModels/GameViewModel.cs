@@ -251,7 +251,12 @@ public class GameViewModel : ObservableObject
     private async Task LaunchAsync()
     {
         var id = SelectedVersionId;
-        if (string.IsNullOrWhiteSpace(id)) return;
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            // 未选版本时按钮照常可点，点了却毫无反应 —— 明确告知而不是静默返回
+            ToastService.Show("无法启动", "请先在下拉里选择一个游戏版本。", ToastKind.Warning);
+            return;
+        }
         // ★ 只启动、不等退出（problem3 多实例）：否则本命令的 _isRunning 会一直为 true
         //   直到游戏关闭，启动按钮全程灰着、无法再开第二个实例。
         await LauncherService.Instance.LaunchAndDetachAsync(id, null, BuildOverrides());

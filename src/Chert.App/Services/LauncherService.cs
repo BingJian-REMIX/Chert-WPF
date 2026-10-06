@@ -57,7 +57,7 @@ public class LauncherService : ILogger
 
     // 挂 CurseForgeAuthHandler：发往 forgecdn 的请求自动附加 x-api-key（2026-07 起 CDN 强制认证）
     private readonly HttpClient _client = new(new CurseForgeAuthHandler(new HttpClientHandler()));
-    private readonly IDownloader _downloader;
+    private readonly HttpDownloader _downloader;
 
     /// <summary>整合包在线源注册表（当前仅 Modrinth 常驻可用）。</summary>
     private readonly IModpackSource[] _modpackSources;
@@ -99,6 +99,27 @@ public class LauncherService : ILogger
 
         // 把 profile 里的 CurseForge 设置（用户 Key 覆盖 / API Root / 开关）同步到 Core 静态配置
         ApplyCurseForgeSettings();
+        ApplyDownloadPreferences();
+    }
+
+    /// <summary>
+    /// 把 profile 里的下载偏好同步进 Core：镜像源顺序 / 全局限速 / 并发数。
+    /// 此前这三项「存了不用」——<c>MirrorPolicy.Preference</c> 全仓零赋值、
+    /// 并发数在构造时硬编码 8、限速只在不可达的下载中心页里被设置。
+    /// </summary>
+    public void ApplyDownloadPreferences()
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameRoot);
+            MirrorPolicy.Preference = profile.DownloadSource;
+            DownloadSpeedLimiter.SetKilobytesPerSecond(profile.DownloadSpeedLimitKbps);
+            _downloader.MaxConcurrency = Math.Max(1, profile.MaxConcurrentDownloads);
+        }
+        catch
+        {
+            // 读配置失败不影响启动，按默认处理
+        }
     }
 
     /// <summary>当前可用的整合包在线源。</summary>
@@ -748,9 +769,13 @@ public class LauncherService : ILogger
 
     /// <summary>
     /// 解析启动该版本应使用的 Java（对齐 MCLCS-Linux 的按版本智能选版）：
-    /// 1. 显式路径优先（CLI &gt; 每版本覆盖 &gt; 全局），但必须满足该版本所需主版本；
+    /// 1. 显式路径优先（CLI &gt; 每版本覆盖 &gt; 全局）；版本不满足时<b>仍然尊重</b>，
+    ///    但明确提示（此前会静默改用检测到的版本，用户不知道自己指定的路径已被忽略）；
     /// 2. 否则在已检测的 Java 里挑「满足要求且尽可能低」的（老 MC/Forge 常不兼容过高 Java）；
-    /// 3. 本地没有满足要求的才尝试下载安装，仍失败则用最高版本兜底。
+    ///    【修复】此前只要检测到任何 Java 就直接返回，导致**从不触发自动安装** ——
+    ///    机器上只有 Java 8 时，启动 1.21 会拿着 Java 8 直接崩；
+    /// 3. 本地没有满足要求的才询问并下载安装；
+    /// 4. 安装失败/被取消：绝不用不兼容的 Java 静默启动，明确报错。
     /// </summary>
     private async Task<JavaInfo> ResolveJavaAsync(LauncherProfile profile, VersionProfile vp,
         LaunchCliOverrides? cliOverrides, string versionId, CancellationToken ct)
@@ -761,26 +786,70 @@ public class LauncherService : ILogger
         if (!string.IsNullOrEmpty(explicitPath) && File.Exists(explicitPath))
         {
             var (major, raw) = await JavaDetector.QueryVersionAsync(explicitPath);
-            bool acceptExplicit = required == 8 ? major == 8 : major >= required;
-            if (acceptExplicit)
+            if (major > 0)
+            {
+                bool ok = required == 8 ? major == 8 : major >= required;
+                if (!ok)
+                    ToastService.Show("Java 版本可能不兼容",
+                        $"该版本需要 Java {required}，而你指定的是 Java {major}（{explicitPath}）。"
+                        + "已按你的选择继续启动；若无法进入游戏，请在「设置 → Java」更换。",
+                        ToastKind.Warning);
                 return new JavaInfo { JavaExe = explicitPath, MajorVersion = major, RawVersion = raw };
+            }
+
+            // 路径失效（被卸载 / 移动）：不再静默改用自动检测，明确告知
+            ToastService.Show("Java 路径已失效",
+                $"设置的 Java 无法执行：{explicitPath}\n已改用自动检测到的 Java，请在「设置 → Java」更新路径。",
+                ToastKind.Warning);
         }
 
         var detected = await JavaDetector.DetectAsync(new[] { Path.Combine(GameRoot, "runtime") });
-        if (detected.Count > 0)
-        {
-            var picked = JavaDetector.SelectForVersion(detected, GameRoot, versionId, explicitPath);
-            if (picked is not null && (required != 8 || picked.MajorVersion == required)) return picked;
-        }
+        var satisfying = (required == 8
+                ? detected.Where(j => j.MajorVersion == 8)
+                : detected.Where(j => j.MajorVersion >= required))
+            .OrderBy(j => j.MajorVersion).ToList();
+        if (satisfying.Count > 0) return satisfying[0];
 
-        // 本地没有满足要求的 Java：尝试下载安装该版本所需主版本
+        // 本地没有满足要求的 Java：询问后下载安装该版本所需主版本
         var java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
+        if (java is not null) return java;
+
         // 精确需求（如 Java 8）自动安装失败时，绝不兜底更高版本（否则会静默崩溃）；直接报错提示手动安装
-        if (java is null && required == 8)
+        if (required == 8)
             throw new InvalidOperationException("未找到 Java 8，自动安装失败，请手动安装 Java 8 后重试。");
-        return java
-            ?? (detected.Count > 0 ? detected.OrderByDescending(j => j.MajorVersion).First() : null)
-            ?? throw new InvalidOperationException("未找到可用的 Java 运行环境");
+
+        var fallback = detected.Count > 0 ? detected.OrderByDescending(j => j.MajorVersion).First() : null;
+        if (fallback is null)
+            throw new InvalidOperationException($"未找到 Java {required}+，且自动安装失败，请手动安装 Java {required} 后重试。");
+
+        // 兜底使用不满足要求的 Java 时明确告知：拿 Java 8 启动 1.21 会当场崩，不能无声无息
+        ToastService.Show("Java 版本不足",
+            $"未找到 Java {required}+，已改用 Java {fallback.MajorVersion} 启动，可能无法进入游戏。",
+            ToastKind.Warning);
+        return fallback;
+    }
+
+    /// <summary>
+    /// 自动下载 Java 前的确认（约 180MB）。无 UI 场景（CLI / 测试，Dispatcher 不可用）直接放行。
+    /// 此前点「启动」后就默默开始下载，用户并不知道流量花在哪、也无法拒绝。
+    /// </summary>
+    private static bool ConfirmJavaDownload(int required)
+    {
+        var app = System.Windows.Application.Current;
+        if (app is null) return true;
+        try
+        {
+            return app.Dispatcher.Invoke(() => System.Windows.MessageBox.Show(
+                $"本机没有 Java {required}+，是否立即自动下载并安装 Java {required}（约 180 MB）？\n\n"
+                + "选择「否」将取消本次启动，你也可以在「设置 → Java」手动指定已有的 Java。",
+                "需要安装 Java",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question) == System.Windows.MessageBoxResult.Yes);
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     /// <summary>
@@ -793,8 +862,14 @@ public class LauncherService : ILogger
         var existing = await JavaDetector.FindBestAsync(required, required == 8);
         if (existing is not null) return existing;
 
+        if (!ConfirmJavaDownload(required))
+            throw new InvalidOperationException("已取消 Java 自动安装，启动中止。请在「设置 → Java」手动指定 Java 后重试。");
+
+        // required=8 时「未找到 Java 8+」的措辞会让装着 17/21 的用户一头雾水：
+        // 老版本 MC 必须精确匹配 Java 8，这里把需求说清楚。
+        var need = required == 8 ? "Java 8（该版本必须精确使用 Java 8）" : $"Java {required}+";
         ToastService.Show("正在自动安装 Java",
-            $"未找到 Java {required}+，启动器正在自动下载并安装运行环境（Temurin / Oracle）。", ToastKind.Info);
+            $"未找到 {need}，启动器正在自动下载并安装运行环境（Temurin / Oracle）。", ToastKind.Info);
 
         Chert.App.ViewModels.DownloadQueueItem? item = null;
         CancellationTokenSource? cts = null;

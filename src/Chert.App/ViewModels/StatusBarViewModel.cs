@@ -116,10 +116,15 @@ public class StatusBarViewModel : ObservableObject
             // 含跨进程扫描：启动器重启后仍能统计到后台跑着的游戏（用户反馈「0 个实例」）
             RunningInstances = InstanceTracker.ActiveCountIncludingExternal(GameConstants.DefaultGameRoot);
 
-            var java = await JavaDetector.FindBestAsync(GameConstants.MinimumJavaMajorVersion);
-            JavaVersionText = java is not null
-                ? $"Java {java.MajorVersion}"
-                : LocaleManager.Tf("status.no_java", GameConstants.MinimumJavaMajorVersion);
+            // 此前按启动器最低要求（21）判定：装了 Java 8 / 17 的用户状态栏永远显示
+            // 「未检测到 Java」，与「真的没装」无法区分。改为「有任何 Java 就显示版本，
+            // 低于要求时额外标注」。
+            var java = await JavaDetector.FindBestAsync(8);
+            JavaVersionText = java is null
+                ? LocaleManager.Tf("status.no_java", GameConstants.MinimumJavaMajorVersion)
+                : java.MajorVersion >= GameConstants.MinimumJavaMajorVersion
+                    ? $"Java {java.MajorVersion}"
+                    : LocaleManager.Tf("status.java_low", java.MajorVersion, GameConstants.MinimumJavaMajorVersion);
         }
         catch
         {

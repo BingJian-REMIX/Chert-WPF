@@ -1478,6 +1478,8 @@ public class SettingsViewModel : ObservableObject
 
         // 即时生效：把 CurseForge 配置同步进 Core，无需重启
         LauncherService.Instance.ApplyCurseForgeSettings();
+        // 下载偏好（镜像顺序 / 限速 / 并发数）同样即时生效，无需重启
+        LauncherService.Instance.ApplyDownloadPreferences();
         OnPropertyChanged(nameof(CurseForgeStatusText));
 
         // 即时生效
@@ -1503,8 +1505,14 @@ public class SettingsViewModel : ObservableObject
         var best = javas.FirstOrDefault(j => j.MajorVersion >= required) ?? javas.FirstOrDefault();
         if (best is null) return;
 
+        var previous = JavaPath?.Trim();
         JavaPath = best.JavaExe;
-        StatusMessage = $"找到 {javas.Count} 个可用 Java，已选择 {JavaValidator.Describe(best)}";
+        // 自动检测会覆盖用户手选的 Java（如为老版本 MC 特意选的 Java 8），
+        // 明确说出「从什么改成了什么」，避免用户下次启动一脸茫然。
+        StatusMessage = !string.IsNullOrWhiteSpace(previous)
+                        && !string.Equals(previous, best.JavaExe, StringComparison.OrdinalIgnoreCase)
+            ? $"找到 {javas.Count} 个可用 Java，已把 Java 从 {previous} 切换为 {JavaValidator.Describe(best)}"
+            : $"找到 {javas.Count} 个可用 Java，已选择 {JavaValidator.Describe(best)}";
     }
 
     /// <summary>
