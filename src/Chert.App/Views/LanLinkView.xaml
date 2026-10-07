@@ -188,6 +188,84 @@
                     </StackPanel>
                 </Border>
 
+                <!-- 广域网直连 -->
+                <TextBlock Text="{theme:Loc p2p.title}" FontWeight="Bold" Margin="0,0,0,4"
+                           Foreground="{DynamicResource PrimaryForeground}"/>
+                <Border Padding="10" CornerRadius="8" Margin="0,0,0,8"
+                        Background="{DynamicResource CardBackground}"
+                        BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="{theme:Loc p2p.section_tip}" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SecondaryForeground}"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="{theme:Loc p2p.host_btn}" Command="{Binding StartHostLinkCommand}"
+                                    Padding="10,4" ToolTip="{theme:Loc p2p.host_btn_tip}"/>
+                            <Button Content="{theme:Loc p2p.join_btn}" Command="{Binding StartJoinLinkCommand}"
+                                    Padding="10,4" Margin="8,0,0,0" ToolTip="{theme:Loc p2p.join_btn_tip}"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc p2p.my_ip}" VerticalAlignment="Center" Width="90"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBox Text="{Binding MyPublicIp, UpdateSourceTrigger=PropertyChanged}" Width="170"
+                                     ToolTip="{theme:Loc p2p.my_ip_tip}"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="0,8,0,0" Visibility="{Binding HasMyCode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="{theme:Loc p2p.my_code}" Margin="0,0,0,4"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="136" Height="136" Margin="0,0,10,0"
+                                        VerticalAlignment="Top" Background="White" CornerRadius="6"
+                                        ToolTip="{theme:Loc p2p.qr_tip}">
+                                    <Image Source="{Binding MyCodeQr}" Stretch="Uniform"
+                                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <TextBox Text="{Binding MyCode}" IsReadOnly="True" TextWrapping="Wrap"
+                                             AcceptsReturn="True" Height="82" FontSize="11"
+                                             VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
+                                    <Button Content="{theme:Loc p2p.copy_code}" Command="{Binding CopyMyCodeCommand}"
+                                            Padding="10,2" Margin="0,6,0,0" HorizontalAlignment="Left"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <TextBlock Text="{theme:Loc p2p.fingerprint}" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource SecondaryForeground}"/>
+                                        <TextBlock Text="{Binding MyFingerprint}" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                   FontSize="13" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"
+                                                   ToolTip="{theme:Loc p2p.fingerprint_tip}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding PeerFingerprintText}" Margin="0,2,0,0" FontSize="11"
+                                               Foreground="{DynamicResource SecondaryForeground}"
+                                               ToolTip="{theme:Loc p2p.fingerprint_tip}"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc p2p.peer_code}" VerticalAlignment="Center" Width="90"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBox Text="{Binding PeerCodeInput, UpdateSourceTrigger=PropertyChanged}" Width="240"
+                                     ToolTip="{Binding PeerCodeTip}"/>
+                            <Button Content="{theme:Loc p2p.connect}" Command="{Binding LinkConnectCommand}"
+                                    Padding="10,2" Margin="8,0,0,0"/>
+                            <Button Content="{theme:Loc p2p.stop}" Command="{Binding StopLinkCommand}"
+                                    Padding="10,2" Margin="8,0,0,0"/>
+                        </StackPanel>
+
+                        <TextBlock Text="{Binding LocalProxyText}" Margin="0,8,0,0" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentBrush}"
+                                   Visibility="{Binding LinkReady, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock Text="{Binding LinkStatus}" Margin="0,6,0,0" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource StatusForeground}"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- 状态 -->
                 <TextBlock Text="{Binding StatusText}" Margin="0,4,0,0" TextWrapping="Wrap"
                            Foreground="{DynamicResource StatusForeground}"/>

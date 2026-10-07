@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
 using Chert.App.Services;
 using Chert.Core.Lan;
+using Chert.Core.Lan.P2P;
 using Chert.Core.Localization;
 using Chert.Core.Mvvm;
 using Chert.Core.Profiles;
@@ -41,6 +43,7 @@ public sealed class LanPeerCard
 public class LanLinkViewModel : ObservableObject
 {
     private readonly LanLinkService _service = LanLinkService.Instance;
+    private readonly P2PLinkService _link = P2PLinkService.Instance;
 
     private bool _enabled;
     private bool _busy;
@@ -54,6 +57,13 @@ public class LanLinkViewModel : ObservableObject
     private string _inviteCode = "";
     private string _inviteSummary = "";
     private LanPeerCard? _selected;
+
+    // ===== 广域网直连 =====
+    private string _myCode = "";
+    private BitmapSource? _myCodeQr;
+    private string _peerCodeInput = "";
+    private string _myPublicIp = "";
+    private string _linkStatus = "";
 
     public LanLinkViewModel()
     {
@@ -72,6 +82,13 @@ public class LanLinkViewModel : ObservableObject
         GenerateInviteCommand = new RelayCommand(_ => GenerateInvite());
         CopyInviteCommand = new RelayCommand(_ => CopyInvite());
         CopyPairCodeCommand = new RelayCommand(_ => CopyPairCode());
+        StartHostLinkCommand = new AsyncRelayCommand(_ => StartHostLinkAsync());
+        StartJoinLinkCommand = new AsyncRelayCommand(_ => StartJoinLinkAsync());
+        LinkConnectCommand = new AsyncRelayCommand(_ => LinkConnectAsync());
+        StopLinkCommand = new RelayCommand(_ => StopLink());
+        CopyMyCodeCommand = new RelayCommand(_ => CopyMyCode());
+
+        _link.Changed += () => Application.Current?.Dispatcher.Invoke(RefreshLinkUi);
 
         _service.StatusChanged += () => Application.Current?.Dispatcher.Invoke(() =>
         {
@@ -190,6 +207,79 @@ public class LanLinkViewModel : ObservableObject
 
     public bool HasInvite => _inviteCode.Length > 0;
 
+    // ===== 广域网直连 =====
+
+    /// <summary>本机生成的握手码（发给对方的那一段）。</summary>
+    public string MyCode
+    {
+        get => _myCode;
+        set
+        {
+            if (!SetField(ref _myCode, value)) return;
+            OnPropertyChanged(nameof(HasMyCode));
+        }
+    }
+
+    /// <summary>握手码对应的二维码 —— 对方扫一下比复制两百字符省事。</summary>
+    public BitmapSource? MyCodeQr
+    {
+        get => _myCodeQr;
+        set => SetField(ref _myCodeQr, value);
+    }
+
+    /// <summary>对方发来的握手码。</summary>
+    public string PeerCodeInput
+    {
+        get => _peerCodeInput;
+        set => SetField(ref _peerCodeInput, value);
+    }
+
+    /// <summary>手填的本机公网 IP：UPnP 不可用时的最后手段。</summary>
+    public string MyPublicIp
+    {
+        get => _myPublicIp;
+        set => SetField(ref _myPublicIp, value);
+    }
+
+    public string LinkStatus
+    {
+        get => _linkStatus;
+        set => SetField(ref _linkStatus, value);
+    }
+
+    public bool HasMyCode => _myCode.Length > 0;
+
+    public bool LinkIdle => _link.Stage is P2PStage.Idle or P2PStage.Failed;
+
+    public bool ShowLinkPanel => !LinkIdle || HasMyCode;
+
+    public bool LinkBusy => _link.IsBusy;
+
+    public bool LinkReady => _link.IsReady;
+
+    public string MyFingerprint => _link.LocalFingerprint;
+
+    public string PeerFingerprintText => _link.PeerFingerprint;
+
+    /// <summary>加入者端：Minecraft 要连的地址（房主端为空）。</summary>
+    public string LocalProxyText =>
+        _link.LocalProxyPort > 0 ? $"localhost:{_link.LocalProxyPort}" : "";
+
+    /// <summary>对方握手码输入框的提示 —— 房主要的是应答码，加入者要的是邀请码，别混。</summary>
+    public string PeerCodeTip => _link.Role switch
+    {
+        P2PRole.Host => LocaleManager.T("p2p.peer_code_host_tip"),
+        P2PRole.Joiner => LocaleManager.T("p2p.peer_code_join_tip"),
+        _ => LocaleManager.T("p2p.join_btn_tip")
+    };
+
+    public string LinkRoleText => _link.Role switch
+    {
+        P2PRole.Host => LocaleManager.T("p2p.role_host"),
+        P2PRole.Joiner => LocaleManager.T("p2p.role_joiner"),
+        _ => ""
+    };
+
     /// <summary>可复制给对方的邀请文本。</summary>
     public string ShareText =>
         LocalEndpoint.Length == 0
@@ -211,6 +301,11 @@ public class LanLinkViewModel : ObservableObject
     public ICommand GenerateInviteCommand { get; }
     public ICommand CopyInviteCommand { get; }
     public ICommand CopyPairCodeCommand { get; }
+    public ICommand StartHostLinkCommand { get; }
+    public ICommand StartJoinLinkCommand { get; }
+    public ICommand LinkConnectCommand { get; }
+    public ICommand StopLinkCommand { get; }
+    public ICommand CopyMyCodeCommand { get; }
 
     // ===== 实现 =====
 
@@ -604,7 +699,9 @@ public class LanLinkViewModel : ObservableObject
         _ => LocaleManager.T("lan.err_generic")
     };
 
-    /// <summary>收到别人的邀请：在屏幕上确认后才执行（局域网不可信，绝不静默加入）。</summary>
+    /// <summary>
+    /// 收到别人的邀请：在屏幕上确认后才执行（局域网不可信，绝不静默加入）。
+    /// </summary>
     private void OnInviteReceived(LanInviteRequest request)
     {
         Application.Current?.Dispatcher.Invoke(() =>
@@ -630,5 +727,112 @@ public class LanLinkViewModel : ObservableObject
             OnPropertyChanged(nameof(JoinEndpoint));
             _ = JoinAsync();
         });
+    }
+
+    // ===== 广域网直连：握手码 → UDP 打洞 → QUIC 隧道 → 本地代理 =====
+
+    /// <summary>把服务层的状态搬到 UI 属性上（Changed 事件来自后台线程，由构造里包了 Dispatcher）。</summary>
+    private void RefreshLinkUi()
+    {
+        MyCode = _link.LocalCode;
+        MyCodeQr = QrCodeService.Render(_link.LocalCode);
+        LinkStatus = _link.StatusText;
+        OnPropertyChanged(nameof(MyFingerprint));
+        OnPropertyChanged(nameof(PeerFingerprintText));
+        OnPropertyChanged(nameof(LocalProxyText));
+        OnPropertyChanged(nameof(LinkIdle));
+        OnPropertyChanged(nameof(ShowLinkPanel));
+        OnPropertyChanged(nameof(LinkBusy));
+        OnPropertyChanged(nameof(LinkReady));
+        OnPropertyChanged(nameof(LinkRoleText));
+        OnPropertyChanged(nameof(PeerCodeTip));
+        OnPropertyChanged(nameof(MyFingerprint));
+        OnPropertyChanged(nameof(PeerFingerprintText));
+        OnPropertyChanged(nameof(LocalProxyText));
+        OnPropertyChanged(nameof(HasMyCode));
+    }
+
+    /// <summary>房主：本机已经有开放的世界，生成邀请码给对方。</summary>
+    private async Task StartHostLinkAsync()
+    {
+        if (!P2PLinkService.PlatformSupported)
+        {
+            LinkStatus = P2PTunnel.UnsupportedReason;
+            return;
+        }
+
+        var parsed = LanWorldShare.ParseEndpoint(LocalEndpoint);
+        if (parsed is null)
+        {
+            StatusText = LocaleManager.T("p2p.need_local_port");
+            return;
+        }
+
+        await _link.StartAsHostAsync(parsed.Value.Port, CurrentVersionId(), null, true, MyPublicIp)
+                   .ConfigureAwait(false);
+        RefreshLinkUi();
+    }
+
+    /// <summary>加入者：粘贴房主的邀请码，生成自己的应答码。</summary>
+    private async Task StartJoinLinkAsync()
+    {
+        if (!P2PLinkService.PlatformSupported)
+        {
+            LinkStatus = P2PTunnel.UnsupportedReason;
+            return;
+        }
+
+        await _link.StartAsJoinerAsync(PeerCodeInput, true, MyPublicIp).ConfigureAwait(false);
+        RefreshLinkUi();
+    }
+
+    /// <summary>收齐两边的码之后：打洞 + 建隧道。</summary>
+    private async Task LinkConnectAsync()
+    {
+        var ok = _link.Role switch
+        {
+            P2PRole.Host => await _link.CompleteAsHostAsync(PeerCodeInput).ConfigureAwait(false),
+            P2PRole.Joiner => await _link.ConnectAsJoinerAsync().ConfigureAwait(false),
+            _ => await StartAMissingRoleAsync().ConfigureAwait(false)
+        };
+
+        RefreshLinkUi();
+        if (ok && LocalProxyText.Length > 0)
+        {
+            // 加入者要知道去连哪个端口：25565 是默认，被占用时必须说清楚
+            await Application.Current?.Dispatcher.InvokeAsync(() =>
+                System.Windows.MessageBox.Show(
+                    string.Format(LocaleManager.T("p2p.ready_hint"), LocalProxyText),
+                    LocaleManager.T("p2p.title"),
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information))!;
+        }
+    }
+
+    private Task<bool> StartAMissingRoleAsync()
+    {
+        LinkStatus = LocaleManager.T("p2p.need_choice");
+        return Task.FromResult(false);
+    }
+
+    private void StopLink()
+    {
+        _link.Reset();
+        PeerCodeInput = "";
+        RefreshLinkUi();
+    }
+
+    private void CopyMyCode()
+    {
+        if (!HasMyCode) { LinkStatus = LocaleManager.T("p2p.no_code"); return; }
+        try
+        {
+            System.Windows.Clipboard.SetText(MyCode);
+            LinkStatus = LocaleManager.T("p2p.code_copied");
+        }
+        catch
+        {
+            LinkStatus = LocaleManager.T("lan.copy_fail");
+        }
     }
 }
