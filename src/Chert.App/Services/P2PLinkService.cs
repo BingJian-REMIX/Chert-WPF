@@ -494,6 +494,8 @@ public sealed class P2PLinkService : IDisposable
         "p2p_not_code" => "这不是直连握手码（应以 CHERT2: 开头）。局域网的邀请码是 CHERT1: 开头，两种别混用。",
         "p2p_checksum" or "p2p_fingerprint_mismatch" =>
             "这个码不完整或被改动过（校验没通过）。让对方重新生成，复制的时候注意别漏字符。",
+        "p2p_checksum_missing" =>
+            "这个码少了末尾那一段检错码 —— 多半是复制时只选中了一半。整段重新复制一次。",
         "p2p_bad_base64" or "p2p_bad_deflate" or "p2p_bad_payload" =>
             "看不出这是一个码 —— 多半是复制时被截断或混进了别的内容。请整段重新复制。",
         "p2p_version_mismatch" => "对方的启动器版本更旧/更新，码的格式对不上。两边都升级到同一版本再试。",

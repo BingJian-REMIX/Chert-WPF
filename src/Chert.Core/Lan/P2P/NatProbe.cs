@@ -76,13 +76,25 @@ public static class NatProbe
     /// <summary>
     /// 探测本机 NAT 行为。<paramref name="localPort"/> 必须是后面真正用来打洞的端口。
     /// </summary>
+    /// <summary>最多试几台服务器就开始出结论：足够容错，又不会让用户等太久。</summary>
+    private const int MaxServerTries = 3;
+
+    /// <summary>
+    /// 探测本机 NAT 行为。<paramref name="localPort"/> 必须是后面真正用来打洞的端口。
+    /// <para>
+    /// 耐心的理由：在这一步上省钱会让整条链路看起来像断了网。实测中第一条 IPv6 记录会
+    /// 立刻失败（地址族不符），第一台服务器也可能正是被墙的那一个 —— any single failure
+    /// 都不能当成「UDP 不通」的结论。
+    /// </para>
+    /// </summary>
     public static async Task<NatProbeResult> ProbeAsync(int localPort,
                                                         IReadOnlyList<string>? servers = null,
                                                         TimeSpan? perQueryTimeout = null,
                                                         CancellationToken ct = default)
     {
         // DNS 是同步阻塞的，别拖住调用线程（UI 线程很可能就在外面等）
-        var list = await Task.Run(() => Resolve(servers ?? StunClient.DefaultServers), ct).ConfigureAwait(false);
+        var list = await Task.Run(() => Resolve(servers ?? StunClient.DefaultServers, AddressFamily.InterNetwork), ct)
+                              .ConfigureAwait(false);
         if (list.Count == 0)
             return new NatProbeResult { Ok = false, Error = "一个 STUN 服务器地址都解析不出来" };
 
@@ -96,45 +108,69 @@ public static class NatProbe
             return new NatProbeResult { Ok = false, Error = $"本地 UDP 端口 {localPort} 绑定失败：{ex.SocketErrorCode}" };
         }
 
-        // ① 服务器 A
-        var first = await StunClient.QueryAsync(socket, list[0], perQueryTimeout, ct).ConfigureAwait(false);
-        if (!first.Ok || first.Mapped is null)
+        // ① 找一台说话算数的服务器（失败就换下一台，别急着下结论）
+        IPEndPoint? baseline = null;
+        IPEndPoint? used = null;
+        string lastError = "";
+        var tried = 0;
+
+        foreach (var server in list)
         {
+            if (tried >= MaxServerTries) break;
+            tried++;
+            ct.ThrowIfCancellationRequested();
+
+            var result = await StunClient.QueryAsync(socket, server, perQueryTimeout, ct).ConfigureAwait(false);
+            if (result.Ok && result.Mapped is { } mapped)
+            {
+                baseline = mapped;
+                used = server;
+                break;
+            }
+            lastError = result.Error;
+        }
+
+        if (baseline is null || used is null)
+        {
+            // 说清最后一票失败的原因 —— 笼统一句「UDP 被挡」会让人查错方向
+            var detail = lastError.Length == 0 ? "" : $"，最后一次的原因是：{lastError}";
             return new NatProbeResult
             {
                 Ok = false,
                 UdpLooksBlocked = true,
-                Error = $"STUN 全部没回应（试了 {list.Count} 个）。UDP 可能被防火墙挡住了，或需要自己在下面指定能通的 STUN 服务器。"
+                Error = $"试了 {tried} 个 STUN 服务器都没回应{detail}。" +
+                        "UDP 可能被防火墙挡了，也可能是公开服务器在你这条线路上不通 —— " +
+                        "可以在下面指定一台自己用得通的。"
             };
         }
 
-        var baseEp = first.Mapped;
-
-        // ② 同一台服务器的另一个端口：多数公共 STUN 同时开 3478 与 19302
+        // ② 同一台服务器的另一个端口：多数公共 STUN 同时开 3478 与 19302。
+        // 即便列表里没这条记录也要构造了去问 —— 换端口的行为正是判据本身。
+        var altPort = used.Port == 3478 ? 19302 : 3478;
         IPEndPoint? sameHostOtherPort = null;
-        var alt = SameHostOtherPort(list);
-        if (alt is not null)
-        {
-            var second = await StunClient.QueryAsync(socket, alt, perQueryTimeout, ct).ConfigureAwait(false);
-            if (second.Ok) sameHostOtherPort = second.Mapped;
-        }
+        if (await QueryMapped(socket, new IPEndPoint(used.Address, altPort), perQueryTimeout, ct) is { } second)
+            sameHostOtherPort = second;
 
         // ③ 换一台服务器（不同 IP）
         IPEndPoint? otherHost = null;
-        var third = OtherHost(list, list[0]);
-        if (third is not null)
-        {
-            var thirdResult = await StunClient.QueryAsync(socket, third, perQueryTimeout, ct).ConfigureAwait(false);
-            if (thirdResult.Ok) otherHost = thirdResult.Mapped;
-        }
+        var third = list.FirstOrDefault(x => !x.Address.Equals(used.Address));
+        if (third is not null && await QueryMapped(socket, third, perQueryTimeout, ct) is { } thirdMapped)
+            otherHost = thirdMapped;
 
         return new NatProbeResult
         {
             Ok = true,
-            ServerReflexive = baseEp,
-            Mapping = Classify(baseEp, sameHostOtherPort, otherHost),
-            Server = list[0].ToString() ?? ""
+            ServerReflexive = baseline,
+            Mapping = Classify(baseline, sameHostOtherPort, otherHost),
+            Server = used.ToString() ?? ""
         };
+    }
+
+    private static async Task<IPEndPoint?> QueryMapped(Socket socket, IPEndPoint server,
+                                                       TimeSpan? timeout, CancellationToken ct)
+    {
+        var result = await StunClient.QueryAsync(socket, server, timeout, ct).ConfigureAwait(false);
+        return result.Ok ? result.Mapped : null;
     }
 
     /// <summary>
@@ -168,27 +204,22 @@ public static class NatProbe
 
     // ===== 服务器列表处理 =====
 
-    private static List<IPEndPoint> Resolve(IReadOnlyList<string> servers)
+    /// <summary>
+    /// 解析出候选服务器并按地址族过滤。
+    /// 只留 IPv4 不是偷懒：判 NAT 要从那个 UDP 端口发真实数据包，
+    /// 塞个 IPv6 目标进来只会让第一次查询立刻失败（DNS 常常优先返回 IPv6 记录）。
+    /// </summary>
+    private static List<IPEndPoint> Resolve(IReadOnlyList<string> servers, AddressFamily family)
     {
         var result = new List<IPEndPoint>();
         foreach (var text in servers)
         {
             foreach (var ip in StunClient.ResolveEntries(text))
             {
+                if (ip.AddressFamily != family) continue;
                 if (!result.Any(x => x.Equals(ip))) result.Add(ip);
             }
         }
         return result;
     }
-
-    private static IPEndPoint? SameHostOtherPort(List<IPEndPoint> list)
-    {
-        if (list.Count == 0) return null;
-        var first = list[0];
-        var altPort = first.Port == 3478 ? 19302 : 3478;
-        return list.FirstOrDefault(x => x.Address.Equals(first.Address) && x.Port == altPort);
-    }
-
-    private static IPEndPoint? OtherHost(List<IPEndPoint> list, IPEndPoint first)
-        => list.FirstOrDefault(x => !x.Address.Equals(first.Address));
 }

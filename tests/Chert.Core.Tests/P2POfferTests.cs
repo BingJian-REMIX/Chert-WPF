@@ -111,8 +111,10 @@ public class P2POfferTests
     public void 只含_Base64URL_安全字符()
     {
         using var id = P2PIdentity.TryCreate();
-        var payload = Sample(id).Encode()[P2POffer.Prefix.Length..];
+        var body = Sample(id).Encode()[P2POffer.Prefix.Length..];
 
+        // 末尾那 6 位是检错码，用点号连在载荷后面；这里只检查载荷段本身
+        var payload = body[..body.LastIndexOf('.')];
         Assert.All(payload, c => Assert.True(char.IsLetterOrDigit(c) || c is '-' or '_',
             $"Base64URL 里不该出现 {c}（聊天软件会把 + / = 转义掉）"));
     }
@@ -129,7 +131,20 @@ public class P2POfferTests
         chars[idx] = chars[idx] == 'A' ? 'B' : 'A';
 
         Assert.False(P2POffer.TryDecode(new string(chars), out _, out var err));
-        Assert.True(err is "p2p_fingerprint_mismatch" or "p2p_bad_deflate" or "p2p_bad_base64", err);
+
+        // 一定是检错码先挡下：它覆盖的是字节本身，所以任何一处字符改动都必然现形。
+        // （早先只校验解压出来的内容时，约 7% 的改动会落在解压器不读的冗余字节上被静默放过。）
+        Assert.Equal("p2p_checksum", err);
+    }
+
+    [Fact]
+    public void 缺了末尾的检错段也会被拒()
+    {
+        using var id = P2PIdentity.TryCreate();
+        var code = Sample(id).Encode();
+
+        Assert.False(P2POffer.TryDecode(code[..code.LastIndexOf('.')], out _, out var err));
+        Assert.Equal("p2p_checksum_missing", err);
     }
 
     [Fact]

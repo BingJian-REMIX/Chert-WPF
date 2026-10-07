@@ -231,6 +231,12 @@ public static class StunClient
 
     private static StunResult QueryCore(Socket socket, EndPoint server, TimeSpan timeout, CancellationToken ct)
     {
+        // 别等到发包抛异常才发现：bind 的是 IPv4 socket 却给了 IPv6 服务器，
+        // 这种组合会直接 AddressFamilyNotSupported（在 IPv6 优先的系统上很容易撞到 ——
+        // stun.l.google.com 解析出来的第一条就是 IPv6 记录）
+        if (server.AddressFamily != socket.AddressFamily)
+            return StunResult.Fail($"socket 是 {socket.AddressFamily}，服务器却是 {server.AddressFamily}");
+
         var transactionId = RandomNumberGenerator.GetBytes(TransactionIdSize);
         var request = BuildRequest(transactionId);
         var buffer = new byte[512];

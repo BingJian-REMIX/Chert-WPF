@@ -31,6 +31,12 @@ public sealed class P2POffer
     /// <summary>握手使用的约定 IwDP 端口（与局域网发现端口不同，避免互相干扰）。</summary>
     public const int DefaultUdpPort = 47810;
 
+    /// <summary>
+    /// 检错码与载荷的分隔符。用点号是因为 Base64URL 里只可能出现
+    /// <c>[A-Za-z0-9-_]</c>，点号天然不会混淆，用 <c>LastIndexOf</c> 拆也是稳的。
+    /// </summary>
+    private const char ChecksumSeparator = '.';
+
     private const byte Magic0 = 0xC2;
     private const byte Magic1 = 0x11;
 
@@ -89,6 +95,21 @@ public sealed class P2POffer
         return left > 0 ? TimeSpan.FromSeconds(left) : TimeSpan.Zero;
     }
 
+    /// <summary>
+    /// 对编码后的字节做 6 位检错码（SHA256 前 3 字节 → 十进制）。
+    /// <para>
+    /// 它管的是「这串字符在传递过程里有没有坏」，不是安全 —— 握手码本来就要交给对方。
+    /// 真正防冒充的是应用层那次挑战—应答。与 <see cref="ComputeFingerprint"/> 的区别：
+    /// 指纹只覆盖解压出来的内容（给人眼核对是不是同一个人），这个覆盖的是字节本身。
+    /// </para>
+    /// </summary>
+    private static string Checksum(byte[] encodedBytes)
+    {
+        var hash = SHA256.HashData(encodedBytes);
+        var n = ((uint)hash[0] << 16) | ((uint)hash[1] << 8) | hash[2];
+        return ((int)(n % 1_000_000)).ToString("D6");
+    }
+
     /// <summary>SHA256(公钥) 前 3 字节 → 6 位十进制。用于人工核对（碰撞约百万分之一）。</summary>
     public static string ComputeFingerprint(byte[] rawPublicKey)
     {
@@ -108,7 +129,8 @@ public sealed class P2POffer
         using (var deflate = new DeflateStream(ms, CompressionLevel.Optimal, leaveOpen: true))
             deflate.Write(payload, 0, payload.Length);
 
-        return Prefix + ToBase64Url(ms.ToArray());
+        var compressed = ms.ToArray();
+        return Prefix + ToBase64Url(compressed) + ChecksumSeparator + Checksum(compressed);
     }
 
     /// <summary>解析握手码。只认 <c>CHERT2:</c> 前缀。</summary>
@@ -122,9 +144,19 @@ public sealed class P2POffer
         if (!s.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
         { error = "p2p_not_code"; return false; }
 
+        var body = s[Prefix.Length..];
+        var dot = body.LastIndexOf(ChecksumSeparator);
+        if (dot <= 0) { error = "p2p_checksum_missing"; return false; }
+
         byte[] raw;
-        try { raw = FromBase64Url(s[Prefix.Length..]); }
+        try { raw = FromBase64Url(body[..dot]); }
         catch { error = "p2p_bad_base64"; return false; }
+
+        // 校验必须发生在解压之前，而且覆盖的是**实际字节**而不是解压出来的内容：
+        // 实测改一个字符有 7% 的概率落在解压器根本不读的冗余字节上 —— 那段字节变了、
+        // 解压结果却一模一样，于是被静默接受。让它覆盖字节本身，这种改动就必然现形。
+        if (!string.Equals(body[(dot + 1)..].Trim(), Checksum(raw), StringComparison.Ordinal))
+        { error = "p2p_checksum"; return false; }
 
         byte[] payload;
         try { payload = Inflate(raw); }
