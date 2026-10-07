@@ -56,6 +56,20 @@ public sealed class P2PLinkService : IDisposable
     private int _localPort = P2POffer.DefaultUdpPort;
     private int _mcPort;
     private bool _disposed;
+    private NatProbeResult? _nat;
+    private IReadOnlyList<P2PCandidate> _candidates = Array.Empty<P2PCandidate>();
+
+    /// <summary>
+    /// 自定义 STUN 服务器（每项 <c>host:port</c>）；留空用内置公开列表。
+    /// 公司内网、校园网、某些宽带下，常常只有用户指定的那台才通 —— 所以留了这个口子。
+    /// </summary>
+    public IReadOnlyList<string> StunServers { get; set; } = Array.Empty<string>();
+
+    /// <summary>最近一次 NAT 行为探测的结论（还没探测过为 null）。</summary>
+    public NatProbeResult? Nat => _nat;
+
+    /// <summary>本机这一侧能否被对方直连到。没测出来时乐观放行（真打不通会走到超时，那时再给建议）。</summary>
+    public bool CanPunch => _nat?.LikelyPunchable ?? true;
 
     /// <summary>状态 / 进度变化（UI 直接显示 <see cref="StatusText"/>）。</summary>
     public event Action? Changed;
@@ -114,13 +128,13 @@ public sealed class P2PLinkService : IDisposable
         _role = P2PRole.Host;
         _mcPort = mcPort;
 
-        var candidates = await CollectCandidatesAsync(tryUpnp, manualExternalIp);
-        if (candidates is null) return false;
+        if (!await CollectCandidatesAsync(tryUpnp, manualExternalIp)) return false;
 
-        _localOffer = BuildOffer(P2POfferKind.Offer, candidates, mcVersion, worldName, mcPort);
+        _localOffer = BuildOffer(P2POfferKind.Offer, _candidates, mcVersion, worldName, mcPort);
         LocalCode = _localOffer.Encode();
         Stage = P2PStage.CodeReady;
-        StatusText = $"已生成邀请码（{candidates.Count} 个候选地址）。把它发给对方，然后粘贴对方回给你的应答码。";
+        StatusText = $"已生成邀请码（{_candidates.Count} 个候选地址）。把它发给对方，然后粘贴对方回给你的应答码。";
+        if (_nat is { } nat) StatusText += Environment.NewLine + DescribeNat(nat);
         Raise();
         return true;
     }
@@ -196,14 +210,14 @@ public sealed class P2PLinkService : IDisposable
         if (offer.McPort <= 0)
             StatusText = "提示：对方没带上 MC 端口，连接可能失败 —— 让他先点「读取本机端口」再生成邀请码。";
 
-        var candidates = await CollectCandidatesAsync(tryUpnp, manualExternalIp);
-        if (candidates is null) return false;
+        if (!await CollectCandidatesAsync(tryUpnp, manualExternalIp)) return false;
 
-        _localOffer = BuildOffer(P2POfferKind.Answer, candidates, CurrentVersionId(), null, 0);
+        _localOffer = BuildOffer(P2POfferKind.Answer, _candidates, CurrentVersionId(), null, 0);
         LocalCode = _localOffer.Encode();
         Stage = P2PStage.CodeReady;
-        StatusText = $"已生成应答码（{candidates.Count} 个候选地址）。把它发回给房主，" +
+        StatusText = $"已生成应答码（{_candidates.Count} 个候选地址）。把它发回给房主，" +
                      "然后点「开始连接」—— 两边要几乎同时点，太久房主那边的码就过期了。";
+        if (_nat is { } nat) StatusText += Environment.NewLine + DescribeNat(nat);
         Raise();
         return true;
     }
@@ -259,6 +273,7 @@ public sealed class P2PLinkService : IDisposable
         _peerOffer = null;
         _myNonce = Array.Empty<byte>();
         _role = P2PRole.None;
+        _candidates = Array.Empty<P2PCandidate>();
         LocalCode = "";
         PeerCode = "";
         LocalProxyPort = 0;
@@ -304,22 +319,49 @@ public sealed class P2PLinkService : IDisposable
 
     private void Raise() => Changed?.Invoke();
 
-    private async Task<IReadOnlyList<P2PCandidate>?> CollectCandidatesAsync(bool tryUpnp, string? manualExternalIp)
+    /// <summary>收集本机候选地址 + 顺带摸清 NAT 行为。结果落在 <see cref="_candidates"/> 与 <see cref="_nat"/>。</summary>
+    private async Task<bool> CollectCandidatesAsync(bool tryUpnp, string? manualExternalIp)
     {
-        StatusText = tryUpnp ? "正在收集本机地址（含路由器 UPnP 映射，稍等一两秒）…" : "正在收集本机地址…";
+        StatusText = "正在摸清你的网络（查公网地址、判断能不能被穿透，最多需要几秒）…";
         Stage = P2PStage.Punching;      // 借用忙状态，让用户看到按钮变灰
         Raise();
 
-        var candidates = await P2PCandidateCollector
-            .CollectAsync(_localPort, manualExternalIp, tryUpnp)
+        var set = await P2PCandidateCollector
+            .CollectAsync(_localPort, manualExternalIp, tryUpnp,
+                          stunServers: StunServers.Count > 0 ? StunServers : null)
             .ConfigureAwait(false);
 
-        if (candidates.Count == 0)
+        _nat = set.Nat;
+        _candidates = set.Candidates;
+
+        if (_candidates.Count == 0)
         {
             Fail("一个本机地址都没取到。请连上网络，或在上面手填自己的公网 IP。");
-            return null;
+            return false;
         }
-        return candidates;
+        return true;
+    }
+
+    /// <summary>把 NAT 结论说成人话。写得长一点是有意的：这一步决定了接下来值不值得等。</summary>
+    private static string DescribeNat(NatProbeResult nat)
+    {
+        if (!nat.Ok)
+        {
+            return nat.UdpLooksBlocked
+                ? "注意：UDP 出不去（公开的 STUN 服务器全都没回应）。这种情况下基本连不通 —— 先检查防火墙 / 代理软件是否拦了 UDP。"
+                : $"注意：没能判断出 NAT 类型（{nat.Error}）。可以照常试一次。";
+        }
+
+        var addr = nat.ServerReflexive is null ? "" : $"（公网地址 {nat.ServerReflexive}）";
+        return nat.Mapping switch
+        {
+            NatMappingBehavior.EndpointIndependent =>
+                $"你的网络是锥形 NAT {addr}，对方可以直接连到你，正常往下走。",
+            NatMappingBehavior.AddressDependent =>
+                $"你的路由器会按目的地址换端口 {addr}，直连成功率偏低 —— 先试一次，不行就退回局域网联动。",
+            _ =>
+                $"你的 NAT 是对称型 {addr}，几乎不可能直连。建议改用局域网联动，或先把两台机组进同一个虚拟局域网。"
+        };
     }
 
     private P2POffer BuildOffer(string kind, IReadOnlyList<P2PCandidate> candidates,

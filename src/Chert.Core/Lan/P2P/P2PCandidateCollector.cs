@@ -25,6 +25,7 @@ public sealed class P2PCandidate
 
     public string Label => Kind switch
     {
+        "stun" => "STUN 公网",
         "ipv6" => "IPv6",
         "upnp" => "UPnP 公网",
         "manual" => "手填公网",
@@ -72,11 +73,25 @@ public sealed class P2PCandidate
     }
 }
 
+/// <summary>一次收集的全部产出：候选地址 + 顺带摸出来的 NAT 行为。</summary>
+public sealed class P2PCandidateSet
+{
+    public IReadOnlyList<P2PCandidate> Candidates { get; init; } = Array.Empty<P2PCandidate>();
+
+    /// <summary>STUN 探测结论（没做 STUN 时为 null）。它决定这套地址到底有没有用。</summary>
+    public NatProbeResult? Nat { get; init; }
+}
+
 /// <summary>本机候选地址的收集器。</summary>
 public static class P2PCandidateCollector
 {
     /// <summary>
     /// 收集候选地址。
+    /// <para>
+    /// 顺序有讲究：STUN 排在最前，因为它要占用 <paramref name="localPort"/> 这个 UDP 端口
+    /// ——NAT 的映射按 (内网 ip:port) 记账，只有从真正打洞的那个端口发查询，问出来的公网地址才有意义。
+    /// 探完立刻释放端口，后面的 UPnP 与打洞才不会撞车。
+    /// </para>
     /// <para>「UPnP 要不要默认开」：这是唯一会在路由器上留动作的分支——它会临时开一个 UDP 口。
     /// 只在用户明确发起广域网直连时才调用（不是开启动器就偷偷开），且失败完全不影响其它候选。</para>
     /// </summary>
@@ -84,35 +99,55 @@ public static class P2PCandidateCollector
     /// <param name="externalIp">用户手填的公网 IP（可空）。</param>
     /// <param name="tryUpnp">是否尝试 UPnP 端口映射。</param>
     /// <param name="upnpTimeout">UPnP 超时（宽带环境下 1.5 秒足够，太短会错过慢的路由器）。</param>
-    public static async Task<IReadOnlyList<P2PCandidate>> CollectAsync(
+    /// <param name="tryStun">是否 STUN 探测。关掉的话跨网段基本连不上——那份邀请码里只剩下内网地址。</param>
+    /// <param name="stunServers">自定义 STUN 服务器；不传就用内置的公开列表。</param>
+    public static async Task<P2PCandidateSet> CollectAsync(
         int localPort,
         string? externalIp = null,
         bool tryUpnp = true,
         TimeSpan? upnpTimeout = null,
+        bool tryStun = true,
+        IReadOnlyList<string>? stunServers = null,
         CancellationToken ct = default)
     {
-        var list = new List<P2PCandidate>();
+        // 公网可达的排前面：跨网段时只有它们有用，而 UPnP 映射出来的口是真能收包的，给它最高优先级
+        var wide = new List<P2PCandidate>();
+        var local = new List<P2PCandidate>();
 
-        foreach (var ip in LocalAddresses())
+        NatProbeResult? nat = null;
+        if (tryStun)
         {
-            list.Add(new P2PCandidate
-            {
-                EndPoint = new IPEndPoint(ip, localPort),
-                Kind = ip.AddressFamily == AddressFamily.InterNetworkV6 ? "ipv6" : "lan"
-            });
+            nat = await NatProbe.ProbeAsync(localPort, stunServers, null, ct).ConfigureAwait(false);
+            if (nat.Ok && nat.ServerReflexive is { } reflexive)
+                wide.Add(new P2PCandidate { EndPoint = reflexive, Kind = "stun" });
         }
 
         if (tryUpnp)
         {
-            var mapped = await UpnpPortMapper.TryMapAsync(localPort, upnpTimeout ?? TimeSpan.FromSeconds(1.5), ct)
-                                             .ConfigureAwait(false);
-            if (mapped is not null) list.Add(mapped);
+            var upnp = await UpnpPortMapper.TryMapAsync(localPort, upnpTimeout ?? TimeSpan.FromSeconds(1.5), ct)
+                                           .ConfigureAwait(false);
+            if (upnp is not null) wide.Insert(0, upnp);
         }
 
-        if (P2PCandidate.TryParse(externalIp) is { } manual)
-            list.Add(new P2PCandidate { EndPoint = manual, Kind = "manual" });
+        foreach (var ip in LocalAddresses())
+        {
+            var candidate = new P2PCandidate
+            {
+                EndPoint = new IPEndPoint(ip, localPort),
+                Kind = ip.AddressFamily == AddressFamily.InterNetworkV6 ? "ipv6" : "lan"
+            };
+            // IPv6 通常没有 NAT，和公网地址同等地位；内网 IPv4 只在同一个路由器下有用
+            if (ip.AddressFamily == AddressFamily.InterNetworkV6) wide.Add(candidate);
+            else local.Add(candidate);
+        }
 
-        return list;
+        var all = new List<P2PCandidate>(wide);
+        all.AddRange(local);
+
+        if (P2PCandidate.TryParse(externalIp) is { } manual)
+            all.Add(new P2PCandidate { EndPoint = manual, Kind = "manual" });
+
+        return new P2PCandidateSet { Candidates = all, Nat = nat };
     }
 
     /// <summary>

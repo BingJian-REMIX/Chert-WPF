@@ -56,6 +56,7 @@ public class LanLinkViewModel : ObservableObject
     private string _joinEndpoint = "";
     private string _inviteCode = "";
     private string _inviteSummary = "";
+    private string _linkStunServer = "";
     private LanPeerCard? _selected;
 
     // ===== 广域网直连 =====
@@ -279,6 +280,35 @@ public class LanLinkViewModel : ObservableObject
         P2PRole.Joiner => LocaleManager.T("p2p.role_joiner"),
         _ => ""
     };
+
+    /// <summary>本机 NAT 类型的判定结论（还没测过时提示尚未测定）。</summary>
+    public string NatTypeText => _link.Nat switch
+    {
+        null => LocaleManager.T("nat.not_probed"),
+        { Ok: true } nat => nat.ServerReflexive is null
+            ? LocaleManager.T(nat.Key)
+            : $"{LocaleManager.T(nat.Key)} · {nat.ServerReflexive}",
+        var nat => LocaleManager.T(nat.Key)
+    };
+
+    /// <summary>自己这一侧几乎不可能直连时给出一点颜色的提示。</summary>
+    public bool NatLooksHopeless => _link.Nat is { Ok: true, LikelyPunchable: false };
+
+    /// <summary>
+    /// STUN 服务器输入框（逗号分隔），留空由程序自动挑选。
+    /// 公开 STUN 在国内的可达性差别很大，留这个口子让用户填自己那台。
+    /// </summary>
+    public string LinkStunServer
+    {
+        get => _linkStunServer;
+        set
+        {
+            if (!SetField(ref _linkStunServer, value)) return;
+            _link.StunServers = value
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToList();
+        }
+    }
 
     /// <summary>可复制给对方的邀请文本。</summary>
     public string ShareText =>
@@ -750,6 +780,8 @@ public class LanLinkViewModel : ObservableObject
         OnPropertyChanged(nameof(PeerFingerprintText));
         OnPropertyChanged(nameof(LocalProxyText));
         OnPropertyChanged(nameof(HasMyCode));
+        OnPropertyChanged(nameof(NatTypeText));
+        OnPropertyChanged(nameof(NatLooksHopeless));
     }
 
     /// <summary>房主：本机已经有开放的世界，生成邀请码给对方。</summary>

@@ -212,6 +212,21 @@
                                      ToolTip="{theme:Loc p2p.my_ip_tip}"/>
                         </StackPanel>
 
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc nat.stun}" VerticalAlignment="Center" Width="90"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBox Text="{Binding LinkStunServer, UpdateSourceTrigger=PropertyChanged}" Width="170"
+                                     ToolTip="{theme:Loc nat.stun_tip}"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <TextBlock Text="{theme:Loc nat.label}" VerticalAlignment="Center" Width="90"
+                                       Foreground="{DynamicResource SecondaryForeground}"/>
+                            <TextBlock Text="{Binding NatTypeText}" VerticalAlignment="Center" FontSize="11"
+                                       TextWrapping="Wrap" Width="300"
+                                       ToolTip="{theme:Loc nat.fallback_tip}"/>
+                        </StackPanel>
+
                         <StackPanel Margin="0,8,0,0" Visibility="{Binding HasMyCode, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{theme:Loc p2p.my_code}" Margin="0,0,0,4"
                                        Foreground="{DynamicResource SecondaryForeground}"/>
