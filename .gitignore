@@ -43,3 +43,6 @@ tools/CrashProbe/
 Directory.Build.user.props
 # 发布压缩包：源码仓只收源码，zip 一律不进仓（release 走制品库/附件）
 *.zip
+
+# 运行时从托管根下发的规则库缓存（内置规则已足够，缺文件时自动回退），不入库
+updates/datapack-conflict-rules.json
