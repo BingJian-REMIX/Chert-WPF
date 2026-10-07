@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Chert.App.Services;
+namespace Chert.Core.Lan.P2P;
 
 /// <summary>
 /// 广域网直连的隧道：把 Minecraft 的 TCP 连接塞进一条 QUIC 连接里。
@@ -325,10 +325,10 @@ public sealed class P2PTunnel : IDisposable
     }
 
     // 复用 Core 的实现：会话密钥的派生与挑战—应答必须两边完全一致
-    private byte[] Answer(byte[] challenge) => Chert.Core.Lan.P2P.P2PIdentity.Answer(_sessionSecret, challenge);
+    private byte[] Answer(byte[] challenge) => P2PIdentity.Answer(_sessionSecret, challenge);
 
     private static bool Verify(byte[] expected, byte[] actual)
-        => Chert.Core.Lan.P2P.P2PIdentity.Verify(expected, actual);
+        => P2PIdentity.Verify(expected, actual);
 
     private static async Task<byte[]> ReadExactlyAsync(Stream stream, int count, CancellationToken ct)
     {

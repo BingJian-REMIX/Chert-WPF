@@ -230,18 +230,16 @@
                         <StackPanel Margin="0,8,0,0" Visibility="{Binding HasMyCode, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{theme:Loc p2p.my_code}" Margin="0,0,0,4"
                                        Foreground="{DynamicResource SecondaryForeground}"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" Width="136" Height="136" Margin="0,0,10,0"
-                                        VerticalAlignment="Top" Background="White" CornerRadius="6"
-                                        ToolTip="{theme:Loc p2p.qr_tip}">
-                                    <Image Source="{Binding MyCodeQr}" Stretch="Uniform"
-                                           RenderOptions.BitmapScalingMode="NearestNeighbor"/>
-                                </Border>
-                                <StackPanel Grid.Column="1">
+                            <!-- 二维码独占一行、给到 320：这段握手码编码出来是 69×69 模块（版本 13），
+                                 136 那种小方框下每模块不到 2 像素，手机根本扫不出来。
+                                 生成时的尺寸也跟着这个宽度走（见 QrCodePng.TargetWidth），别再两头不一致。 -->
+                            <Border Width="320" Height="320" Margin="0,0,0,8"
+                                    HorizontalAlignment="Left" Background="White" CornerRadius="6"
+                                    ToolTip="{theme:Loc p2p.qr_tip}">
+                                <Image Source="{Binding MyCodeQr}" Stretch="Uniform"
+                                       RenderOptions.BitmapScalingMode="HighQuality"/>
+                            </Border>
+                            <StackPanel>
                                     <TextBox Text="{Binding MyCode}" IsReadOnly="True" TextWrapping="Wrap"
                                              AcceptsReturn="True" Height="82" FontSize="11"
                                              VerticalScrollBarVisibility="Auto" FontFamily="Consolas"/>
@@ -257,8 +255,7 @@
                                     <TextBlock Text="{Binding PeerFingerprintText}" Margin="0,2,0,0" FontSize="11"
                                                Foreground="{DynamicResource SecondaryForeground}"
                                                ToolTip="{theme:Loc p2p.fingerprint_tip}"/>
-                                </StackPanel>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">

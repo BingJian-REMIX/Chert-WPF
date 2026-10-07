@@ -21,16 +21,14 @@ public static class QrCodeService
     /// 因此不会有 DPI 缩放、句柄泄漏这些事。
     /// </para>
     /// </summary>
-    public static BitmapImage? Render(string? text, int pixelsPerModule = 8)
+    /// <param name="pixelsPerModule">每模块像素数；0 表示按显示区大小自适应（推荐）。</param>
+    public static BitmapImage? Render(string? text, int pixelsPerModule = 0)
     {
-        if (string.IsNullOrWhiteSpace(text)) return null;
+        var png = QrCodePng.ToPngBytes(text, pixelsPerModule);
+        if (png is null) return null;
 
         try
         {
-            using var generator = new QRCodeGenerator();
-            using var data = generator.CreateQrCode(text, QRCodeGenerator.ECCLevel.M);
-            var png = new PngByteQRCode(data).GetGraphic(pixelsPerModule, new byte[] { 0x00, 0x00, 0x00, 0xFF }, new byte[] { 0xFF, 0xFF, 0xFF, 0xFF });
-
             var image = new BitmapImage();
             image.BeginInit();
             image.StreamSource = new MemoryStream(png);
