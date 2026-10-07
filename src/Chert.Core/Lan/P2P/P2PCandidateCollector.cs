@@ -77,7 +77,7 @@ public static class P2PCandidateCollector
 {
     /// <summary>
     /// 收集候选地址。
-    /// <para>「UPnP 要不要默认开」：这是唯一 kebutuhan不是很常见的动作——它会在路由器上临时开一个 UDP 口。
+    /// <para>「UPnP 要不要默认开」：这是唯一会在路由器上留动作的分支——它会临时开一个 UDP 口。
     /// 只在用户明确发起广域网直连时才调用（不是开启动器就偷偷开），且失败完全不影响其它候选。</para>
     /// </summary>
     /// <param name="localPort">本机打洞用的 UDP 端口。</param>
