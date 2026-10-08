@@ -1550,13 +1550,18 @@ public partial class MainWindow : Window
             return;
         }
         _expandTimer?.Stop();
-        _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SidebarState.HoverExpandDelayMs) };
-        _expandTimer.Tick += (_, _) =>
+        // 复用同一个计时器：鼠标每次划过侧边栏都 new 一个的话，来回几次就能攒下十几个
+        // 「只为等 300ms」的一次性对象（旧的会被回收，不至于泄漏，但没必要）。
+        if (_expandTimer is null)
         {
-            _expandTimer?.Stop();
-            _sidebarState.HoverEnter();
-            AnimateSidebar(_sidebarState.Width, _sidebarState.Expanded);
-        };
+            _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SidebarState.HoverExpandDelayMs) };
+            _expandTimer.Tick += (_, _) =>
+            {
+                _expandTimer?.Stop();
+                _sidebarState.HoverEnter();
+                AnimateSidebar(_sidebarState.Width, _sidebarState.Expanded);
+            };
+        }
         _expandTimer.Start();
     }
 
@@ -1565,13 +1570,16 @@ public partial class MainWindow : Window
         if (IsGlassStyle()) return;
         _expandTimer?.Stop();
         _collapseTimer?.Stop();
-        _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SidebarState.HoverCollapseDelayMs) };
-        _collapseTimer.Tick += (_, _) =>
+        if (_collapseTimer is null)
         {
-            _collapseTimer?.Stop();
-            _sidebarState.HoverLeave();
-            AnimateSidebar(_sidebarState.Width, _sidebarState.Expanded);
-        };
+            _collapseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(SidebarState.HoverCollapseDelayMs) };
+            _collapseTimer.Tick += (_, _) =>
+            {
+                _collapseTimer?.Stop();
+                _sidebarState.HoverLeave();
+                AnimateSidebar(_sidebarState.Width, _sidebarState.Expanded);
+            };
+        }
         _collapseTimer.Start();
     }
 
