@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Sockets;
 using Chert.Core;
 using Chert.Core.Lan.P2P;
 using Chert.Core.Profiles;
@@ -41,10 +42,14 @@ public sealed class P2PLinkService : IDisposable
 {
     public static P2PLinkService Instance { get; } = new();
 
-    private const string PunchFailedHint =
-        "打洞失败：看起来双方都在 NAT 后面且路由器不允许直连。" +
-        "可以试试：① 开启 IPv6（有 IPv6 通常不用打洞）；② 在路由器里开启 UPnP；" +
-        "③ 把公网 IP 填进上面的输入框；④ 同一个局域网就用上面的局域网联动，不用走这里。";
+    private const string PunchFailedPrefix =
+        "打洞失败：双方都在 NAT 后面，路由器没给直连放行。";
+
+    /// <summary>
+    /// 打洞的总预算。放宽到 20 秒是因为这一步要**两边几乎同时点**，
+    /// 真人复制一段两百多字符的码、再切回窗口点击，差个几秒太正常了 —— 12 秒会把能成的也判死。
+    /// </summary>
+    public static readonly TimeSpan PunchBudget = TimeSpan.FromSeconds(20);
 
     private P2PIdentity? _identity;
     private P2POffer? _localOffer;
@@ -55,6 +60,8 @@ public sealed class P2PLinkService : IDisposable
     private P2PRole _role = P2PRole.None;
     private int _localPort = P2POffer.DefaultUdpPort;
     private int _mcPort;
+    private int _preferredProxyPort = P2PTunnel.PreferredProxyPort;
+    private bool _upnpMapped;
     private bool _disposed;
     private NatProbeResult? _nat;
     private IReadOnlyList<P2PCandidate> _candidates = Array.Empty<P2PCandidate>();
@@ -95,6 +102,14 @@ public sealed class P2PLinkService : IDisposable
 
     /// <summary>加入者端本机给 Minecraft 连的端口（0 = 还没开）。</summary>
     public int LocalProxyPort { get; private set; }
+
+    /// <summary>
+    /// 链路断了以后能不能不重换码直接再来一次（两边的码都还没过期就行）。
+    /// 重新换一次码要两个人再复制粘贴两百多字符，能省就省。
+    /// </summary>
+    public bool CanReconnect =>
+        _localOffer is not null && _peerOffer is not null &&
+        !_localOffer.IsExpired(DateTimeOffset.UtcNow) && !_peerOffer.IsExpired(DateTimeOffset.UtcNow);
 
     /// <summary>最后一次失败的原因（为空表示没失败）。</summary>
     public string Failure { get; private set; } = "";
@@ -151,36 +166,7 @@ public sealed class P2PLinkService : IDisposable
 
         PeerCode = answer!.Encode();
         _peerOffer = answer;
-
-        var secret = DeriveSecret();
-        if (secret is null) return false;
-
-        Stage = P2PStage.Punching;
-        Raise();
-
-        var peer = await PunchAsync(CandidatesOf(answer), TimeSpan.FromSeconds(12));
-        if (peer is null) return false;
-
-        try
-        {
-            Stage = P2PStage.Connecting;
-            StatusText = "打洞成功，正在建立加密隧道…";
-            Raise();
-
-            _tunnel = new P2PTunnel(secret);
-            await _tunnel.StartHostAsync(_localPort, _mcPort).ConfigureAwait(false);
-
-            Stage = P2PStage.Ready;
-            StatusText = $"隧道已就绪（对方 {peer}）。对方会在自己的 Minecraft 里输入 localhost —— " +
-                         $"你这边什么都不用做，世界已经开在本机 {_mcPort} 端口上了。";
-            Raise();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Fail($"隧道建立失败：{ex.Message}");
-            return false;
-        }
+        return await EstablishAsync().ConfigureAwait(false);
     }
 
     // ===== 加入者流程 =====
@@ -227,13 +213,50 @@ public sealed class P2PLinkService : IDisposable
     {
         if (_localOffer is null || _peerOffer is null) { Fail("先粘贴房主的邀请码"); return false; }
 
+        _preferredProxyPort = preferredProxyPort;
+        return await EstablishAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 链路断了之后重来一次：沿用刚才交换过的那两个码，不用再互相发一遍。
+    /// <para>
+    /// 但这一步**必须两边都点**：打洞的原理是双方同时朝对方发包，只有一边发，另一边的 NAT
+    /// 不会放行。所以状态里一定要说清楚「让对方也点一次」，否则用户会以为点了没用。
+    /// </para>
+    /// </summary>
+    public async Task<bool> ReconnectAsync()
+    {
+        if (_localOffer is null || _peerOffer is null)
+        {
+            Fail("还没交换过码，没法重连 —— 从头走一遍：先生成、再互换。");
+            return false;
+        }
+        if (!CanReconnect)
+        {
+            Fail("之前交换的码已经过期（发出后超过 10 分钟）。重连也得用新码 —— 两边都重新生成一次。");
+            return false;
+        }
+
+        StatusText = "正在重新打洞… 请让对方也点一次「重新连接」，两边要几乎同时点。";
+        Raise();
+        return await EstablishAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 打洞 + 建隧道。房主与加入者走的是同一段代码，只有最后一步不同
+    /// （房主起监听、加入者去连），所以重连才能直接复用这一段。
+    /// </summary>
+    private async Task<bool> EstablishAsync()
+    {
         var secret = DeriveSecret();
         if (secret is null) return false;
+
+        await StopTunnelAsync().ConfigureAwait(false);
 
         Stage = P2PStage.Punching;
         Raise();
 
-        var peer = await PunchAsync(CandidatesOf(_peerOffer), TimeSpan.FromSeconds(12));
+        var peer = await PunchAsync(CandidatesOf(_peerOffer!), PunchBudget).ConfigureAwait(false);
         if (peer is null) return false;
 
         try
@@ -243,29 +266,50 @@ public sealed class P2PLinkService : IDisposable
             Raise();
 
             _tunnel = new P2PTunnel(secret);
-            LocalProxyPort = await _tunnel.ConnectAsync(_localPort, peer, preferredProxyPort).ConfigureAwait(false);
+            _tunnel.LinkLost += OnTunnelLinkLost;
+
+            if (_role == P2PRole.Host)
+                await _tunnel.StartHostAsync(_localPort, _mcPort).ConfigureAwait(false);
+            else
+                LocalProxyPort = await _tunnel.ConnectAsync(_localPort, peer, _preferredProxyPort).ConfigureAwait(false);
 
             Stage = P2PStage.Ready;
-            StatusText = LocalProxyPort == P2PTunnel.PreferredProxyPort
-                ? "直连成功！请在 Minecraft 的「多人游戏 → 直接连接」里填 localhost"
-                : $"直连成功！本机 {P2PTunnel.PreferredProxyPort} 端口被占用了，请在 Minecraft 里连接 localhost:{LocalProxyPort}";
+            Failure = "";
+            StatusText = _role == P2PRole.Host
+                ? $"隧道已就绪（对方 {peer}）。对方会在自己的 Minecraft 里输入 localhost —— " +
+                  $"你这边什么都不用做，世界已经开在本机 {_mcPort} 端口上了。"
+                : LocalProxyPort == P2PTunnel.PreferredProxyPort
+                    ? "直连成功！请在 Minecraft 的「多人游戏 → 直接连接」里填 localhost"
+                    : $"直连成功！本机 {P2PTunnel.PreferredProxyPort} 端口被占用了，请在 Minecraft 里连接 localhost:{LocalProxyPort}";
             Raise();
             return true;
         }
         catch (Exception ex)
         {
-            Fail($"连接失败：{ex.Message}");
+            Fail($"{(_role == P2PRole.Host ? "隧道建立失败" : "连接失败")}：{ex.Message}" +
+                 Environment.NewLine + FallbackAdvice());
             return false;
         }
+    }
+
+    /// <summary>隧道自己判断链路断了：别再显示「已连接」，直接给可执行的下一步。</summary>
+    private void OnTunnelLinkLost(string reason)
+    {
+        Failure = reason;
+        Stage = P2PStage.Failed;
+        StatusText = $"{reason}。" + (CanReconnect
+            ? "点「重新连接」再试一次 —— 记得让对方也点一次，两边要几乎同时。"
+            : "码已经过期了，需要两边重新生成并再交换一次。");
+        Raise();
     }
 
     /// <summary>断开隧道，回到初始状态（码也会作废，下次要重新生成）。</summary>
     public void Reset()
     {
+        ReleaseUpnp();
         _puncher?.Dispose();
         _puncher = null;
-        _tunnel?.Dispose();
-        _tunnel = null;
+        StopTunnel();
         _identity?.Dispose();
         _identity = null;
 
@@ -274,6 +318,7 @@ public sealed class P2PLinkService : IDisposable
         _myNonce = Array.Empty<byte>();
         _role = P2PRole.None;
         _candidates = Array.Empty<P2PCandidate>();
+        _upnpMapped = false;
         LocalCode = "";
         PeerCode = "";
         LocalProxyPort = 0;
@@ -287,9 +332,48 @@ public sealed class P2PLinkService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        ReleaseUpnp();
         _puncher?.Dispose();
-        _tunnel?.Dispose();
+        StopTunnel();
         _identity?.Dispose();
+    }
+
+    /// <summary>
+    /// 拆掉刚才在路由器上开的那条 UPnP 映射。不拆的话它会一直挂着，
+    /// 换端口或换机器再连时会撞上，而且用户不会想到去路由器后台看。
+    /// 失败无所谓 —— 加映射时带了租约，到期自己会消失。
+    /// </summary>
+    private void ReleaseUpnp()
+    {
+        if (!_upnpMapped) return;
+        _upnpMapped = false;
+
+        var port = _localPort;
+        // 收尾动作，不能让用户点「停止」之后还卡在等路由器回包上
+        _ = Task.Run(async () =>
+        {
+            try { await UpnpPortMapper.TryDeleteAsync(port).ConfigureAwait(false); }
+            catch { /* 撤不掉就算了 */ }
+        });
+    }
+
+    /// <summary>
+    /// 停掉隧道并等端口真正松开。QUIC 的释放不是瞬时的（MsQuic 要先把 socket 关干净），
+    /// 急着去打洞会撞上「端口被占用」——而这个症状看起来跟「路由器不支持直连」一模一样，极难排查。
+    /// </summary>
+    private void StopTunnel()
+    {
+        if (_tunnel is not null) _tunnel.LinkLost -= OnTunnelLinkLost;
+        var tunnel = _tunnel;
+        _tunnel = null;
+        LocalProxyPort = 0;
+        try { tunnel?.Dispose(); } catch { /* 停不掉也要继续往下 */ }
+    }
+
+    private async Task StopTunnelAsync()
+    {
+        StopTunnel();
+        await Task.Delay(300).ConfigureAwait(false);
     }
 
     // ===== 内部 =====
@@ -326,6 +410,11 @@ public sealed class P2PLinkService : IDisposable
         Stage = P2PStage.Punching;      // 借用忙状态，让用户看到按钮变灰
         Raise();
 
+        // 默认端口写死会撞车（别的程序、上一次没退干净的自己都可能占着）。
+        // 换端口不影响打洞 —— 端口会写进握手码里告诉对方。
+        var port = P2PTunnel.PickFreeUdpPort(_localPort);
+        _localPort = port > 0 ? port : _localPort;
+
         var set = await P2PCandidateCollector
             .CollectAsync(_localPort, manualExternalIp, tryUpnp,
                           stunServers: StunServers.Count > 0 ? StunServers : null)
@@ -333,6 +422,7 @@ public sealed class P2PLinkService : IDisposable
 
         _nat = set.Nat;
         _candidates = set.Candidates;
+        _upnpMapped = _candidates.Any(x => string.Equals(x.Kind, "upnp", StringComparison.Ordinal));
 
         if (_candidates.Count == 0)
         {
@@ -362,6 +452,38 @@ public sealed class P2PLinkService : IDisposable
             _ =>
                 $"你的 NAT 是对称型 {addr}，几乎不可能直连。建议改用局域网联动，或先把两台机组进同一个虚拟局域网。"
         };
+    }
+
+    /// <summary>
+    /// 打不通时，按「最可能成功」的顺序给出下一步。
+    /// <para>
+    /// 一句「打洞失败」等于把用户扔在原地：他不知道该去路由器里开 UPnP，还是干脆换个办法。
+    /// 这里先判断最省事的那种可能性（其实就在同一个网段），再往下排。
+    /// </para>
+    /// </summary>
+    private string FallbackAdvice()
+    {
+        var peer = _peerOffer is null ? new List<IPEndPoint>() : CandidatesOf(_peerOffer);
+
+        // 同一个网段根本不需要打洞 —— 虚拟局域网（ZeroTier / Tailscale）也算，
+        // 它们的网卡地址和真实网卡一样会出现在系统里。这条命中率高，所以排第一。
+        if (peer.Count > 0 && P2PCandidateCollector.SharesLanWith(peer))
+            return "① 你们俩的地址看起来在同一个网段（同一个路由器，或者都已经进了同一个虚拟局域网）——" +
+                   "这种情况不用打洞，用上面的「局域网联动」直接连。";
+
+        if (peer.Any(x => x.AddressFamily == AddressFamily.InterNetworkV6) &&
+            P2PCandidateCollector.HasUsableIpv6())
+            return "① 双方都有 IPv6 地址。IPv6 一般没有 NAT，把两边的 IPv6 都打开后重试，往往直接就通了；" +
+                   "② 不行再在路由器里开 UPnP，或把公网 IP 填进上面的输入框。";
+
+        if (_candidates.Any(x => string.Equals(x.Kind, "upnp", StringComparison.Ordinal)))
+            return "① 路由器上已经开了 UPnP 映射仍打不通，多半是对面是对称 NAT（常见于校园网 / 4G 热点）——" +
+                   "让对面换个网络，或改用虚拟局域网；② 也可以试试在两边都填上对方的公网 IP。";
+
+        return "① 先在两边各自的路由器里开启 UPnP（或给本机设 DMZ / 端口转发）；" +
+               "② 还不行就把各自的公网 IP 填进上面的输入框；" +
+               "③ 都不行的话，用 ZeroTier / Tailscale 把两台机组进同一个虚拟局域网，再走「局域网联动」——" +
+               "这条路不依赖运营商给不给公网地址。";
     }
 
     private P2POffer BuildOffer(string kind, IReadOnlyList<P2PCandidate> candidates,
@@ -468,7 +590,7 @@ public sealed class P2PLinkService : IDisposable
 
         if (!_puncher.SawPeer)
         {
-            Fail(PunchFailedHint);
+            Fail(PunchFailedPrefix + Environment.NewLine + FallbackAdvice());
             StopPuncher();
             return null;
         }

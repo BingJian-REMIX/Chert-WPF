@@ -86,6 +86,7 @@ public class LanLinkViewModel : ObservableObject
         StartHostLinkCommand = new AsyncRelayCommand(_ => StartHostLinkAsync());
         StartJoinLinkCommand = new AsyncRelayCommand(_ => StartJoinLinkAsync());
         LinkConnectCommand = new AsyncRelayCommand(_ => LinkConnectAsync());
+        ReconnectCommand = new AsyncRelayCommand(_ => ReconnectAsync());
         StopLinkCommand = new RelayCommand(_ => StopLink());
         CopyMyCodeCommand = new RelayCommand(_ => CopyMyCode());
 
@@ -295,6 +296,13 @@ public class LanLinkViewModel : ObservableObject
     public bool NatLooksHopeless => _link.Nat is { Ok: true, LikelyPunchable: false };
 
     /// <summary>
+    /// 显示「重新连接」按钮：只有**失败过**才显示。
+    /// 没失败时给这个按钮只会让人以为该点它（其实该点「连接」），而失败的那一刻它最值钱 ——
+    /// 码还在有效期内，不需要两边再各复制一次两百多字符。
+    /// </summary>
+    public bool ShowReconnect => _link.CanReconnect && _link.Stage == P2PStage.Failed;
+
+    /// <summary>
     /// STUN 服务器输入框（逗号分隔），留空由程序自动挑选。
     /// 公开 STUN 在国内的可达性差别很大，留这个口子让用户填自己那台。
     /// </summary>
@@ -334,6 +342,7 @@ public class LanLinkViewModel : ObservableObject
     public ICommand StartHostLinkCommand { get; }
     public ICommand StartJoinLinkCommand { get; }
     public ICommand LinkConnectCommand { get; }
+    public ICommand ReconnectCommand { get; }
     public ICommand StopLinkCommand { get; }
     public ICommand CopyMyCodeCommand { get; }
 
@@ -782,6 +791,7 @@ public class LanLinkViewModel : ObservableObject
         OnPropertyChanged(nameof(HasMyCode));
         OnPropertyChanged(nameof(NatTypeText));
         OnPropertyChanged(nameof(NatLooksHopeless));
+        OnPropertyChanged(nameof(ShowReconnect));
     }
 
     /// <summary>房主：本机已经有开放的世界，生成邀请码给对方。</summary>
@@ -839,6 +849,16 @@ public class LanLinkViewModel : ObservableObject
                     MessageBoxButton.OK,
                     MessageBoxImage.Information))!;
         }
+    }
+
+    /// <summary>
+    /// 链路断了 / 上次打洞超时之后再试一次：沿用交换过的码，不重换新码。
+    /// 但打洞必须是两边同时发，所以一定要让对方也点一次 —— 单边点只会再等一轮超时。
+    /// </summary>
+    private async Task ReconnectAsync()
+    {
+        await _link.ReconnectAsync().ConfigureAwait(false);
+        RefreshLinkUi();
     }
 
     private Task<bool> StartAMissingRoleAsync()

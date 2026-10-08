@@ -88,6 +88,33 @@ public class P2PSelfTests
     }
 
     [Fact]
+    public void 打洞用的UDP端口能挑出一个能绑上的()
+    {
+        // 默认端口写死会撞车（上一次没退干净、别的程序占着），而症状是「打洞超时」——
+        // 看起来跟路由器不支持直连一模一样。所以必须能往后找一个能用的。
+        var port = P2PTunnel.PickFreeUdpPort(47600);
+        Assert.True(port > 0, "没挑出可用端口");
+
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        socket.Bind(new IPEndPoint(IPAddress.Any, port));
+        Assert.Equal(port, ((IPEndPoint)socket.LocalEndPoint!).Port);
+    }
+
+    [Fact]
+    public void 同一网段的地址能被认出来_跨网段的不能()
+    {
+        // 打洞失败时这条判断决定给什么建议：同网段根本不用打洞，走局域网联动就行。
+        var mine = P2PCandidateCollector.LocalAddresses()
+                       .FirstOrDefault(x => x.AddressFamily == AddressFamily.InterNetwork);
+        if (mine is null) return;      // 没网卡的机器上没法验
+
+        Assert.True(P2PCandidateCollector.SharesLanWith(new[] { new IPEndPoint(mine, 25565) }));
+        Assert.False(P2PCandidateCollector.SharesLanWith(new[] { new IPEndPoint(IPAddress.Loopback, 25565) }));
+        // 文档地址段（203.0.113.0/24，RFC 5737）不可能是本机网段
+        Assert.False(P2PCandidateCollector.SharesLanWith(new[] { new IPEndPoint(IPAddress.Parse("203.0.113.7"), 25565) }));
+    }
+
+    [Fact]
     public void 打洞包的格式是稳定且可判别的()
     {
         var nonce = P2PIdentity.NewNonce();
@@ -250,7 +277,76 @@ public class P2PSelfTests
         listener.Stop();
     }
 
+    [Fact]
+    public async Task 心跳能穿过隧道_长时间不传游戏数据也不会被判死()
+    {
+        // 这条验的是真机上最常见的一种「莫名其妙断线」：NAT 的 UDP 映射一段时间没流量就被回收。
+        // Minecraft 在加载地形、切维度时十几秒没有数据是常态，没有心跳的话洞就没了。
+        if (!P2PTunnel.IsSupported) return;
+
+        var mcPort = P2PTunnel.PickFreePort(47700);
+        var hostUdp = P2PTunnel.PickFreeUdpPort(47710);
+        var guestUdp = P2PTunnel.PickFreeUdpPort(47720);
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+
+        var listener = new TcpListener(IPAddress.Loopback, mcPort);
+        listener.Start();
+        _ = Task.Run(async () =>
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                try
+                {
+                    using var conn = await listener.AcceptTcpClientAsync(cts.Token);
+                    await using var stream = conn.GetStream();
+                    var buffer = new byte[256];
+                    var read = await stream.ReadAsync(buffer, cts.Token);
+                    await stream.WriteAsync(Encoding.UTF8.GetBytes(ReplyPrefix + Encoding.UTF8.GetString(buffer, 0, read)), cts.Token);
+                }
+                catch { return; }
+            }
+        }, cts.Token);
+
+        var secret = RandomNumberGenerator.GetBytes(32);
+        using var host = new P2PTunnel(secret);
+        await host.StartHostAsync(hostUdp, mcPort, cts.Token);
+
+        using var guest = new P2PTunnel(secret);
+        var proxyPort = await guest.ConnectAsync(guestUdp, new IPEndPoint(IPAddress.Loopback, hostUdp),
+                                                 P2PTunnel.PreferredProxyPort, cts.Token);
+
+        // 先通一次数据，确认隧道本身是好的
+        await RoundTripAsync(proxyPort, "warmup", cts.Token);
+
+        var before = host.LastActivityUtc;
+        var wait = P2PTunnel.KeepAliveInterval + TimeSpan.FromSeconds(2);
+        await Task.Delay(wait, cts.Token);
+
+        // 全程没有发过一条游戏数据：房主这边还能看到动静，就只能是心跳送到了
+        Assert.True(host.LastActivityUtc > before,
+                    $"等了 {(int)wait.TotalSeconds} 秒房主都没收到任何东西 —— 心跳没穿过隧道，" +
+                    "真机上会表现为『挂机一会儿就断线』");
+
+        // 而且链路还真的能用
+        Assert.Equal(ReplyPrefix + "still-alive", await RoundTripAsync(proxyPort, "still-alive", cts.Token));
+
+        cts.Cancel();
+        listener.Stop();
+    }
+
     // ===== 辅助 =====
+
+    private static async Task<string> RoundTripAsync(int proxyPort, string payload, CancellationToken ct)
+    {
+        using var tcp = new TcpClient();
+        await tcp.ConnectAsync(IPAddress.Loopback, proxyPort, ct);
+        await using var stream = tcp.GetStream();
+        await stream.WriteAsync(Encoding.UTF8.GetBytes(payload), ct);
+        var buffer = new byte[256];
+        var got = await stream.ReadAsync(buffer, ct);
+        return Encoding.UTF8.GetString(buffer, 0, got);
+    }
 
     private static async Task<bool> WaitUntil(Func<bool> condition, TimeSpan timeout)
     {

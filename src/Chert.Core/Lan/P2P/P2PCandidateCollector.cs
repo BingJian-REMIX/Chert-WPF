@@ -184,6 +184,55 @@ public static class P2PCandidateCollector
         // IPv4 优先：绝大多数家庭网络还是靠它
         return result.OrderBy(x => x.AddressFamily == AddressFamily.InterNetwork ? 0 : 1).ToList();
     }
+
+    /// <summary>
+    /// 对方的地址里有没有一个和本机在同一个局域网网段。
+    /// <para>
+    /// 打洞失败时这条判断值千金：同一个网段根本不需要打洞，直接走局域网联动就行。
+    /// 虚拟局域网（ZeroTier / Tailscale 之类）建的网卡也算在内 —— 它们的地址同样会出现在网卡列表里。
+    /// </para>
+    /// </summary>
+    public static bool SharesLanWith(IEnumerable<IPEndPoint> peerEndPoints)
+    {
+        var peers = peerEndPoints.Where(x => x.AddressFamily == AddressFamily.InterNetwork).ToList();
+        if (peers.Count == 0) return false;
+
+        try
+        {
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                foreach (var ua in ni.GetIPProperties().UnicastAddresses)
+                {
+                    if (ua.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+                    var mask = ua.IPv4Mask;
+                    if (mask is null || IPAddress.IsLoopback(ua.Address)) continue;
+
+                    var mine = NetworkOf(ua.Address, mask);
+                    foreach (var peer in peers)
+                        if (NetworkOf(peer.Address, mask).Equals(mine)) return true;
+                }
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        return false;
+    }
+
+    /// <summary>本机有没有非链路本地的 IPv6（有它通常就不需要打洞）。</summary>
+    public static bool HasUsableIpv6()
+        => LocalAddresses().Any(x => x.AddressFamily == AddressFamily.InterNetworkV6);
+
+    private static IPAddress NetworkOf(IPAddress address, IPAddress mask)
+    {
+        var a = address.GetAddressBytes();
+        var m = mask.GetAddressBytes();
+        var network = new byte[4];
+        for (var i = 0; i < 4; i++) network[i] = (byte)(a[i] & m[i]);
+        return new IPAddress(network);
+    }
 }
 
 /// <summary>
@@ -238,6 +287,34 @@ public static class UpnpPortMapper
         {
             // UPnP 失败是家常便饭（多网卡、虚拟网卡、路由器关了 SSDP、Windows 防火墙拦了发现包）
             return null;
+        }
+    }
+
+    /// <summary>
+    /// 撤掉刚才加的那条映射。不做的话路由器上会一直留着一个 UDP 口，
+    /// 用户换一台机器、或者下次换了个端口再连，都会撞上这条陈年老映射。
+    /// 失败无所谓 —— 映射本身带租约，到期会自动没。
+    /// </summary>
+    public static async Task<bool> TryDeleteAsync(int localPort, TimeSpan? timeout = null, CancellationToken ct = default)
+    {
+        var budget = timeout ?? TimeSpan.FromSeconds(1.5);
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(budget);
+
+            var location = await DiscoverAsync(cts.Token).ConfigureAwait(false);
+            if (location is null) return false;
+
+            var control = await FindControlUrlAsync(location, cts.Token).ConfigureAwait(false);
+            if (control is null) return false;
+
+            using var http = new HttpClient { Timeout = budget };
+            return await DeletePortMappingAsync(control, http, localPort, cts.Token).ConfigureAwait(false);
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -349,6 +426,19 @@ public static class UpnpPortMapper
 
         var text = await PostSoapAsync(control, http, StWanIp, "AddPortMapping", body, ct).ConfigureAwait(false);
         // 没有 Fault 就是成功：部分路由器的 SOAP 回包不带 Body，只看 HTTP 200
+        return !text.Contains("Fault", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<bool> DeletePortMappingAsync(Uri control, HttpClient http, int localPort, CancellationToken ct)
+    {
+        var body =
+            "<u:DeletePortMapping xmlns:u=\"" + StWanIp + "\">" +
+            "<NewRemoteHost></NewRemoteHost>" +
+            $"<NewExternalPort>{localPort}</NewExternalPort>" +
+            "<NewProtocol>UDP</NewProtocol>" +
+            "</u:DeletePortMapping>";
+
+        var text = await PostSoapAsync(control, http, StWanIp, "DeletePortMapping", body, ct).ConfigureAwait(false);
         return !text.Contains("Fault", StringComparison.OrdinalIgnoreCase);
     }
 }

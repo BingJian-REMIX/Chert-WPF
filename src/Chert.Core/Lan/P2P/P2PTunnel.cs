@@ -35,13 +35,45 @@ public sealed class P2PTunnel : IDisposable
     private const byte RoleAccept = 1;
     private const byte RoleReject = 0;
 
+    /// <summary>每条数据流的第一个字节：这一条是转发 Minecraft 数据的。</summary>
+    private const byte ChanData = 1;
+
+    /// <summary>每条数据流的第一个字节：这一条只是保活心跳，不转发任何数据。</summary>
+    private const byte ChanPing = 2;
+
+    /// <summary>心跳的应答字节（内容无所谓，收到就算活着）。</summary>
+    private const byte Pong = 1;
+
+    /// <summary>
+    /// 心跳间隔。选 15 秒是被两件事夹出来的：NAT 的 UDP 映射常见 30～60 秒不通信就回收，
+    /// 而 Minecraft 在加载地形、切维度时空窗可以到十几秒 —— 再密就是白送流量了。
+    /// </summary>
+    public static readonly TimeSpan KeepAliveInterval = TimeSpan.FromSeconds(15);
+
+    /// <summary>单次心跳等多久算没回音。</summary>
+    public static readonly TimeSpan KeepAliveTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>连续几次心跳没回音就判定链路断了（15×3+5 ≈ 50 秒，足够扛过一次 Wi-Fi 抖动）。</summary>
+    public const int MissedBeatsBeforeLost = 3;
+
+    /// <summary>房主侧：多久没有一点动静就认为对方掉线了（心跳 15 秒一次，给到 60 秒容错）。</summary>
+    public static readonly TimeSpan HostSilenceLimit = TimeSpan.FromSeconds(60);
+
     private readonly byte[] _sessionSecret = Array.Empty<byte>();
     private CancellationTokenSource? _cts;
     private QuicListener? _listener;
     private QuicConnection? _connection;
     private TcpListener? _proxy;
 
+    private DateTime _lastActivity = DateTime.UtcNow;
+    private int _linkLostRaised;
     private bool _disposed;
+
+    /// <summary>判定链路已断（参数是人话描述）。UI 应当提示可以重连，而不是继续显示「已连接」。</summary>
+    public event Action<string>? LinkLost;
+
+    /// <summary>最后一次在这条链路上看到动静的时间（UTC）。用于判断「还活着吗」。</summary>
+    public DateTime LastActivityUtc => _lastActivity;
 
     /// <summary>当前平台能否跑 QUIC（Windows 需要 MsQuic，随 .NET 运行时分发）。</summary>
     public static bool IsSupported
@@ -101,6 +133,10 @@ public sealed class P2PTunnel : IDisposable
 
         _listener = await QuicListener.ListenAsync(options, _cts.Token).ConfigureAwait(false);
         _ = Task.Run(() => AcceptLoopAsync(targetMcPort, _cts.Token), _cts.Token);
+
+        // 房主不主动心跳（它是被连的一方），改由看门狗盯「多久没动静」：
+        // 对端一旦拔网线或笔记本合盖，QUIC 不会立刻报错，只有静默时间能说明问题。
+        _ = Task.Run(() => HostWatchdogAsync(_cts.Token), _cts.Token);
     }
 
     // ===== 加入者：连对方，并在本机开 Minecraft 要连的端口 =====
@@ -144,6 +180,10 @@ public sealed class P2PTunnel : IDisposable
 
         _proxy = BindProxy(preferredProxyPort, out var port);
         _ = Task.Run(() => ProxyLoopAsync(_proxy, _connection, _cts.Token), _cts.Token);
+
+        // 心跳由加入者发：它持有那条 QUIC 连接，也只有它在持续观察对端。
+        // 不是为了「显得在线」——NAT 的映射一段时间没流量就被回收，洞没了隧道也就断了。
+        _ = Task.Run(() => KeepAliveLoopAsync(_connection, _cts.Token), _cts.Token);
         return port;
     }
 
@@ -158,6 +198,28 @@ public sealed class P2PTunnel : IDisposable
                 var probe = new TcpListener(IPAddress.Loopback, port);
                 probe.Start();
                 probe.Stop();
+                return port;
+            }
+            catch (SocketException) { /* 被占，试下一个 */ }
+        }
+        return 0;
+    }
+
+    /// <summary>
+    /// 挑一个空闲的 UDP 端口（打洞用的那个）。
+    /// 默认端口写死迟早会撞：别的程序占了、或者上一次没退干净，症状都是「打洞超时」，
+    /// 看起来跟路由器不支持直连一模一样 —— 所以宁可往后找一个能用的。
+    /// </summary>
+    public static int PickFreeUdpPort(int preferred)
+    {
+        for (var i = 0; i < ProxyPortTries; i++)
+        {
+            var port = preferred + i;
+            try
+            {
+                using var probe = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                probe.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+                probe.Bind(new IPEndPoint(IPAddress.Any, port));
                 return port;
             }
             catch (SocketException) { /* 被占，试下一个 */ }
@@ -226,9 +288,21 @@ public sealed class P2PTunnel : IDisposable
                     try
                     {
                         await using (stream)
-                        using (var tcp = new TcpClient())
                         {
+                            // 每条流的第一个字节说明这条流是干嘛的：心跳就地答一句就关，
+                            // 其余的才去连本机 MC（这个字节不转发，是隧道自己的开销）。
+                            var kind = await ReadExactlyAsync(stream, 1, ct).ConfigureAwait(false);
+                            if (kind.Length == 1 && kind[0] == ChanPing)
+                            {
+                                NoteActivity();
+                                await stream.WriteAsync(new[] { Pong }, ct).ConfigureAwait(false);
+                                await stream.FlushAsync(ct).ConfigureAwait(false);
+                                return;
+                            }
+
+                            using var tcp = new TcpClient();
                             await tcp.ConnectAsync(IPAddress.Loopback, targetMcPort, ct).ConfigureAwait(false);
+                            NoteActivity();
                             await PumpAsync(stream, tcp.GetStream(), ct).ConfigureAwait(false);
                         }
                     }
@@ -255,12 +329,87 @@ public sealed class P2PTunnel : IDisposable
                 {
                     await using var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct)
                                                              .ConfigureAwait(false);
+                    await stream.WriteAsync(new[] { ChanData }, ct).ConfigureAwait(false);
                     using (tcp)
                         await PumpAsync(stream, tcp.GetStream(), ct).ConfigureAwait(false);
                 }
                 catch { /* Minecraft 断开连接时会直接重置，属正常收尾 */ }
             }, ct);
         }
+    }
+
+    // ===== 保活 =====
+
+    /// <summary>
+    /// 加入者侧心跳：定期开一条流问一句，收不到回音就累计失败次数。
+    /// 连续几次都收不到才算断 —— 单次丢包在 UDP 上太常见了，一次失败就报警会误报个不停。
+    /// </summary>
+    private async Task KeepAliveLoopAsync(QuicConnection connection, CancellationToken ct)
+    {
+        var misses = 0;
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(KeepAliveInterval, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+
+            try
+            {
+                await using (var stream = await connection.OpenOutboundStreamAsync(QuicStreamType.Bidirectional, ct)
+                                                          .ConfigureAwait(false))
+                {
+                    await stream.WriteAsync(new[] { ChanPing }, ct).ConfigureAwait(false);
+
+                    using var beat = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    beat.CancelAfter(KeepAliveTimeout);
+
+                    var reply = await ReadExactlyAsync(stream, 1, beat.Token).ConfigureAwait(false);
+                    if (reply.Length == 1 && reply[0] == Pong)
+                    {
+                        misses = 0;
+                        NoteActivity();
+                        continue;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // 超时：算一次没回音，下面统一累计
+            }
+            catch
+            {
+                // 连接已经废了：同样按没回音处理
+            }
+
+            if (++misses < MissedBeatsBeforeLost) continue;
+
+            ReportLinkLost($"已经 {misses} 次心跳没有回音（约 {(int)(KeepAliveInterval.TotalSeconds * misses)} 秒），链路断了");
+            return;
+        }
+    }
+
+    /// <summary>房主侧看门狗：只看「多久没动静」，不动手发包。Minecraft 没在传数据时尤其需要它。</summary>
+    private async Task HostWatchdogAsync(CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try { await Task.Delay(TimeSpan.FromSeconds(5), ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return; }
+
+            var silence = DateTime.UtcNow - _lastActivity;
+            if (silence < HostSilenceLimit) continue;
+
+            ReportLinkLost($"超过 {(int)silence.TotalSeconds} 秒没收到对方任何数据，链路断了");
+            return;
+        }
+    }
+
+    private void NoteActivity() => _lastActivity = DateTime.UtcNow;
+
+    private void ReportLinkLost(string reason)
+    {
+        // 同一条链路只报一次：心跳超时和看门狗可能同时到，弹两次提示只会让人困惑
+        if (Interlocked.Exchange(ref _linkLostRaised, 1) != 0) return;
+        LinkLost?.Invoke(reason);
     }
 
     // ===== 转发 =====
@@ -361,5 +510,7 @@ public sealed class P2PTunnel : IDisposable
     private void EnsureFresh()
     {
         Stop();
+        _lastActivity = DateTime.UtcNow;
+        _linkLostRaised = 0;
     }
 }

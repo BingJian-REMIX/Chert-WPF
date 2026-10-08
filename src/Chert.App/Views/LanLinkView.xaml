@@ -227,6 +227,12 @@
                                        ToolTip="{theme:Loc nat.fallback_tip}"/>
                         </StackPanel>
 
+                        <!-- 自己这一侧几乎不可能被穿透：与其让人白等一轮 20 秒超时，不如现在就说清楚 -->
+                        <TextBlock Text="{theme:Loc nat.fallback_tip}" Margin="0,4,0,0" FontSize="11"
+                                   TextWrapping="Wrap" Width="390" HorizontalAlignment="Left"
+                                   Foreground="{DynamicResource DangerBrush}"
+                                   Visibility="{Binding NatLooksHopeless, Converter={StaticResource BoolToVis}}"/>
+
                         <StackPanel Margin="0,8,0,0" Visibility="{Binding HasMyCode, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="{theme:Loc p2p.my_code}" Margin="0,0,0,4"
                                        Foreground="{DynamicResource SecondaryForeground}"/>
@@ -267,6 +273,11 @@
                                     Padding="10,2" Margin="8,0,0,0"/>
                             <Button Content="{theme:Loc p2p.stop}" Command="{Binding StopLinkCommand}"
                                     Padding="10,2" Margin="8,0,0,0"/>
+                            <!-- 失败之后最有用：码还在有效期内，不用再让两边各复制一次两百多字符 -->
+                            <Button Content="{theme:Loc p2p.reconnect}" Command="{Binding ReconnectCommand}"
+                                    Padding="10,2" Margin="8,0,0,0"
+                                    ToolTip="{theme:Loc p2p.reconnect_tip}"
+                                    Visibility="{Binding ShowReconnect, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
 
                         <TextBlock Text="{Binding LocalProxyText}" Margin="0,8,0,0" FontWeight="Bold"
