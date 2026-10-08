@@ -113,8 +113,10 @@ public class DownloadPageViewModel : ObservableObject
     private string _selectedCategory = "";
     private string _selectedMapVersion = "";
     private MapSort _mapSort = MapSort.Published;
-    private int _mapPage = 1;
-    private int _mapTotalPages = 1;
+    // bug #16 重构后地图分页与通用 Page / TotalPages 同源（MapPage / MapTotalPages 已委托过去），
+    // 下面这两个旧字段没人再读，留着只会让编译器一直报 CS0414
+    // bug #16 重构后地图分页与通用 Page / TotalPages 同源（MapPage / MapTotalPages 已委托过去），
+    // 下面这两个旧字段没人再读，留着只会让编译器一直报 CS0414
     private bool _mapFacetsLoaded;
 
     // bug #16：通用分页（mod / 光影 / 资源包 / 整合包 / 地图共用一套页码；Minecraft 页用分组折叠，不分页）

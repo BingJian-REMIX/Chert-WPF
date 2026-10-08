@@ -69,7 +69,10 @@ public class HomeViewModel : ObservableObject
         Stats = PlaytimeTracker.Load(gameRoot);
         var recent = Stats.RecentVersion;
         SelectedVersion = Versions.FirstOrDefault(v => v.Id == recent) ?? Versions.FirstOrDefault();
-        StatusBarViewModel.Current.RefreshAsync();
+        // Refresh() 是同步方法（首页构造/切页都在调），这里只能丢弃 Task；
+        // 显式写 _ = 而不是干调用 —— 否则 RefreshAsync 里的异常无人观察，
+        // 状态栏会静默停在旧值（编译器 CS4014 指的就是这一行）
+        _ = StatusBarViewModel.Current.RefreshAsync();
     }
 
     private async Task LaunchAsync()
