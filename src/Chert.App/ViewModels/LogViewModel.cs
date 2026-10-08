@@ -216,7 +216,11 @@ public class LogViewModel : ObservableObject
             ? $"从 {file.Name} 提取到 {chat.Count} 条聊天记录。"
             : $"未在 {file.Name} 中找到聊天记录。";
         ApplyFilter();
-        StatusMessage = $"已载入 {file.Name}（{_allLines.Count} 行）";
+        var shown = Lines.Count;
+        StatusMessage = shown < _allLines.Count
+            // 被截断了就如实说，别让用户以为看到的就是全部
+            ? $"已载入 {file.Name}：共 {_allLines.Count} 行，界面只显示最近 {shown} 行"
+            : $"已载入 {file.Name}（{_allLines.Count} 行）";
     }
 
     /// <summary>P11：把聊天记录导出为 txt / md。</summary>
