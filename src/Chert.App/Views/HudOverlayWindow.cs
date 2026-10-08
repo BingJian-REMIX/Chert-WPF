@@ -99,6 +99,10 @@ public class HudOverlayWindow : Window
 
         Loaded += OnLoaded;
         Closing += (_, _) => SavePosition();
+        // HUD 是跟着一局游戏走的：关窗必须停表并把静态实例放开。
+        // 留着旧实例会串出两个毛病 —— 定时器继续空转采样一个已退出的进程；
+        // 下一局 TryShow 拿到这个已关闭的窗口去 Show，直接抛 InvalidOperationException。
+        Closed += (_, _) => ShutdownOverlay();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(_config.RefreshMs) };
         _timer.Tick += OnTick;
@@ -114,6 +118,18 @@ public class HudOverlayWindow : Window
         if (hwnd != IntPtr.Zero) LoadPosition();
 
         _timer.Start();
+    }
+
+    /// <summary>关窗收尾：停采样定时器、摘掉游戏进程的退出事件、把静态槽位让出来。</summary>
+    private void ShutdownOverlay()
+    {
+        try { _timer.Stop(); } catch { /* 停表失败不该影响关窗 */ }
+        if (_gameProcess is { } proc)
+        {
+            try { proc.Exited -= OnGameExited; } catch { }
+            _gameProcess = null;
+        }
+        if (ReferenceEquals(Instance, this)) Instance = null;
     }
 
     public void AttachGame(Process process, long maxMemoryMb)

@@ -44,6 +44,9 @@ public class PerfViewModel : ObservableObject, IDisposable
     private readonly ObservableCollection<double> _memHistory = new();
     private const int HistoryCap = 60;
 
+    /// <summary>已彻底释放。只有宿主真的丢弃这个 VM 才会置位，切页不算。</summary>
+    private bool _disposed;
+
     public ObservableCollection<InstancePerf> Instances
     {
         get => _instances;
@@ -156,6 +159,7 @@ public class PerfViewModel : ObservableObject, IDisposable
 
     private void Sample()
     {
+        if (_disposed) return;
         try
         {
             SampleCore();
@@ -234,8 +238,36 @@ public class PerfViewModel : ObservableObject, IDisposable
             : "没有正在运行的游戏实例";
     }
 
+    /// <summary>
+    /// 开始定时采样。页面进入视野时调用。
+    /// <para>
+    /// 工具箱的面板视图是<b>缓存</b>的（<c>ToolboxPanelItem.View</c> 只 new 一次），
+    /// 所以切回性能页走的是同一个 VM —— 采样必须能重新开起来，不能只靠构造器那一次。
+    /// </para>
+    /// </summary>
+    public void Start()
+    {
+        if (_disposed) return;
+        _timer.Start();
+        // 立刻补一帧：否则切回来先看到的是上一次离开时的过期数据
+        Sample();
+    }
+
+    /// <summary>
+    /// 停止定时采样。页面离开视野时调用 —— 只停表，<b>不释放计数器</b>：
+    /// 视图还缓存在那儿，切回来要接着用；真要拆才走 <see cref="Dispose"/>。
+    /// </summary>
+    public void Stop()
+    {
+        if (_disposed) return;
+        _timer.Stop();
+    }
+
+    /// <summary>彻底释放（宿主丢弃此 VM 时）。幂等 —— 面板视图被缓存，别指望它只跑一次。</summary>
     public void Dispose()
     {
+        if (_disposed) return;
+        _disposed = true;
         _timer.Stop();
         _cpuCounter?.Dispose();
         _memCounter?.Dispose();
