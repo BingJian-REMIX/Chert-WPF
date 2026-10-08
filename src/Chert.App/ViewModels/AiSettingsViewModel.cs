@@ -155,7 +155,8 @@ public class AiSettingsViewModel : ObservableObject
         AiMode = ai.Mode.ToString();
         SelectedLocalModel = OllamaModels.ByTag(ai.SelectedLocalModel)?.DisplayName ?? OllamaModels.Default.DisplayName;
         _lastCommittedModel = SelectedLocalModel;
-        AiApiKey = ai.ApiKey ?? "";
+        // 落盘的是混淆串（老配置可能是明文，RevealApiKey 会兼容），输入框要的是明文
+        AiApiKey = Assistant.RevealApiKey(ai);
         AiEndpoint = ai.Endpoint;
         AiModel = ai.Model;
         AiCrashInterpret = ai.CrashInterpret;
@@ -174,13 +175,16 @@ public class AiSettingsViewModel : ObservableObject
                 ? am
                 : Chert.Core.Ai.AiMode.External,
             SelectedLocalModel = OllamaModels.ByDisplayName(SelectedLocalModel)?.OllamaTag ?? OllamaModels.Default.OllamaTag,
-            ApiKey = string.IsNullOrWhiteSpace(AiApiKey) ? null : AiApiKey,
+            ApiKey = null,   // 真正的取值在下面 CommitApiKey 里混淆后写入
             Endpoint = AiEndpoint,
             Model = AiModel,
             CrashInterpret = AiCrashInterpret,
             RecommendReason = AiRecommendReason,
             ModTranslate = AiModTranslate
         };
+
+        // Key 不进明文：内存留一份供本次会话直接用，落盘那一份混淆
+        Assistant.CommitApiKey(string.IsNullOrWhiteSpace(AiApiKey) ? null : AiApiKey, profile.Ai);
     }
 
     /// <summary>检测 Ollama 安装、服务状态与已拉取模型（后台刷新，失败不阻塞界面）。</summary>

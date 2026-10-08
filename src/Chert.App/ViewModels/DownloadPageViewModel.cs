@@ -1620,9 +1620,15 @@ public class DownloadPageViewModel : ObservableObject
         ProjectDetailHint = "AI 翻译中…";
         try
         {
-            var text = await Chert.Core.Ai.Assistant.TranslateModDescriptionAsync(detail.Description);
-            ProjectTranslated = text ?? "";
-            ProjectDetailHint = AiEnabled ? "翻译完成" : "AI 未启用，已返回原文";
+            var result = await Chert.Core.Ai.Assistant.TranslateModDescriptionAsync(detail.Description);
+            ProjectTranslated = result.Text;
+            // FromAi=false 表示这次模型没参与（未启用 / 关了「Mod 描述翻译」/ 调用失败），
+            // 界面上摆着的其实就是原文 —— 不能再对用户说「翻译完成」。
+            ProjectDetailHint = result.FromAi
+                ? "翻译完成"
+                : (result.Error ?? "模型这次没给出结果，下面仍是原文");
+            OnPropertyChanged(nameof(AiEnabled));
+            (TranslateDetailCommand as AsyncRelayCommand)?.RaiseCanExecuteChanged();
         }
         catch (Exception ex)
         {
