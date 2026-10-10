@@ -33,6 +33,11 @@ public class TouchOverlayWindow : Window
     private bool _dragMoved;
     private Point _dragStart;
     private Canvas _canvas = new();
+    /// <summary>
+    /// 切换键（<see cref="TouchButtonKind.Toggle"/>）处于「锁住按住」状态时的释放钩子。
+    /// 面板重建或关闭前必须全部执行一遍，否则游戏里会留下一个永远按住的 Shift。
+    /// </summary>
+    private readonly List<Action> _touchReleaseHooks = new();
 
     public TouchOverlayWindow()
     {
@@ -80,7 +85,8 @@ public class TouchOverlayWindow : Window
             Background = new SolidColorBrush(Colors.Transparent),
             Foreground = new SolidColorBrush(Color.FromRgb(0xF0, 0xF0, 0xF0))
         };
-        closeBtn.Click += (_, _) => Hide();
+        // 折叠面板等同于放弃操作：先把锁住的切换键（Shift 潜行）放掉，再隐藏
+        closeBtn.Click += (_, _) => { ReleaseLatchedKeys(); Hide(); };
         var handleGrid = new Grid();
         handleGrid.Children.Add(handleText);
         handleGrid.Children.Add(closeBtn);
@@ -88,7 +94,7 @@ public class TouchOverlayWindow : Window
         Grid.SetRow(handle, 0);
         root.Children.Add(handle);
 
-        _canvas = TouchPanelBuilder.Build(_config, false, PressKey, ReleaseKey);
+        _canvas = TouchPanelBuilder.Build(_config, false, PressKey, ReleaseKey, _touchReleaseHooks);
         Grid.SetRow(_canvas, 1);
         root.Children.Add(_canvas);
 
@@ -178,6 +184,19 @@ public class TouchOverlayWindow : Window
 
     private void OnFollowTick(object? sender, EventArgs e) => FollowGameWindowOnce();
 
+    /// <summary>
+    /// 释放所有仍处于「锁住按住」状态的切换键并清空钩子集合。
+    /// 重建画布前、窗口关闭前、以及游戏进程退出前都必须调用。
+    /// </summary>
+    private void ReleaseLatchedKeys()
+    {
+        foreach (var hook in _touchReleaseHooks)
+        {
+            try { hook(); } catch { /* 单个钩子失败不影响其余释放 */ }
+        }
+        _touchReleaseHooks.Clear();
+    }
+
     private void PressKey(int vk) => GameKeySender.KeyDown(_gameHwnd, vk);
 
     private void ReleaseKey(int vk) => GameKeySender.KeyUp(_gameHwnd, vk);
@@ -258,11 +277,15 @@ public class TouchOverlayWindow : Window
             inst.Dispatcher.Invoke(() =>
             {
                 inst._config = cfg;
-                if (!cfg.Enabled) { inst.Hide(); return; }
+                // 关总开关会隐藏面板：先把锁住的切换键放掉，别把 Shift 留在游戏里
+                if (!cfg.Enabled) { inst.ReleaseLatchedKeys(); inst.Hide(); return; }
                 inst.Width = cfg.PanelWidth;
                 inst.Height = cfg.PanelHeight + TouchPanelBuilder.HandleHeight;
                 inst.Opacity = Clamp(cfg.Opacity, 0.2, 1);
-                inst._canvas = TouchPanelBuilder.Build(cfg, false, inst.PressKey, inst.ReleaseKey);
+                // 先放出锁住的切换键：旧画布连同它的事件处理器即将被丢弃，
+                // 不释放的话 corresponding keyup 就永远发不出去了。
+                inst.ReleaseLatchedKeys();
+                inst._canvas = TouchPanelBuilder.Build(cfg, false, inst.PressKey, inst.ReleaseKey, inst._touchReleaseHooks);
                 Grid.SetRow(inst._canvas, 1);
                 if (inst.Content is Grid g && g.Children.Count > 1) g.Children[1] = inst._canvas;
                 inst.LoadPosition();
@@ -299,6 +322,9 @@ public class TouchOverlayWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        // 锁住的切换键必须显式松开：这条 keyup 不会随窗口关闭自动发出，
+        // 否则用户会发现游戏里的 Shift 卡住不放（一直潜行）。
+        ReleaseLatchedKeys();
         base.OnClosed(e);
         // 停掉跟随定时器：否则它会继续 Tick 一个已关闭的窗口（泄漏 + 无谓空转）
         StopFollowing();

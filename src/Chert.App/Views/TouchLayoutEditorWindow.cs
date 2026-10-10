@@ -79,7 +79,7 @@ public class TouchLayoutEditorWindow : Window
         };
         handle.Child = new TextBlock
         {
-            Text = "拖动圆形按键调整位置",
+            Text = "拖动方块按键调整位置",
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xE8)),
             VerticalAlignment = VerticalAlignment.Center,
@@ -126,6 +126,7 @@ public class TouchLayoutEditorWindow : Window
         _kindCombo = new ComboBox { Margin = new Thickness(0, 4, 0, 0) };
         _kindCombo.Items.Add("方向键（按住持续）");
         _kindCombo.Items.Add("动作键（按下触发）");
+        _kindCombo.Items.Add("切换键（点一下锁定按住）");
         _kindCombo.SelectedIndex = 1;
         _kindCombo.SelectionChanged += (_, _) => ApplyToSelected();
         right.Children.Add(Labeled("类型", _kindCombo));
@@ -211,7 +212,12 @@ public class TouchLayoutEditorWindow : Window
         _suppress = true;
         _labelBox.Text = b.Label;
         _vkBox.Text = "0x" + b.Vk.ToString("X2");
-        _kindCombo.SelectedIndex = b.Kind == TouchButtonKind.Direction ? 0 : 1;
+        _kindCombo.SelectedIndex = b.Kind switch
+        {
+            TouchButtonKind.Direction => 0,
+            TouchButtonKind.Toggle => 2,
+            _ => 1
+        };
         _sizeSlider.Value = b.Size;
         _suppress = false;
     }
@@ -226,7 +232,12 @@ public class TouchLayoutEditorWindow : Window
         b.Label = _labelBox.Text;
         b.KeyName = ExtractKeyName(b.KeyName, _keyCombo.SelectedIndex, _vkBox.Text);
         if (int.TryParse(_vkBox.Text.Replace("0x", "").Trim(), System.Globalization.NumberStyles.HexNumber, null, out var vk)) b.Vk = vk;
-        b.Kind = _kindCombo.SelectedIndex == 0 ? TouchButtonKind.Direction : TouchButtonKind.Action;
+        b.Kind = _kindCombo.SelectedIndex switch
+        {
+            0 => TouchButtonKind.Direction,
+            2 => TouchButtonKind.Toggle,
+            _ => TouchButtonKind.Action
+        };
         b.Size = _sizeSlider.Value;
         RebuildCanvas();
     }
@@ -287,6 +298,7 @@ public class TouchLayoutEditorWindow : Window
         _cfg.PanelWidth = d.PanelWidth;
         _cfg.PanelHeight = d.PanelHeight;
         _cfg.Opacity = d.Opacity;
+        _cfg.LayoutVersion = TouchControlConfig.CurrentLayoutVersion;
         _widthBox.Text = d.PanelWidth.ToString();
         _heightBox.Text = d.PanelHeight.ToString();
         _opacitySlider.Value = d.Opacity;
@@ -303,6 +315,9 @@ public class TouchLayoutEditorWindow : Window
             if (int.TryParse(_heightBox.Text, out var h)) _cfg.PanelHeight = Math.Clamp(h, 120, 800);
             _cfg.Opacity = _opacitySlider.Value;
             _cfg.Enabled = true;
+            // 编辑器里保存 = 用户认可当前这套排版：把布局版本抬到当前值，
+            // 后续出厂布局再升级时不会再覆盖用户亲手排的布局。
+            _cfg.LayoutVersion = TouchControlConfig.CurrentLayoutVersion;
             // 坐标可能超出新面板尺寸，统一收敛一次
             foreach (var b in _cfg.Buttons)
             {

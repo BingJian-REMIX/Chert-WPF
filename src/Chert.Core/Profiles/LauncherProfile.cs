@@ -217,7 +217,15 @@ public class LauncherProfile
 
     /// <summary>清单 #11：触屏模式虚拟按键面板（默认关闭）。</summary>
     [JsonPropertyName("touch")]
-    public TouchControlConfig Touch { get; set; } = TouchControlConfig.CreateDefault();
+    public TouchControlConfig Touch
+    {
+        get => _touch;
+        // 反序列化后立即升级：出厂布局有新版本时（且用户没自定义过）直接换成新布局，
+        // 不需要用户手动点「恢复默认」。
+        set => _touch = (value ?? TouchControlConfig.CreateDefault()).Normalize();
+    }
+
+    private TouchControlConfig _touch = TouchControlConfig.CreateDefault();
 
     /// <summary>清单 #35：局域网联动（默认关闭，需用户显式开启）。</summary>
     [JsonPropertyName("lanLink")]
