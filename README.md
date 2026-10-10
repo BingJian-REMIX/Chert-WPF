@@ -48,7 +48,7 @@
 | **GUI+CLI 合体** | `Chert-Launcher-2.6.0-win-x64.zip` | GUI 与 CLI 同包，兼容旧用户 | 无 |
 | **CLI 自包含** | `chert-cli-2.6.0-win-x64.zip` | 仅命令行工具 `chert.exe` | 无 |
 
-解压后运行 `Chert Launcher.exe`（GUI）或 `chert.exe`（CLI）即可，无需安装。
+解压后进入 `Chert Launcher` 文件夹，运行 `Chert.App.exe`（GUI）或 `chert.exe`（CLI）即可，无需安装。
 
 > **内置自动更新**：启动时静默读取 `latest.json`（[chert-launcher.github.io](https://chert-launcher.github.io/latest.json)），发现新版本后按当前安装形态自动选包、下载 CNB Release 直链、解压并原地替换安装目录、接力启动新版本，全程无需手动下载。
 
