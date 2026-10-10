@@ -168,7 +168,7 @@ zip_all() {
      Chert-Light-$VER-win-x64.zip              （GUI+CLI 轻量）
      Chert-Launcher-$VER-win-x64-gui.zip      （仅 GUI 自包含）
      chert-cli-$VER-win-x64.zip                （仅 CLI 自包含）
-2. 更新 https://remix-laser-raising-studio.github.io/chert-upgrade/latest.json 的 wpf 段：
+2. 更新 https://chert-launcher.github.io/latest.json 的 wpf 段：
      "guiAvailable": true,
      "guiDownloadUrl": ".../Chert-Launcher-$VER-win-x64-gui.zip",
      "guiLightDownloadUrl": ".../Chert-Light-$VER-win-x64.zip",

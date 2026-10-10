@@ -141,14 +141,14 @@ public static class GameConstants
     public const string CnbReleaseBase = "https://cnb.cool/RLRS-Studio/Chert-WPF";
 
     /// <summary>
-    /// 更新信息（latest.json）静态地址：GitHub Pages 托管的 <c>latest.json</c>
-    /// （<c>remix-laser-raising-studio.github.io/chert-upgrade</c>，GitHub Pages 走独立 CDN，通常不受 github.com 故障影响）。
+    /// 更新信息（latest.json）静态地址：启动器专属 GitHub Pages 站点托管的 <c>latest.json</c>
+    /// （<c>chert-launcher.github.io</c>，三端共用，GitHub Pages 走独立 CDN，通常不受 github.com 故障影响）。
     /// 普通 HTTPS GET 即可读取，终端用户零 git 依赖；网络超时/失败即视为「已是最新」，绝不误报。
     /// 字段与解析逻辑见 <see cref="Chert.Core.Update.LauncherUpdater"/>。
     /// </summary>
-    public const string UpdateInfoUrl = "https://remix-laser-raising-studio.github.io/chert-upgrade/latest.json";
+    public const string UpdateInfoUrl = "https://chert-launcher.github.io/latest.json";
 
-    /// <summary>本启动器平台标识，对应 chert-upgrade/latest.json 中各自的平台小节键名（wpf / linux / android）。
+    /// <summary>本启动器平台标识，对应 chert-launcher.github.io/latest.json 中各自的平台小节键名（wpf / linux / android）。
     /// 升级站点为 WPF / Linux / Android 三端共用，latest.json 根对象包含 <c>wpf</c>/<c>linux</c>/<c>android</c> 三个小节，
     /// 本启动器仅读取与 PlatformId 同名的 <c>wpf</c> 小节；若根对象即单平台结构（旧格式）则整体解析。</summary>
     public const string PlatformId = "wpf";
