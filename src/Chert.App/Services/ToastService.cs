@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Chert.Core.Mvvm;
+using Chert.Core.Theme;
 
 namespace Chert.App.Services;
 
@@ -36,6 +37,18 @@ public class ToastItem : ObservableObject
         ToastKind.Error => "#E74C3C",
         _ => "#2196F3"
     };
+
+    /// <summary>是否为「安卓布局」风格的 Toast：仅 ThemeManager.UiStyle 为 android 时为真，改用安卓通知卡片头部。</summary>
+    public bool IsAndroid => ThemeManager.UiStyle == "android";
+
+    /// <summary>应用名（通知头部展示，如「燧石启动器」）。</summary>
+    public const string AppName = "燧石启动器";
+
+    /// <summary>弹出时刻（通知头部时间戳）。</summary>
+    public DateTime Timestamp { get; init; } = DateTime.Now;
+
+    /// <summary>时间戳的人类可读文本：1 分钟内显示「刚刚」，否则显示 HH:mm。</summary>
+    public string TimeText => (DateTime.Now - Timestamp).TotalMinutes < 1 ? "刚刚" : Timestamp.ToString("HH:mm");
 
     public bool HasAction => !string.IsNullOrWhiteSpace(ActionText) && Action is not null;
 

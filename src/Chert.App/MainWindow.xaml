@@ -1102,6 +1102,29 @@
 
                             <StackPanel Grid.Column="1" Margin="12,10,8,10">
 
+                                <!-- 仅「安卓布局」(UiStyle=android) 显示通知头部：应用图标 + 应用名 + 时间戳；其它布局隐藏，外观与现状一致 -->
+                                <Grid Margin="0,0,0,5"
+                                      Visibility="{Binding IsAndroid, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <!-- 应用图标：品牌色圆角方块 + 首字母（零二进制依赖，两端通用）-->
+                                    <Border Grid.Column="0" Width="20" Height="20" CornerRadius="5"
+                                            Background="{Binding AccentColor, Converter={StaticResource StrToBrush}}">
+                                        <TextBlock Text="C" Foreground="White" FontWeight="Bold" FontSize="12"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Text="{Binding AppName}" Margin="7,0,0,0"
+                                               VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource SecondaryForeground}"
+                                               TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding TimeText}" Margin="8,0,0,0"
+                                               VerticalAlignment="Center" FontSize="10"
+                                               Foreground="{DynamicResource SecondaryForeground}"/>
+                                </Grid>
+
                                 <TextBlock Text="{Binding Title}" FontWeight="Bold" FontSize="13"
 
                                            Foreground="{DynamicResource PrimaryForeground}"
