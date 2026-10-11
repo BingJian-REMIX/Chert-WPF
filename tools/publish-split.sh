@@ -32,6 +32,9 @@ fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/../_tmp/publish-$VER}"
+# Windows Git-Bash 下，原生工具（7z / PowerShell）只认 Windows 路径；
+# 把 POSIX 路径转成 Windows 形式，否则验签/压缩都会“找不到文件”。
+OUT_DIR_WIN="$(cygpath -w "$OUT_DIR" 2>/dev/null || echo "$OUT_DIR")"
 MODE="${1:-}"
 
 # 沙箱 / 受限环境里 NuGet 走代理会失败
@@ -149,9 +152,10 @@ verify_signatures() {
   while IFS= read -r exe; do
     [ -z "$exe" ] && continue
     total=$((total + 1))
-    local st
+    local st exe_w
+    exe_w="$(cygpath -w "$exe" 2>/dev/null || echo "$exe")"
     st="$(powershell -NoProfile -Command \
-      "(Get-AuthenticodeSignature -LiteralPath '$exe').Status" 2>/dev/null | tr -d '\r' | tail -1)"
+      "(Get-AuthenticodeSignature -LiteralPath '$exe_w').Status" 2>/dev/null | tr -d '\r' | tail -1)"
     case "$st" in
       Valid) echo "  [OK]   $st  $(basename "$exe")" ;;
       *)     echo "  [WARN] ${st:-Unknown}  $(basename "$exe")"; bad=$((bad + 1)) ;;
@@ -173,12 +177,15 @@ zip_all() {
     ZIPPER="/d/Program Files/7-Zip/7z.exe"
   fi
 
-  mk_zip() {  # $1=源目录  $2=包内根目录名  $3=输出zip
+  mk_zip() {  # $1=源目录  $3=输出zip（文件置于包根，对齐 2.5.6 约定，无外层文件夹）
+    local src_w dst_w
+    src_w="$(cygpath -w "$1" 2>/dev/null || echo "$1")"
+    dst_w="$(cygpath -w "$3" 2>/dev/null || echo "$3")"
     if [ -n "$ZIPPER" ]; then
-      ( cd "$1" && "$ZIPPER" a -tzip -mx=9 "$3" "$2" >/dev/null )
+      "$ZIPPER" a -tzip -mx=9 "$dst_w" "$src_w/*" >/dev/null 2>&1
     else
       powershell -NoProfile -Command \
-        "Compress-Archive -Path (Join-Path '$1' '*') -DestinationPath '$3' -Force"
+        "Compress-Archive -Path (Join-Path '$src_w' '*') -DestinationPath '$dst_w' -Force"
     fi
   }
 
