@@ -47,30 +47,39 @@ build_all() {
   mkdir -p "$OUT_DIR"
 
   echo ""
-  echo "--- [1/4] GUI 自包含（single-file, SelfContained）---"
+  echo "--- [1/5] GUI 自包含（single-file, SelfContained）---"
   dotnet publish "$PROJ_APP" -c Release -r win-x64 \
     -p:PublishSingleFile=true -p:SelfContained=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$OUT_DIR/gui-full"
 
   echo ""
-  echo "--- [2/4] GUI 轻量（framework-dependent）---"
+  echo "--- [2/5] GUI 轻量（framework-dependent）---"
   dotnet publish "$PROJ_APP" -c Release -r win-x64 \
     -p:PublishSingleFile=true -p:SelfContained=false \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$OUT_DIR/gui-light"
 
   echo ""
-  echo "--- [3/4] CLI 自包含 ---"
+  echo "--- [3/5] CLI 自包含 ---"
   dotnet publish "$PROJ_CLI" -c Release -r win-x64 \
     -p:PublishSingleFile=true -p:SelfContained=true \
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$OUT_DIR/cli"
 
   echo ""
-  echo "--- [4/4] GUI+CLI 合体（复用 GUI 产物 + 补 CLI）---"
+  echo "--- [4/5] CLI 轻量（framework-dependent，合入「合并轻量」包）---"
+  dotnet publish "$PROJ_CLI" -c Release -r win-x64 \
+    -p:PublishSingleFile=true -p:SelfContained=false \
+    -p:IncludeNativeLibrariesForSelfExtract=true \
+    -o "$OUT_DIR/cli-light"
+
+  echo ""
+  echo "--- [5/5] 组装 合体自包含 / 合体轻量 ---"
   cp -r "$OUT_DIR/gui-full" "$OUT_DIR/both-full"
   cp "$OUT_DIR/cli"/chert.* "$OUT_DIR/both-full/" 2>/dev/null || true
+  cp -r "$OUT_DIR/gui-light" "$OUT_DIR/both-light"
+  cp "$OUT_DIR/cli-light"/chert.* "$OUT_DIR/both-light/" 2>/dev/null || true
 
   # 分离的 GUI 包要剔掉 CLI 产物：
   # Chert.App 的 publish 目录会带出 chert.*（CLI 引用 Chert.App 时被复制），
@@ -82,6 +91,7 @@ build_all() {
 
   # 合体包里 CLI 改名，避免与界面的 exe 混淆
   ( cd "$OUT_DIR/both-full" && [ -f chert.exe ] && mv -f chert.exe chert-cli.exe ) || true
+  ( cd "$OUT_DIR/both-light" && [ -f chert.exe ] && mv -f chert.exe chert-cli.exe ) || true
 }
 
 list_exes() {
@@ -150,7 +160,7 @@ zip_all() {
   echo ""
   echo "=== 压缩 ==="
   # 合体包沿用对外旧名，保持与历史 latest.json / 用户预期兼容
-  mk_zip "$OUT_DIR/gui-light" "Chert Launcher" "$OUT_DIR/Chert-Light-$VER-win-x64.zip"
+  mk_zip "$OUT_DIR/both-light" "Chert Launcher" "$OUT_DIR/Chert-Light-$VER-win-x64.zip"
   mk_zip "$OUT_DIR/both-full"  "Chert Launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64.zip"
   # 分离包
   mk_zip "$OUT_DIR/gui-full"  "Chert Launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64-gui.zip"
