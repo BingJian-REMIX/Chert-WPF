@@ -327,6 +327,29 @@ public sealed class MetingMusicProvider : IOnlineMusicProvider
         if (e.ValueKind != JsonValueKind.Object) return null;
 
         var id = GetString(e, "id") ?? GetString(e, "url_id") ?? GetString(e, "song_id");
+
+        // Meting 聚合协议搜索/列表响应顶层常常没有 id 字段，
+        // 真正的歌曲 id 藏在播放地址 url 的查询串里（...&id=35847388&auth=...）。
+        if (string.IsNullOrWhiteSpace(id))
+        {
+            var rawUrl = GetString(e, "url");
+            if (!string.IsNullOrWhiteSpace(rawUrl))
+            {
+                var query = rawUrl.IndexOf('?') >= 0
+                    ? rawUrl.Substring(rawUrl.IndexOf('?') + 1)
+                    : rawUrl;
+                foreach (var kv in query.Split('&'))
+                {
+                    var eq = kv.IndexOf('=');
+                    if (eq > 0 && kv.Substring(0, eq) == "id")
+                    {
+                        id = kv.Substring(eq + 1);
+                        break;
+                    }
+                }
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(id)) return null;
 
         string title, artist;

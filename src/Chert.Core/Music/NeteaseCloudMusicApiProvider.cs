@@ -251,8 +251,8 @@ public sealed class NeteaseCloudMusicApiProvider : IOnlineMusicLoginProvider
         return new QrLoginSession
         {
             Key = key!,
-            QrDataUrl = dataUrl,
-            // 服务端没给图（老版本）时留空，由界面层直接用 qrurl 自行生成二维码
+            QrDataUrl = string.IsNullOrEmpty(dataUrl) ? fallback : dataUrl,
+            // qrimg 为空时回落 qrurl：界面直接展示服务端给的二维码图片地址
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
         };
     }

@@ -75,6 +75,10 @@ public static class VersionProfileStore
     /// </summary>
     public static string EffectiveGameDir(string gameRoot, string id, VersionProfile profile)
     {
+        // .mclcs-isolated 标记才是隔离模式的最终真值：目录已隔离则一律走 versions/<id>，
+        // 无论 profile.json 里存的是 Auto 还是 Shared（文件夹状态优先于存储字段）。
+        if (VersionIsolation.IsIsolated(gameRoot, id))
+            return PathEx.VersionDir(gameRoot, id);
         if (profile.Isolation == IsolationMode.Custom &&
             !string.IsNullOrWhiteSpace(profile.CustomGameDir))
             return profile.CustomGameDir!;
