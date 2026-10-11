@@ -57,16 +57,16 @@
     <None Include="Resources\Chert.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-    <!-- 构建后把 Chert.App.exe 额外复制为用户友好的“Chert Launcher.exe”（同时复制 runtimeconfig/deps/pdb）。
-       原 Chert.App.exe 保留，供 CLI 工程通过 ProjectReference 拷贝其 Chert.App 命名空间类型使用。
-       说明：AssemblyName 必须保持 Chert.App（图标 PackUri 与 CLI 类型引用都依赖它），故只能以“复制”方式给出带空格的产品名 exe，
-       而非直接改 AssemblyName（那会复现之前图标全丢 + NuGet 撞名的问题）。 -->
+    <!-- 构建后把 Chert.App.exe 额外复制为用户友好的"chert launcher.exe"（同时复制 runtimeconfig/deps/pdb）。
+        原 Chert.App.exe 保留，供 CLI 工程通过 ProjectReference 拷贝其 Chert.App 命名空间类型使用。
+        说明：AssemblyName 必须保持 Chert.App（图标 PackUri 与 CLI 类型引用都依赖它），故只能以"复制"方式给出带空格的产品名 exe，
+        而非直接改 AssemblyName（那会复现之前图标全丢 + NuGet 撞名的问题）。发布包内的单文件 exe 由 publish-split.sh 在最终产物上改名为 chert launcher.exe。 -->
   <Target Name="RenameLauncherToChert" AfterTargets="Build"
           Inputs="$(OutDir)$(TargetName).exe"
-          Outputs="$(OutDir)Chert Launcher.exe">
+          Outputs="$(OutDir)chert launcher.exe">
     <PropertyGroup>
       <_LauncherSrcBase>$(OutDir)$(TargetName)</_LauncherSrcBase>
-      <_LauncherDstBase>$(OutDir)Chert Launcher</_LauncherDstBase>
+      <_LauncherDstBase>$(OutDir)chert launcher</_LauncherDstBase>
     </PropertyGroup>
     <Copy SourceFiles="$(_LauncherSrcBase).exe"
           DestinationFiles="$(_LauncherDstBase).exe"
@@ -80,11 +80,15 @@
     <Copy SourceFiles="$(_LauncherSrcBase).pdb"
           DestinationFiles="$(_LauncherDstBase).pdb"
           Condition="Exists('$(_LauncherSrcBase).pdb')" />
-    <!-- 清理上一版复制目标产出的旧名（Chert Launcher.exe / Chert.exe / chert.exe 及配套文件），避免与新的“Chert Launcher.exe”“chert.exe”并存造成混淆。 -->
+    <!-- 清理上一版复制目标产出的旧名（Chert Launcher.* / chert launcher.* / Chert.exe / chert.exe 及配套文件），避免与新的"chert launcher.exe""chert.exe"并存造成混淆。 -->
     <Delete Files="$(OutDir)Chert Launcher.exe" Condition="Exists('$(OutDir)Chert Launcher.exe')" />
     <Delete Files="$(OutDir)Chert Launcher.pdb" Condition="Exists('$(OutDir)Chert Launcher.pdb')" />
     <Delete Files="$(OutDir)Chert Launcher.runtimeconfig.json" Condition="Exists('$(OutDir)Chert Launcher.runtimeconfig.json')" />
     <Delete Files="$(OutDir)Chert Launcher.deps.json" Condition="Exists('$(OutDir)Chert Launcher.deps.json')" />
+    <Delete Files="$(OutDir)chert launcher.exe" Condition="Exists('$(OutDir)chert launcher.exe')" />
+    <Delete Files="$(OutDir)chert launcher.pdb" Condition="Exists('$(OutDir)chert launcher.pdb')" />
+    <Delete Files="$(OutDir)chert launcher.runtimeconfig.json" Condition="Exists('$(OutDir)chert launcher.runtimeconfig.json')" />
+    <Delete Files="$(OutDir)chert launcher.deps.json" Condition="Exists('$(OutDir)chert launcher.deps.json')" />
     <Delete Files="$(OutDir)Chert.exe" Condition="Exists('$(OutDir)Chert.exe')" />
     <Delete Files="$(OutDir)MCLCS.pdb" Condition="Exists('$(OutDir)MCLCS.pdb')" />
     <Delete Files="$(OutDir)MCLCS.runtimeconfig.json" Condition="Exists('$(OutDir)MCLCS.runtimeconfig.json')" />

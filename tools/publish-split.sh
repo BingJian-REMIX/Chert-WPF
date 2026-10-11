@@ -60,6 +60,14 @@ build_all() {
     -p:IncludeNativeLibrariesForSelfExtract=true \
     -o "$OUT_DIR/gui-light"
 
+  # GUI 主程序 exe 统一命名为 “chert launcher.exe”（含配套 pdb）；both-* 由 gui 目录复制，自然继承新名
+  for _g in gui-full gui-light; do
+    if [ -f "$OUT_DIR/$_g/Chert.App.exe" ]; then
+      mv -f "$OUT_DIR/$_g/Chert.App.exe" "$OUT_DIR/$_g/chert launcher.exe"
+      [ -f "$OUT_DIR/$_g/Chert.App.pdb" ] && mv -f "$OUT_DIR/$_g/Chert.App.pdb" "$OUT_DIR/$_g/chert launcher.pdb"
+    fi
+  done
+
   echo ""
   echo "--- [3/5] CLI 自包含 ---"
   dotnet publish "$PROJ_CLI" -c Release -r win-x64 \
@@ -68,11 +76,14 @@ build_all() {
     -o "$OUT_DIR/cli"
 
   echo ""
-  echo "--- [4/5] CLI 轻量（framework-dependent，合入「合并轻量」包）---"
+  echo "--- [4/5] CLI 轻量（framework-dependent 多文件，合入「合并轻量」包）---"
   dotnet publish "$PROJ_CLI" -c Release -r win-x64 \
-    -p:PublishSingleFile=true -p:SelfContained=false \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
+    -p:PublishSingleFile=false -p:SelfContained=false \
     -o "$OUT_DIR/cli-light"
+
+  # 清理 CLI 产物里由 Chert.App 依赖发布带入的残留（避免散入合并包）
+  rm -f "$OUT_DIR/cli/Chert.App.runtimeconfig.json" "$OUT_DIR/cli/Chert.App.pdb"
+  rm -f "$OUT_DIR/cli-light/Chert.App.runtimeconfig.json" "$OUT_DIR/cli-light/Chert.App.pdb"
 
   echo ""
   echo "--- [5/5] 组装 合体自包含 / 合体轻量 ---"
@@ -89,9 +100,16 @@ build_all() {
     rm -f "$OUT_DIR/gui-light/$junk"
   done
 
-  # 合体包里 CLI 改名，避免与界面的 exe 混淆
-  ( cd "$OUT_DIR/both-full" && [ -f chert.exe ] && mv -f chert.exe chert-cli.exe ) || true
-  ( cd "$OUT_DIR/both-light" && [ -f chert.exe ] && mv -f chert.exe chert-cli.exe ) || true
+  # 合体包里 CLI 改名，避免与界面的 exe 混淆（含 runtimeconfig/deps，framework-dependent 时必需）
+  for _b in both-full both-light; do
+    ( cd "$OUT_DIR/$_b" || exit 0
+      [ -f chert.exe ] && mv -f chert.exe chert-cli.exe
+      [ -f chert.runtimeconfig.json ] && mv -f chert.runtimeconfig.json chert-cli.runtimeconfig.json
+      [ -f chert.deps.json ] && mv -f chert.deps.json chert-cli.deps.json
+      [ -f Chert.App.runtimeconfig.json ] && rm -f Chert.App.runtimeconfig.json
+      [ -f Chert.App.pdb ] && rm -f Chert.App.pdb
+    ) || true
+  done
 }
 
 list_exes() {
@@ -160,10 +178,10 @@ zip_all() {
   echo ""
   echo "=== 压缩 ==="
   # 合体包沿用对外旧名，保持与历史 latest.json / 用户预期兼容
-  mk_zip "$OUT_DIR/both-light" "Chert Launcher" "$OUT_DIR/Chert-Light-$VER-win-x64.zip"
-  mk_zip "$OUT_DIR/both-full"  "Chert Launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64.zip"
+  mk_zip "$OUT_DIR/both-light" "chert launcher" "$OUT_DIR/Chert-Light-$VER-win-x64.zip"
+  mk_zip "$OUT_DIR/both-full"  "chert launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64.zip"
   # 分离包
-  mk_zip "$OUT_DIR/gui-full"  "Chert Launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64-gui.zip"
+  mk_zip "$OUT_DIR/gui-full"  "chert launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64-gui.zip"
   mk_zip "$OUT_DIR/cli"       "chert-cli"      "$OUT_DIR/chert-cli-$VER-win-x64.zip"
 
   echo ""

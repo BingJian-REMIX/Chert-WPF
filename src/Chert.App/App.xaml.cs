@@ -68,7 +68,7 @@ public partial class App : Application
             // 兜底取当前进程主模块路径，确保无论改名与否都能定位到真正的 exe 同目录。
             var exePath = Environment.ProcessPath
                           ?? (System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName)
-                          ?? Path.Combine(AppContext.BaseDirectory, "Chert Launcher.exe");
+                          ?? Path.Combine(AppContext.BaseDirectory, "chert launcher.exe");
             var dir = Path.GetDirectoryName(exePath) ?? AppContext.BaseDirectory;
             var logPath = Path.Combine(dir, "chert_crash.log");
             var sb = new StringBuilder();
