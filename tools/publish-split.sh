@@ -81,16 +81,21 @@ build_all() {
     -p:PublishSingleFile=false -p:SelfContained=false \
     -o "$OUT_DIR/cli-light"
 
-  # 清理 CLI 产物里由 Chert.App 依赖发布带入的残留（避免散入合并包）
-  rm -f "$OUT_DIR/cli/Chert.App.runtimeconfig.json" "$OUT_DIR/cli/Chert.App.pdb"
-  rm -f "$OUT_DIR/cli-light/Chert.App.runtimeconfig.json" "$OUT_DIR/cli-light/Chert.App.pdb"
+  # 清理 CLI 产物里由 Chert.App 依赖发布带入的残留（避免散入合并包，也不应出现在待签名清单）
+  for _c in cli cli-light; do
+    rm -f "$OUT_DIR/$_c/Chert.App.exe" "$OUT_DIR/$_c/Chert.App.dll" \
+          "$OUT_DIR/$_c/Chert.App.pdb" "$OUT_DIR/$_c/Chert.App.runtimeconfig.json" \
+          "$OUT_DIR/$_c/Chert.App.deps.json"
+  done
 
   echo ""
   echo "--- [5/5] 组装 合体自包含 / 合体轻量 ---"
   cp -r "$OUT_DIR/gui-full" "$OUT_DIR/both-full"
   cp "$OUT_DIR/cli"/chert.* "$OUT_DIR/both-full/" 2>/dev/null || true
   cp -r "$OUT_DIR/gui-light" "$OUT_DIR/both-light"
-  cp "$OUT_DIR/cli-light"/chert.* "$OUT_DIR/both-light/" 2>/dev/null || true
+  # 合并轻量包的 CLI 部分：cli-light 是 framework-dependent 多文件，必须复制其全部依赖 dll，
+  # 仅复制 chert.* 会缺失 Chert.Core.dll 等，导致 chert-cli.exe 无法启动
+  cp -r "$OUT_DIR/cli-light"/. "$OUT_DIR/both-light/" 2>/dev/null || true
 
   # 分离的 GUI 包要剔掉 CLI 产物：
   # Chert.App 的 publish 目录会带出 chert.*（CLI 引用 Chert.App 时被复制），
@@ -106,8 +111,10 @@ build_all() {
       [ -f chert.exe ] && mv -f chert.exe chert-cli.exe
       [ -f chert.runtimeconfig.json ] && mv -f chert.runtimeconfig.json chert-cli.runtimeconfig.json
       [ -f chert.deps.json ] && mv -f chert.deps.json chert-cli.deps.json
-      [ -f Chert.App.runtimeconfig.json ] && rm -f Chert.App.runtimeconfig.json
-      [ -f Chert.App.pdb ] && rm -f Chert.App.pdb
+      # 清理合并时从 cli-light 带入的 Chert.App.* 残留（GUI 程序集，CLI 运行不需要）
+      for _j in Chert.App.exe Chert.App.dll Chert.App.pdb Chert.App.runtimeconfig.json Chert.App.deps.json; do
+        [ -f "$_j" ] && rm -f "$_j"
+      done
     ) || true
   done
 }
