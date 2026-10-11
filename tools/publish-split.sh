@@ -2,15 +2,18 @@
 # ============================================================
 #  Chert 发布打包脚本（2026-10-03 起）
 # ============================================================
-#  产出四个包：
+#  产出六个包（2026-10-11 用户最终约定）：
 #    1) Chert-Launcher-{ver}-win-x64.zip          GUI+CLI 合体·自包含（兼容旧用户）
 #    2) Chert-Light-{ver}-win-x64.zip              GUI+CLI 合体·轻量
 #    3) Chert-Launcher-{ver}-win-x64-gui.zip      仅 GUI·自包含（主用）
 #    4) chert-cli-{ver}-win-x64.zip                仅 CLI·自包含
+#    5) Chert-Light-{ver}-win-x64-gui.zip          仅 GUI·轻量（framework-dependent）
+#    6) chert-cli-light-{ver}-win-x64.zip          仅 CLI·轻量（framework-dependent）
 #
 #  为什么同时保留合体包与分离包：
-#    合体包（2.6.0 实测 110.86 MB）里 GUI 与 CLI 各带一份 .NET 运行时；
-#    只要界面的用户装分离包可省 44%。合体包保留给「一个包搞定」的场景与旧用户。
+#    合体包里 GUI 与 CLI 各带一份 .NET 运行时；
+#    只要界面的用户装分离包可省可观体积。合体包保留给「一个包搞定」的场景与旧用户。
+#    轻量包为 framework-dependent，需目标机已安装 .NET 10 桌面运行时。
 #
 #  ★ 签名流程（2026-10-03 用户约定）：
 #    本脚本跑到构建完成为止 → 提示人工做数字签名 → 再跑 --sign-done 续做（验签 + 压缩）。
@@ -190,13 +193,16 @@ zip_all() {
   }
 
   echo ""
-  echo "=== 压缩 ==="
+  echo "=== 压缩（六个包）==="
   # 合体包沿用对外旧名，保持与历史 latest.json / 用户预期兼容
   mk_zip "$OUT_DIR/both-light" "chert launcher" "$OUT_DIR/Chert-Light-$VER-win-x64.zip"
   mk_zip "$OUT_DIR/both-full"  "chert launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64.zip"
-  # 分离包
+  # 自包含分离包
   mk_zip "$OUT_DIR/gui-full"  "chert launcher" "$OUT_DIR/Chert-Launcher-$VER-win-x64-gui.zip"
   mk_zip "$OUT_DIR/cli"       "chert-cli"      "$OUT_DIR/chert-cli-$VER-win-x64.zip"
+  # 轻量分离包（framework-dependent，需目标机已装 .NET 10 桌面运行时）
+  mk_zip "$OUT_DIR/gui-light" "chert launcher" "$OUT_DIR/Chert-Light-$VER-win-x64-gui.zip"
+  mk_zip "$OUT_DIR/cli-light" "chert-cli"      "$OUT_DIR/chert-cli-light-$VER-win-x64.zip"
 
   echo ""
   echo "=== 产出 ==="
@@ -205,18 +211,23 @@ zip_all() {
   cat <<EOF
 
 --- 下一步（发布时）---
-1. 上传这四个 zip 到 Release：v$VER
-     Chert-Launcher-$VER-win-x64.zip          （GUI+CLI 自包含）
-     Chert-Light-$VER-win-x64.zip              （GUI+CLI 轻量）
-     Chert-Launcher-$VER-win-x64-gui.zip      （仅 GUI 自包含）
-     chert-cli-$VER-win-x64.zip                （仅 CLI 自包含）
+1. 上传这六个 zip 到 Release：v$VER
+     Chert-Launcher-$VER-win-x64.zip          （GUI+CLI 合体·自包含）
+     Chert-Light-$VER-win-x64.zip              （GUI+CLI 合体·轻量）
+     Chert-Launcher-$VER-win-x64-gui.zip      （仅 GUI·自包含）
+     chert-cli-$VER-win-x64.zip                （仅 CLI·自包含）
+     Chert-Light-$VER-win-x64-gui.zip          （仅 GUI·轻量）
+     chert-cli-light-$VER-win-x64.zip          （仅 CLI·轻量）
 2. 更新 https://chert-launcher.github.io/latest.json 的 wpf 段：
      "guiAvailable": true,
      "guiDownloadUrl": ".../Chert-Launcher-$VER-win-x64-gui.zip",
-     "guiLightDownloadUrl": ".../Chert-Light-$VER-win-x64.zip",
+     "guiLightAvailable": true,
+     "guiLightDownloadUrl": ".../Chert-Light-$VER-win-x64-gui.zip",
      "cliAvailable": true,
-     "cliDownloadUrl": ".../chert-cli-$VER-win-x64.zip"
-   旧字段 downloadUrl 指向合体自包含包（保留一段过渡期，代码仍优先读新字段）。
+     "cliDownloadUrl": ".../chert-cli-$VER-win-x64.zip",
+     "cliLightAvailable": true,
+     "cliLightDownloadUrl": ".../chert-cli-light-$VER-win-x64.zip"
+   旧字段 downloadUrl / lightDownloadUrl 分别指向合体自包含 / 合体轻量（保留过渡期，代码优先读新字段）。
 3. 用户在更新弹窗选「只更新界面」或「全部更新」。
 EOF
 }
