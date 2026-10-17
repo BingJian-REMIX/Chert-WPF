@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Chert.App.Services;
 using Chert.Core.Hud;
 using Chert.Core.Profiles;
 using Chert.Core.Utils;
@@ -32,6 +34,8 @@ public class HudOverlayWindow : Window
     private readonly HudMetricsProvider _provider = new();
     private readonly TextBlock _text;
     private Process? _gameProcess;
+    /// <summary>游戏窗口句柄（进程启动后异步获取，用于把 HUD 绑到游戏窗口上）。</summary>
+    private IntPtr _gameHwnd;
     private long _maxMemoryMb;
     private HudConfig _config = new();
     private bool _isDragging;
@@ -149,7 +153,34 @@ public class HudOverlayWindow : Window
         _timer.Start();
         Show();
         Activate();
+        // 游戏窗口稍后才创建，后台等待句柄后把 HUD 绑到游戏窗口上（不阻塞界面）
+        _ = Task.Run(() =>
+        {
+            _gameHwnd = GameKeySender.FindGameWindow(process);
+            if (_gameHwnd != IntPtr.Zero)
+                Dispatcher.BeginInvoke(new Action(AttachToGameWindow));
+        });
     }
+    /// <summary>
+    /// 把覆盖层的原生宿主窗口设为<b>游戏窗口</b>。
+    /// <para>
+    /// 此前覆盖层把 WPF 的 Owner 设成了启动器主窗口，于是点击覆盖层时 Windows
+    /// 会把 owner 链一起带到前台 —— 启动器被置顶、游戏反而失去焦点。
+    /// </para>
+    /// <para>
+    /// 这里用 <see cref="WindowInteropHelper.Owner"/>（原生句柄）而不是 WPF 的
+    /// <see cref="Window.Owner"/>：后者要求一个 WPF Window 对象，并会连带启用
+    /// 「最小化 / 关闭联动」语义，而这里只需要原生 owner 关系 ——
+    /// 覆盖层 Z 序跟随游戏窗口，且点击覆盖层时系统激活的是游戏而非启动器。
+    /// </para>
+    /// </summary>
+    private void AttachToGameWindow()
+    {
+        if (_gameHwnd == IntPtr.Zero) return;
+        try { new WindowInteropHelper(this).Owner = _gameHwnd; }
+        catch { /* 绑定失败不影响覆盖层使用，退回普通 Topmost 行为 */ }
+    }
+
 
     /// <summary>检查设置并激活 HUD（仅在 Hud.Enabled 且 Instance 已创建时调用）。</summary>
     public static void TryShow(Process gameProcess, long maxMemoryMb = 0)
@@ -161,7 +192,8 @@ public class HudOverlayWindow : Window
             Instance = new HudOverlayWindow();
             Application.Current.Dispatcher.Invoke(() =>
             {
-                Instance.Owner = Application.Current.MainWindow;
+                // 不设 WPF 的 Owner：HUD 是游戏覆盖层，挂到启动器主窗口名下会让点击
+                // HUD 时把启动器带到前台。改为绑定游戏窗口（见 AttachGame）。
                 Instance.Show();
             });
         }

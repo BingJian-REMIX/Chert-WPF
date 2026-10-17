@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Chert.App.Services;
@@ -247,11 +248,36 @@ public class TouchOverlayWindow : Window
         _ = Task.Run(() =>
         {
             _gameHwnd = GameKeySender.FindGameWindow(process);
+            if (_gameHwnd != IntPtr.Zero)
+            {
+                // 句柄就绪后把面板绑到游戏窗口：点击面板激活游戏，而不是把启动器带上来。
+                Dispatcher.BeginInvoke(new Action(AttachToGameWindow));
+            }
             // 句柄就绪后才开始跟随：首轮 GetWindowRect 拿不到窗口会静默跳过，
             // 但为省一次无效轮询，等句柄有了再启定时器。
             Dispatcher.BeginInvoke(new Action(StartFollowing));
         });
         Show();
+    }
+
+    /// <summary>
+    /// 把覆盖层的原生宿主窗口设为<b>游戏窗口</b>。
+    /// <para>
+    /// 此前覆盖层把 WPF 的 Owner 设成了启动器主窗口，于是点击覆盖层时 Windows
+    /// 会把 owner 链一起带到前台 —— 启动器被置顶、游戏反而失去焦点。
+    /// </para>
+    /// <para>
+    /// 这里用 <see cref="WindowInteropHelper.Owner"/>（原生句柄）而不是 WPF 的
+    /// <see cref="Window.Owner"/>：后者要求一个 WPF Window 对象，并会连带启用
+    /// 「最小化 / 关闭联动」语义，而这里只需要原生 owner 关系 ——
+    /// 覆盖层 Z 序跟随游戏窗口，且点击覆盖层时系统激活的是游戏而非启动器。
+    /// </para>
+    /// </summary>
+    private void AttachToGameWindow()
+    {
+        if (_gameHwnd == IntPtr.Zero) return;
+        try { new WindowInteropHelper(this).Owner = _gameHwnd; }
+        catch { /* 绑定失败不影响覆盖层使用，退回普通 Topmost 行为 */ }
     }
 
     private void OnGameExited(object? sender, EventArgs e)
@@ -310,7 +336,10 @@ public class TouchOverlayWindow : Window
             {
                 if (Instance is null || !Instance.IsLoaded)
                 {
-                    Instance = new TouchOverlayWindow { Owner = Application.Current.MainWindow };
+                    // 不设 WPF 的 Owner：那会把面板挂到启动器主窗口名下，点击面板时
+                    // Windows 会把启动器一起带到前台（游戏反而失去焦点）。
+                    // 改为在拿到游戏窗口句柄后绑定到游戏窗口（见 AttachToGameWindow）。
+                    Instance = new TouchOverlayWindow();
                 }
                 Instance.AttachGame(gameProcess);
             });
