@@ -263,16 +263,16 @@ public class VersionSettingsViewModel : ObservableObject
                     OnPropertyChanged(nameof(ExtraJvmArgsText));
             };
 
-        var saved = VersionProfileStore.HasProfile(gameRoot, versionId);
         var p = VersionProfileStore.Load(gameRoot, versionId);
 
         _displayName = p.DisplayName;
-        // 实际隔离状态以 .mclcs-isolated marker 为准（与启动器 GameDirFor 一致）：
-        // marker 存在 = 版本实际隔离，下拉以 Auto 回显，确保「展示/操作目录」与游戏实际运行目录一致；
-        // marker 不存在时，未保存过设置则回落共享根，已保存则用已存的 Isolation 字段。
-        var actuallyIsolated = VersionIsolation.IsIsolated(gameRoot, versionId);
-        _isolation = actuallyIsolated ? IsolationMode.Auto
-            : (saved ? p.Isolation : IsolationMode.Shared);
+        // 方案甲：回显以 .mclcs-isolated marker 为唯一真值（与启动链路 GameDirFor 一致）。
+        // marker 存在 = 版本实际隔离 → 下拉以 Auto 回显；
+        // marker 不存在时，仅 Custom 保留（自定义目录是物理隔离、不依赖标记），
+        // 其余一律按共享根回显，杜绝「显示隔离 / 实机共享」或反之的分裂（issue #5 bug1）。
+        _isolation = VersionIsolation.IsIsolated(gameRoot, versionId)
+            ? IsolationMode.Auto
+            : (p.Isolation == IsolationMode.Custom ? IsolationMode.Custom : IsolationMode.Shared);
         _customGameDir = p.CustomGameDir;
         _javaPath = p.JavaPath;
         _maxMemoryMb = p.MaxMemoryMb;

@@ -366,10 +366,44 @@ public class LauncherService : ILogger
         // 安装成功：通知各页面（游戏页快速启动下拉）刷新版本列表，使新下载的版本立即可见。
         if (!string.IsNullOrEmpty(id))
         {
+            // issue #5：按全局「新建版本默认隔离」落地隔离状态。
+            // 此前原版 / Fabric / Forge / NeoForge / Quilt 安装全程不落隔离状态：
+            // 既没有 .mclcs-isolated 标记也没有 profile.json，于是启动走共享根、
+            // 而版本设置按 profile 默认 Auto 判定为隔离 —— 两套真值分裂。
+            ApplyDefaultIsolation(id);
             try { VersionInstalled?.Invoke(id); } catch { }
             RaiseVersionListChanged();
         }
         return id;
+    }
+
+    /// <summary>
+    /// 安装 / 导入一个新版本后，按全局「新建版本默认隔离」落地隔离状态（issue #5）。
+    /// <para>
+    /// 方案甲要求 .mclcs-isolated 标记是隔离的唯一真值，因此全局默认<b>不能</b>只在
+    /// 「读取 profile.json 时」生效（那会出现「读出来是 Auto、标记却没有」的分裂），
+    /// 而必须在安装完成的这一刻就落到文件系统上。
+    /// </para>
+    /// </summary>
+    private void ApplyDefaultIsolation(string id)
+    {
+        try
+        {
+            var mode = ProfileStore.Load(GameRoot).DefaultVersionIsolation;
+            // Custom 需要具体目录路径，安装流程里没有可填的上下文 → 退化为自动隔离
+            if (mode == IsolationMode.Custom) mode = IsolationMode.Auto;
+
+            var vp = VersionProfileStore.Load(GameRoot, id);
+            vp.Isolation = mode;
+            // 先落文件系统状态：Auto 建 .mclcs-isolated 并预建子目录，Shared 移除标记
+            VersionProfileStore.ApplyIsolation(GameRoot, id, vp);
+            // 再写 profile.json，使版本设置页的回显与实际状态一致
+            VersionProfileStore.Save(GameRoot, id, vp);
+        }
+        catch
+        {
+            // 落状态失败不影响安装结果本身，交由用户在版本设置里手动调整
+        }
     }
 
     // ---- 启动 ----

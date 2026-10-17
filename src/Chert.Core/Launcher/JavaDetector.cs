@@ -105,7 +105,12 @@ public static class JavaDetector
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Zulu"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "BellSoft", "Liberica"),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Java"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), ".minecraft", "runtime")
+                // 跟随「设置 → 启动」的自定义游戏目录（issue #5 bug2：
+                // 此前硬编码 %APPDATA%/.minecraft/runtime，用户把游戏目录改到别处后
+                // 仍然只去 C 盘找 runtime → 找不到已装的 Java → 误判缺失）
+                Path.Combine(GameConstants.DefaultGameRoot, "runtime"),
+                // 系统默认目录兜底：官方启动器 / 旧版本安装的 Java 通常在这里
+                Path.Combine(GameConstants.SystemGameRoot, "runtime")
             })
                 if (Directory.Exists(baseDir)) candidates.Add(baseDir);
         }

@@ -9,7 +9,10 @@ namespace Chert.Core.Profiles;
 /// 每版本配置读写（versions/&lt;id&gt;/profile.json）+ 有效游戏目录解析。
 /// <para>
 /// 隔离优先级：<b>自定义目录 &gt; 自动隔离(versions/&lt;id&gt;) &gt; 共享根</b>。
-/// 自动隔离沿用 <see cref="VersionIsolation"/> 的 .mclcs-isolated 标记，保持与既有启动链路一致。
+/// <para>自动隔离的<b>唯一真值</b>是 <see cref="VersionIsolation"/> 的 .mclcs-isolated 标记，
+/// 与启动链路 <see cref="VersionIsolation.GameDirFor"/> 完全一致：profile.json 里的
+/// Isolation=Auto 只在标记存在时成立，不再单独生效。这样「版本设置显示」与
+/// 「游戏实际工作目录」永不分裂（issue #5 bug1/bug4）。</para>
 /// </para>
 /// </summary>
 public static class VersionProfileStore
@@ -23,9 +26,18 @@ public static class VersionProfileStore
         var path = ProfilePath(gameRoot, id);
         if (!File.Exists(path))
         {
-            // bug2.txt #9：新建版本（尚无 profile.json）默认套用全局「新建版本默认隔离」设置
+            // issue #5：无 profile.json 时，默认隔离状态一律以 .mclcs-isolated 标记为准
+            // （方案甲：标记存在 = Auto，不存在 = Shared），与启动链路 GameDirFor 完全一致。
+            // 全局「新建版本默认隔离」改由安装完成时落地（LauncherService.ApplyDefaultIsolation），
+            // 不再在读取时凭空套用 —— 否则会出现「读出来是 Auto、标记却没有」的分裂。
             var def = new VersionProfile();
-            try { def.Isolation = ProfileStore.Load(GameConstants.DefaultGameRoot).DefaultVersionIsolation; } catch { }
+            try
+            {
+                def.Isolation = VersionIsolation.IsIsolated(gameRoot, id)
+                    ? IsolationMode.Auto
+                    : IsolationMode.Shared;
+            }
+            catch { }
             return def;
         }
         try
@@ -75,15 +87,16 @@ public static class VersionProfileStore
     /// </summary>
     public static string EffectiveGameDir(string gameRoot, string id, VersionProfile profile)
     {
-        // .mclcs-isolated 标记才是隔离模式的最终真值：目录已隔离则一律走 versions/<id>，
+        // 方案甲：.mclcs-isolated 标记才是隔离模式的唯一真值：目录已隔离则一律走 versions/<id>，
         // 无论 profile.json 里存的是 Auto 还是 Shared（文件夹状态优先于存储字段）。
         if (VersionIsolation.IsIsolated(gameRoot, id))
             return PathEx.VersionDir(gameRoot, id);
         if (profile.Isolation == IsolationMode.Custom &&
             !string.IsNullOrWhiteSpace(profile.CustomGameDir))
             return profile.CustomGameDir!;
-        if (profile.Isolation == IsolationMode.Auto)
-            return PathEx.VersionDir(gameRoot, id);
+        // 无标记时不再按 profile 的 Auto 偷偷隔离：与启动链路 GameDirFor 保持一致。
+        // 此前这里会返回 versions/<id>，于是 mods / resourcepacks 被装进版本目录，
+        // 而游戏启动时按标记判定去 gameRoot 找 → 加载不到 mod、语言文件丢失（issue #5 bug4）。
         return gameRoot;
     }
 
