@@ -106,8 +106,8 @@ public sealed class HolidayConfig
         // 1) 紧急开关最高优先：命中任一已知档期即生效
         if (!string.IsNullOrWhiteSpace(ActiveOverride))
         {
-            var forced = Seasons.FirstOrDefault(s =>
-                string.Equals(s.Key, ActiveOverride, StringComparison.OrdinalIgnoreCase));
+            var ov = NormalizeKey(ActiveOverride);
+            var forced = Seasons.FirstOrDefault(s => NormalizeKey(s.Key) == ov);
             if (forced is not null) return forced;
         }
 
@@ -150,6 +150,10 @@ public sealed class HolidayConfig
         md = month * 100 + day;
         return true;
     }
+
+    /// <summary>节日 key 归一化：转小写并去掉下划线，兼容 <c>mid_autumn</c> 与 <c>midautumn</c>（与 SeasonalThemeManager 保持一致）。</summary>
+    private static string NormalizeKey(string key) =>
+        (key ?? "").Trim().ToLowerInvariant().Replace("_", "");
 
     /// <summary>
     /// 载入配置：远程优先，失败退到本地缓存，再退到内置默认。本方法不抛异常。

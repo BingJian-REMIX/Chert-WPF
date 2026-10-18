@@ -25,8 +25,13 @@ public static class SeasonalThemeManager
     private static readonly Dictionary<string, string> OverlayFiles =
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["midautumn"] = "MidAutumnOverlay.xaml"
+            ["midautumn"] = "MidAutumnOverlay.xaml",
+            ["chongyang"] = "ChongyangOverlay.xaml"
         };
+
+    /// <summary>节日 key 归一化：转小写并去掉下划线，兼容远程 <c>mid_autumn</c> 与代码 <c>midautumn</c> 两种写法（跨端命名统一，见 launcher/config.json）。</summary>
+    private static string NormalizeKey(string key) =>
+        (key ?? "").Trim().ToLowerInvariant().Replace("_", "");
 
     private static ResourceDictionary? _overlay;
     private static string _activeKey = "";
@@ -102,19 +107,19 @@ public static class SeasonalThemeManager
             }
 
             _season = season;
-            _activeKey = season.Key;
+            _activeKey = NormalizeKey(season.Key);
 
             if (!TryLoadOverlay(season.Key, out var dict) || dict is null)
             {
                 // 特效层缺失不影响内容类功能（活动 / 公告 / 音频）
-                ApplySeasonContent(config, season.Key, gameRoot);
+                ApplySeasonContent(config, _activeKey, gameRoot);
                 return;
             }
 
             _overlay = dict;
             Reapply();
-            GreetOnce(season.Key);
-            ApplySeasonContent(config, season.Key, gameRoot);
+            GreetOnce(_activeKey);
+            ApplySeasonContent(config, _activeKey, gameRoot);
         }
         catch
         {
@@ -189,7 +194,8 @@ public static class SeasonalThemeManager
     private static bool TryLoadOverlay(string key, out ResourceDictionary? dict)
     {
         dict = null;
-        if (!OverlayFiles.TryGetValue(key, out var file)) return false;
+        var nk = NormalizeKey(key);
+        if (!OverlayFiles.TryGetValue(nk, out var file)) return false;
 
         try
         {

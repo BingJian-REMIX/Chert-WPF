@@ -2183,6 +2183,11 @@ public static class LocaleManager
   ""seasonal.midautumn.splash.title"": ""中秋快乐"",
 
   ""seasonal.midautumn.splash.message"": ""愿此夜月色常伴你的每一次冒险"",
+  ""seasonal.chongyang.greeting.title"": ""重阳节安康"",
+  ""seasonal.chongyang.greeting.message"": ""九九重阳，愿您步步登高、安康顺遂～（可在设置中关闭节日特效）"",
+  ""seasonal.chongyang.name"": ""重阳节"",
+  ""seasonal.chongyang.splash.title"": ""重阳安康"",
+  ""seasonal.chongyang.splash.message"": ""登高望远，秋色正好，愿这程旅途常有暖阳相伴"",
 
   ""seasonal.hub_title"": ""节日中心"",
 
@@ -4583,6 +4588,11 @@ public static class LocaleManager
   ""seasonal.midautumn.splash.title"": ""Happy Mid-Autumn"",
 
   ""seasonal.midautumn.splash.message"": ""May the moonlight guide every adventure ahead"",
+  ""seasonal.chongyang.greeting.title"": ""Happy Double Ninth Festival"",
+  ""seasonal.chongyang.greeting.message"": ""Wishing you health and high spirits on this climbing day. Seasonal effects can be turned off in Settings."",
+  ""seasonal.chongyang.name"": ""Double Ninth Festival"",
+  ""seasonal.chongyang.splash.title"": ""Happy Double Ninth"",
+  ""seasonal.chongyang.splash.message"": ""Climb high, look far; may warm sunlight attend every journey"",
 
   ""seasonal.hub_title"": ""Festival Hub"",
 
@@ -6899,6 +6909,11 @@ public static class LocaleManager
   ""seasonal.midautumn.splash.title"": ""中秋快樂"",
 
   ""seasonal.midautumn.splash.message"": ""願此夜月色常伴你的每一次冒險"",
+  ""seasonal.chongyang.greeting.title"": ""重陽節安康"",
+  ""seasonal.chongyang.greeting.message"": ""九九重陽，願您步步登高、安康順遂～（可在設定中關閉節日特效）"",
+  ""seasonal.chongyang.name"": ""重陽節"",
+  ""seasonal.chongyang.splash.title"": ""重陽安康"",
+  ""seasonal.chongyang.splash.message"": ""登高望遠，秋色正好，願這程旅途常有暖陽相伴"",
 
   ""seasonal.hub_title"": ""節日中心"",
 
