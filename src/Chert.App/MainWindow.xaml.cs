@@ -1344,6 +1344,25 @@ public partial class MainWindow : Window
 
         Closing += (_, _) => Chert.App.Services.GlobalHotkeyService.Detach();
 
+        // 启动器退出时一并关闭 HUD / 触屏覆盖层：这两者是用 Show() 打开的顶层窗口，
+        // 默认 ShutdownMode=OnLastWindowClose 下会因为它们还开着而把整个进程挂住，
+        // 表现为「主窗口关了但 HUD 还飘在屏幕上、进程没退」。此处主动关掉，启动器才能干净退出。
+        Closing += (_, _) =>
+        {
+            try
+            {
+                var hud = Chert.App.Views.HudOverlayWindow.Instance;
+                if (hud is not null) hud.Dispatcher.Invoke(() => hud.Close());
+            }
+            catch { /* 非关键，关不掉也不影响退出 */ }
+            try
+            {
+                var touch = Chert.App.Views.TouchOverlayWindow.Instance;
+                if (touch is not null) touch.Dispatcher.Invoke(() => touch.Close());
+            }
+            catch { /* 非关键 */ }
+        };
+
 
 
         // 关闭前提醒：此前带一堆下载在跑也直接退出，进度全丢、.part 残留，用户毫不知情

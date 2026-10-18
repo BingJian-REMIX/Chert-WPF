@@ -36,7 +36,7 @@ public partial class SeasonalSplashWindow : Window
             BeginAnimation(OpacityProperty,
                 new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280)));
 
-            _closeTimer.Interval = TimeSpan.FromMilliseconds(1500);
+            _closeTimer.Interval = TimeSpan.FromMilliseconds(3000);
             _closeTimer.Tick += (_, _) => FadeOut();
             _closeTimer.Start();
         }

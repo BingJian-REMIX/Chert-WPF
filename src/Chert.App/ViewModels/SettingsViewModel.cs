@@ -536,6 +536,9 @@ public class SettingsViewModel : ObservableObject
 
     public ICommand ResetHudCommand { get; }
 
+    /// <summary>手动唤出 HUD 用于摆放位置/预览（不依赖游戏进程）。</summary>
+    public ICommand ShowHudCommand { get; }
+
 
 
     private void ResetHud()
@@ -566,6 +569,13 @@ public class SettingsViewModel : ObservableObject
 
         StatusMessage = "已恢复 HUD 默认配置";
 
+    }
+
+    /// <summary>手动唤出 HUD（设置页「唤出 HUD」按钮）：便于在无游戏时摆放位置。</summary>
+    private void ShowHud()
+    {
+        try { Chert.App.Views.HudOverlayWindow.ShowStandalone(); }
+        catch { /* 非关键 */ }
     }
 
 
@@ -1946,9 +1956,13 @@ public class SettingsViewModel : ObservableObject
 
         ResetHudCommand = new RelayCommand(_ => ResetHud());
 
+        ShowHudCommand = new RelayCommand(_ => ShowHud());
+
         EditTouchLayoutCommand = new RelayCommand(_ => EditTouchLayout());
 
         ResetTouchLayoutCommand = new RelayCommand(_ => ResetTouchLayout());
+
+        ShowTouchCommand = new RelayCommand(_ => ShowTouch());
 
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as AccountEntry));
 
@@ -2007,6 +2021,8 @@ public class SettingsViewModel : ObservableObject
         // 同步运行时 AI 配置
 
         Assistant.Config = profile.Ai ?? new AiConfig();
+        Chert.Core.Ai.OllamaManager.MirrorRegistryUrl = Chert.Core.Ai.Assistant.Config.OllamaMirrorUrl;
+        Chert.Core.Ai.OllamaManager.InstallerMirrorUrl = Chert.Core.Ai.Assistant.Config.OllamaInstallerMirrorUrl;
 
 
 
@@ -2542,6 +2558,9 @@ public class SettingsViewModel : ObservableObject
 
     public ICommand ResetTouchLayoutCommand { get; }
 
+    /// <summary>手动唤出触屏控制面板用于摆放位置/预览（不依赖游戏进程）。</summary>
+    public ICommand ShowTouchCommand { get; }
+
 
 
     private void EditTouchLayout()
@@ -2610,6 +2629,13 @@ public class SettingsViewModel : ObservableObject
 
         try { Chert.App.Views.TouchOverlayWindow.ApplyConfig(d); } catch { }
 
+    }
+
+    /// <summary>手动唤出触屏控制面板（设置页「控制 UI」按钮）：便于在无游戏时摆放位置。</summary>
+    private void ShowTouch()
+    {
+        try { Chert.App.Views.TouchOverlayWindow.ShowStandalone(); }
+        catch { /* 非关键 */ }
     }
 
 
@@ -2975,6 +3001,8 @@ public class SettingsViewModel : ObservableObject
         ApplyLanguage();
 
         Assistant.Config = profile.Ai;
+        Chert.Core.Ai.OllamaManager.MirrorRegistryUrl = Chert.Core.Ai.Assistant.Config.OllamaMirrorUrl;
+        Chert.Core.Ai.OllamaManager.InstallerMirrorUrl = Chert.Core.Ai.Assistant.Config.OllamaInstallerMirrorUrl;
 
 
 

@@ -33,6 +33,22 @@ public class AiConfig
     public bool CrashInterpret { get; set; } = true;
     public bool RecommendReason { get; set; } = true;
     public bool ModTranslate { get; set; } = true;
+    /// <summary>
+    /// 本地部署的 Ollama 镜像源（registry mirror），对应 ollama 的 <c>OLLAMA_REGISTRY</c> 环境变量。
+    /// 留空 = 使用官方源 <c>registry.ollama.ai</c>；填写后启动 <c>ollama pull</c> / <c>ollama serve</c> 时
+    /// 注入该环境变量，使模型权重改从该镜像拉取（国内常见：上海交大
+    /// <c>https://ollama.mirrors.sjtug.sjtu.edu.cn</c>、中科大 <c>https://mirrors.ustc.edu.cn/ollama/</c>）。
+    /// 注意：镜像可用性随版本变化，建议先在轻量模型上试拉验证速度；变量末尾不要带斜杠。
+    /// </summary>
+    public string? OllamaMirrorUrl { get; set; }
+
+    /// <summary>
+    /// 安装器下载镜像源：非空时，Ollama 安装流程改用该地址下载安装器（加速国内拉取，绕过 ollama.com 直连）。
+    /// 留空 = 使用官方安装器地址。对应 <c>OllamaManager.InstallerMirrorUrl</c>。
+    /// 提示：Windows 可填 GitHub 代理（如 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe），
+    /// 该地址始终重定向到最新版安装器；变量末尾不要带斜杠。
+    /// </summary>
+    public string? OllamaInstallerMirrorUrl { get; set; }
 }
 
 /// <summary>一条对话消息。role 为 system / user / assistant —— 与 OpenAI 兼容接口、Ollama /api/chat 同名同义。</summary>

@@ -121,6 +121,22 @@ public class AiSettingsViewModel : ObservableObject
     public bool ModelReady { get => _modelReady; set => SetField(ref _modelReady, value); }
     public OllamaServiceStatus OllamaServiceStatus { get => _ollamaServiceStatus; set => SetField(ref _ollamaServiceStatus, value); }
 
+    private string _ollamaMirrorUrl = "";
+    /// <summary>Ollama 镜像源（registry mirror），对应 ollama 的 OLLAMA_REGISTRY 环境变量。留空 = 官方源。</summary>
+    public string OllamaMirrorUrl
+    {
+        get => _ollamaMirrorUrl;
+        set { if (SetField(ref _ollamaMirrorUrl, value)) OllamaManager.MirrorRegistryUrl = value; }
+    }
+
+    private string _ollamaInstallerMirrorUrl = "";
+    /// <summary>Ollama 安装器镜像源：非空时安装流程改用该地址下载安装器（加速国内拉取）。留空 = 官方安装器。</summary>
+    public string OllamaInstallerMirrorUrl
+    {
+        get => _ollamaInstallerMirrorUrl;
+        set { if (SetField(ref _ollamaInstallerMirrorUrl, value)) OllamaManager.InstallerMirrorUrl = value; }
+    }
+
     // 分层可见性（依总开关与部署方式）
     public Visibility AiDetailsVisibility => AiEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility LocalDeployVisibility => (AiEnabled && AiMode == "Local") ? Visibility.Visible : Visibility.Collapsed;
@@ -162,6 +178,8 @@ public class AiSettingsViewModel : ObservableObject
         AiCrashInterpret = ai.CrashInterpret;
         AiRecommendReason = ai.RecommendReason;
         AiModTranslate = ai.ModTranslate;
+        OllamaMirrorUrl = ai.OllamaMirrorUrl ?? "";
+        OllamaInstallerMirrorUrl = ai.OllamaInstallerMirrorUrl ?? "";
     }
 
     /// <summary>写回 AI 配置到 profile（对齐 Linux Save）。</summary>
@@ -180,7 +198,9 @@ public class AiSettingsViewModel : ObservableObject
             Model = AiModel,
             CrashInterpret = AiCrashInterpret,
             RecommendReason = AiRecommendReason,
-            ModTranslate = AiModTranslate
+            ModTranslate = AiModTranslate,
+            OllamaMirrorUrl = OllamaMirrorUrl,
+            OllamaInstallerMirrorUrl = OllamaInstallerMirrorUrl
         };
 
         // Key 不进明文：内存留一份供本次会话直接用，落盘那一份混淆

@@ -1132,6 +1132,8 @@ public static class LocaleManager
 
   ""settings.hud_reset"": ""恢复默认"",
 
+  ""settings.hud_show"": ""唤出 HUD"",
+
   ""settings.hud_tip"": ""提示：直接拖动游戏内的 HUD 即可自定义位置，拖动后自动记为「自定义位置」。勾选「鼠标穿透」后 HUD 不拦截鼠标操作。"",
 
   ""settings.hud_field_fps"": ""帧率"",
@@ -1264,6 +1266,8 @@ public static class LocaleManager
 
   ""settings.touch_reset"": ""恢复默认"",
 
+  ""settings.touch_show"": ""控制 UI"",
+
   ""settings.touch_tip"": ""在编辑器中拖动方块按键调整位置，可增删按键、修改键码与大小；类型为切换键时（默认的潜行 Shift）点一下即锁定按住，再点一下解除。"",
 
   ""settings.autoupdate_check"": ""启动时自动检查更新"",
@@ -1305,6 +1309,10 @@ public static class LocaleManager
   ""ai.m14"": ""本地部署（Ollama）"",
 
   ""ai.m15"": ""一键安装 Ollama"",
+  ""ai.ollama_mirror"": ""Ollama 镜像源（registry mirror）"",
+  ""ai.ollama_mirror_tip"": ""留空 = 官方源 registry.ollama.ai。填写后拉取模型将改从该镜像下载（如上海交大 https://ollama.mirrors.sjtug.sjtu.edu.cn）。变量末尾不要带斜杠；镜像可用性随版本变化，建议先用小模型试拉验证。"",
+  ""ai.ollama_installer_mirror"": ""Ollama 安装器镜像源"",
+  ""ai.ollama_installer_mirror_tip"": ""留空 = 官方安装器（ollama.com）。填写后改用该地址下载安装器（加速国内拉取），如 GitHub 代理 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe。变量末尾不要带斜杠。"",
 
   ""ai.m16"": ""服务状态："",
 
@@ -3455,6 +3463,8 @@ public static class LocaleManager
 
   ""settings.hud_reset"": ""Restore defaults"",
 
+  ""settings.hud_show"": ""Show HUD"",
+
   ""settings.hud_tip"": ""Tip: drag the in-game HUD to place it anywhere; it is then remembered as a custom position. With click-through enabled the HUD never blocks mouse input."",
 
   ""settings.hud_field_fps"": ""FPS"",
@@ -3587,6 +3597,8 @@ public static class LocaleManager
 
   ""settings.touch_reset"": ""Restore defaults"",
 
+  ""settings.touch_show"": ""Control UI"",
+
   ""settings.touch_tip"": ""Drag the square buttons to reposition them; add or remove keys, change key code and size. A toggle button (sneak Shift by default) latches on one tap and releases on the next."",
 
   ""settings.autoupdate_check"": ""Check for updates on startup"",
@@ -3628,6 +3640,10 @@ public static class LocaleManager
   ""ai.m14"": ""Local deployment (Ollama)"",
 
   ""ai.m15"": ""One-click install Ollama"",
+  ""ai.ollama_mirror"": ""Ollama mirror (registry mirror)"",
+  ""ai.ollama_mirror_tip"": ""Leave empty = official source registry.ollama.ai. When set, model pulls go through this mirror (e.g. SJTUG https://ollama.mirrors.sjtug.sjtu.edu.cn). Do not add a trailing slash; mirror availability varies by Ollama version, so try a small model first."",
+  ""ai.ollama_installer_mirror"": ""Ollama installer mirror"",
+  ""ai.ollama_installer_mirror_tip"": ""Leave empty = official installer (ollama.com). When set, the installer is downloaded from this URL instead (faster in CN), e.g. GitHub proxy https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe. Do not add a trailing slash."",
 
   ""ai.m16"": ""Service status:"",
 
@@ -5776,6 +5792,8 @@ public static class LocaleManager
 
   ""settings.hud_reset"": ""恢復預設"",
 
+  ""settings.hud_show"": ""喚出 HUD"",
+
   ""settings.hud_tip"": ""提示：直接拖動遊戲內的 HUD 即可自訂位置，拖動後自動記為「自訂位置」。勾選「滑鼠穿透」後 HUD 不會攔截滑鼠操作。"",
 
   ""settings.hud_field_fps"": ""幀率"",
@@ -5908,6 +5926,8 @@ public static class LocaleManager
 
   ""settings.touch_reset"": ""恢復預設"",
 
+  ""settings.touch_show"": ""控制 UI"",
+
   ""settings.touch_tip"": ""在編輯器中拖動方塊按鍵調整位置，可增刪按鍵、修改鍵碼與大小；類型為切換鍵時（預設的潛行 Shift）點一下即鎖定按住，再點一下解除。"",
 
   ""settings.autoupdate_check"": ""啟動時自動檢查更新"",
@@ -5949,6 +5969,10 @@ public static class LocaleManager
   ""ai.m14"": ""本地部署（Ollama）"",
 
   ""ai.m15"": ""一鍵安裝 Ollama"",
+  ""ai.ollama_mirror"": ""Ollama 鏡像源（registry mirror）"",
+  ""ai.ollama_mirror_tip"": ""留空 = 官方源 registry.ollama.ai。填寫後拉取模型將改從該鏡像下載（如上海交大 https://ollama.mirrors.sjtu.edu.cn）。變數末尾不要帶斜槓；鏡像可用性隨版本變化，建議先用小模型試拉驗證。"",
+  ""ai.ollama_installer_mirror"": ""Ollama 安裝器鏡像源"",
+  ""ai.ollama_installer_mirror_tip"": ""留空 = 官方安裝器（ollama.com）。填寫後改用該地址下載安裝器（加速國內拉取），如 GitHub 代理 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe。變數末尾不要帶斜槓。"",
 
   ""ai.m16"": ""服務狀態："",
 

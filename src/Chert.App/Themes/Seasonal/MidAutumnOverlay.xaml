@@ -38,6 +38,11 @@
     <!-- ===== 标题栏：夜幕蓝（可被标签主题覆盖，属预期行为） ===== -->
     <SolidColorBrush x:Key="TitleBarBrush" Color="#1B2A41"/>
 
+    <!-- ===== 底栏：暖月金薄雾 =====
+         低 alpha 的暖月金平铺在半透明底上：亮色主题呈暖米色、暗色主题呈暖褐，
+         两种主题都能保住 StatusForeground 文字对比度，因此不必改前景色。 -->
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#4DF6C445"/>
+
     <!-- ===== 卡片交互描边：暖月金微光 ===== -->
     <SolidColorBrush x:Key="CardBorderHover" Color="#CCF6C445"/>
 

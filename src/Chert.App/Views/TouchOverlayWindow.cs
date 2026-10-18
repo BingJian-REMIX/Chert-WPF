@@ -32,7 +32,7 @@ public class TouchOverlayWindow : Window
     private readonly DispatcherTimer _followTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool _dragging;
     private bool _dragMoved;
-    private Point _dragStart;
+    private Point _dragOffset;
     private Canvas _canvas = new();
     /// <summary>
     /// 切换键（<see cref="TouchButtonKind.Toggle"/>）处于「锁住按住」状态时的释放钩子。
@@ -106,15 +106,17 @@ public class TouchOverlayWindow : Window
         {
             _dragging = true;
             _dragMoved = false;
-            _dragStart = e.GetPosition(this);
+            // 用屏幕坐标记录鼠标与窗口左上角偏移，避免相对坐标叠加导致只跟手一半速度
+            var ph = e.GetPosition(null);
+            _dragOffset = new Point(ph.X - Left, ph.Y - Top);
             handle.CaptureMouse();
         };
         handle.MouseMove += (_, e) =>
         {
             if (!_dragging) return;
-            var p = e.GetPosition(this);
-            Left += p.X - _dragStart.X;
-            Top += p.Y - _dragStart.Y;
+            var ph = e.GetPosition(null);
+            Left = ph.X - _dragOffset.X;
+            Top = ph.Y - _dragOffset.Y;
             _dragMoved = true;
         };
         handle.MouseLeftButtonUp += (_, _) =>
@@ -342,6 +344,32 @@ public class TouchOverlayWindow : Window
                     Instance = new TouchOverlayWindow();
                 }
                 Instance.AttachGame(gameProcess);
+            });
+        }
+        catch { /* 触屏面板属增强功能，失败不影响游戏 */ }
+    }
+
+    /// <summary>
+    /// 无游戏时手动唤出触屏控制面板（设置页「控制 UI」按钮）：仅用于摆放位置与预览，
+    /// 不绑定游戏进程；随后真正启动游戏时 <see cref="TryShow"/> 会复用本实例并接管按键发送。
+    /// </summary>
+    public static void ShowStandalone()
+    {
+        try
+        {
+            var profile = ProfileStore.Load(GameConstants.DefaultGameRoot);
+            var touch = profile.Touch ?? TouchControlConfig.CreateDefault();
+            if (!touch.Enabled)
+            {
+                touch.Enabled = true;
+                profile.Touch = touch;
+                ProfileStore.Save(profile);
+            }
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (Instance is null || !Instance.IsLoaded) Instance = new TouchOverlayWindow();
+                if (!Instance.IsVisible) Instance.Show();
+                Instance.LoadPosition();
             });
         }
         catch { /* 触屏面板属增强功能，失败不影响游戏 */ }

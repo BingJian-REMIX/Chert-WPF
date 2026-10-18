@@ -21,6 +21,8 @@
     <SolidColorBrush x:Key="WindowBackground" Color="#B80F1115"/>
     <SolidColorBrush x:Key="CardBackground" Color="#731A1D24"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#731A1D24"/>
+    <!-- 底栏（状态栏）专用背景：默认与 ControlBackground 同值，仅供节日叠加层单独改写 -->
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#731A1D24"/>
     <SolidColorBrush x:Key="ListViewBackground" Color="#661A1D24"/>
 
     <!-- 分割线：白 8% 细边 -->

@@ -167,9 +167,12 @@ public static class InstanceScanner
         if (!ReadProcessMemory(handle, new IntPtr(paramsAddr.ToInt64() + usOffset), usBytes, usBytes.Length, out _))
             return null;
 
-        // UNICODE_STRING: { ushort Length; ushort MaximumLength; IntPtr Buffer; }
+        // UNICODE_STRING: { ushort Length; ushort MaximumLength; (pad) IntPtr Buffer; }
+        // Buffer 字段在 x64 下因 8 字节对齐实际位于偏移 8（而非 4），
+        // 用 Marshal.OffsetOf 自适应取字段偏移，避免硬编码读错偏移导致命令行解析失败。
         var len = BitConverter.ToUInt16(usBytes, 0);
-        var buf = new IntPtr(BitConverter.ToInt64(usBytes, 4));
+        var bufOffset = (int)Marshal.OffsetOf(typeof(UNICODE_STRING), "Buffer");
+        var buf = Marshal.ReadIntPtr(usBytes, bufOffset);
         if (len == 0 || buf == IntPtr.Zero) return null;
 
         var text = new byte[len];

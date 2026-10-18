@@ -143,7 +143,25 @@
 
 
 
-                    <!-- Ollama 服务状态（服务灯）-->
+                    <!-- Ollama 镜像源（registry mirror）：留空 = 官方源 -->
+                <StackPanel Margin="0,10,0,0">
+                    <TextBlock Text="{theme:Loc ai.ollama_mirror}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding OllamaMirrorUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="440" MaxLength="200" ToolTip="{theme:Loc ai.ollama_mirror_tip}"/>
+                    <TextBlock Text="{theme:Loc ai.ollama_mirror_tip}" FontSize="12"
+                               Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Ollama 安装器镜像源：留空 = 官方安装器 -->
+                <StackPanel Margin="0,10,0,0">
+                    <TextBlock Text="{theme:Loc ai.ollama_installer_mirror}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBox Text="{Binding OllamaInstallerMirrorUrl, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             Width="440" MaxLength="300" ToolTip="{theme:Loc ai.ollama_installer_mirror_tip}"/>
+                    <TextBlock Text="{theme:Loc ai.ollama_installer_mirror_tip}" FontSize="12"
+                               Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Ollama 服务状态（服务灯）-->
 
                     <StackPanel Orientation="Horizontal" Margin="8,10,0,0">
 

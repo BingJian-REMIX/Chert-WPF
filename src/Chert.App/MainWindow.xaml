@@ -626,7 +626,7 @@
 
         <!-- ===== 状态栏 ===== -->
 
-        <StatusBar x:Name="StatusBarRoot" Grid.Row="3" Background="{DynamicResource ControlBackground}"
+        <StatusBar x:Name="StatusBarRoot" Grid.Row="3" Background="{DynamicResource StatusBarBrush}"
 
                    Foreground="{DynamicResource StatusForeground}">
 

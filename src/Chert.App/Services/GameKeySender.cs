@@ -106,7 +106,7 @@ public static class GameKeySender
         }
     }
 
-    /// <summary>打开聊天框 → 输入命令 → 回车（用于 /publish 等）。</summary>
+    /// <summary>打开聊天框 → 输入命令 → 回车（用于 /publish、/connect 等）。</summary>
     public static void SendChatCommand(IntPtr hwnd, string command)
     {
         if (hwnd == IntPtr.Zero || string.IsNullOrWhiteSpace(command)) return;
@@ -115,5 +115,31 @@ public static class GameKeySender
         SendText(hwnd, command);
         Thread.Sleep(80);
         Tap(hwnd, VK_RETURN);
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    private const int SW_RESTORE = 9;
+
+    /// <summary>
+    /// 把游戏窗口带到前台（最小化则先还原）。用于 /connect 这类需要窗口实际接收消息的指令，
+    /// 否则后台投递的按键可能被 GLFW 当成非聚焦状态而丢弃。失败时静默忽略（best-effort）。
+    /// </summary>
+    public static void BringToFront(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return;
+        try
+        {
+            if (IsIconic(hwnd)) ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+        }
+        catch { }
     }
 }

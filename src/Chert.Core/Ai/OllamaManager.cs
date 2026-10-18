@@ -80,11 +80,23 @@ public static class OllamaManager
 {
     public const string BaseUrl = "http://127.0.0.1:11434";
 
+    /// <summary>本地部署镜像源（registry mirror）。非空时，启动 <c>ollama pull</c> / <c>ollama serve</c> 进程会注入
+    /// OLLAMA_REGISTRY 环境变量，使模型权重改从该镜像拉取。留空 = 官方源 registry.ollama.ai。
+    /// 由「设置 → AI 助手 → 本地部署 → Ollama 镜像源」写入（默认空）。
+    /// 注意：变量末尾不要带斜杠；可用性随 Ollama 版本与镜像站变化。</summary>
+    public static string? MirrorRegistryUrl { get; set; }
+
     /// <summary>安装器地址：Windows 为官方 exe，其它平台为官方安装脚本。</summary>
     public static string InstallerUrl =>
         RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
             ? "https://ollama.com/download/OllamaSetup.exe"
             : "https://ollama.com/install.sh";
+
+    /// <summary>安装器镜像地址：非空时，<see cref="InstallAsync"/> 改用该地址下载安装器（加速国内拉取）。
+    /// 留空 = 使用官方 <see cref="InstallerUrl"/>。由「设置 → AI 助手 → 本地部署 → 安装器镜像源」写入（默认空）。
+    /// 提示：Windows 可用 GitHub 代理（如 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe），
+    /// 该地址始终重定向到最新版安装器。变量末尾不要带斜杠。</summary>
+    public static string? InstallerMirrorUrl { get; set; }
 
     /// <summary>解析 `ollama --version` 输出中的版本号（如 "ollama version 0.1.2" → "0.1.2"）。</summary>
     public static string? ParseVersion(string? output)
@@ -183,7 +195,8 @@ public static class OllamaManager
         {
             var target = Path.Combine(tmp, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? "OllamaSetup.exe" : "install.sh");
-            await DownloadFileAsync(InstallerUrl, target, new Progress<double>(p => progress?.Report(p * 0.95)), ct);
+            var installerUrl = string.IsNullOrWhiteSpace(InstallerMirrorUrl) ? InstallerUrl : InstallerMirrorUrl!;
+            await DownloadFileAsync(installerUrl, target, new Progress<double>(p => progress?.Report(p * 0.95)), ct);
             progress?.Report(0.96);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -233,6 +246,8 @@ public static class OllamaManager
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        if (!string.IsNullOrWhiteSpace(MirrorRegistryUrl))
+            psi.Environment["OLLAMA_REGISTRY"] = MirrorRegistryUrl!;
         using var p = Process.Start(psi) ?? throw new InvalidOperationException("未找到 ollama，请先安装 Ollama");
         using (ct.Register(() =>
         {
@@ -290,6 +305,8 @@ public static class OllamaManager
                 UseShellExecute = false,
                 CreateNoWindow = true
             };
+            if (!string.IsNullOrWhiteSpace(MirrorRegistryUrl))
+                psi.Environment["OLLAMA_REGISTRY"] = MirrorRegistryUrl!;
             return Process.Start(psi);
         }
         catch

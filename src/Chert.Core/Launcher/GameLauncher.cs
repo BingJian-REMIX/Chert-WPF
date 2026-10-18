@@ -1,396 +1,407 @@
-using System.Diagnostics;
-using Chert.Core.Download;
-using Chert.Core.Models;
-using Chert.Core.MultiInstance;
-using Chert.Core.Profiles;
-using Chert.Core.Toolbox;
-using Chert.Core.Utils;
-using Chert.Core.Installers;
-using System.Net.Http;
-
-namespace Chert.Core.Launcher;
-
-/// <summary>一次启动的结果。</summary>
-public class LaunchResult
-{
-    public int ExitCode { get; set; }
-    public string? CrashReportPath { get; set; }
-    public bool Crashed => CrashReportPath is not null;
-
-    /// <summary>崩溃时的分析报告（无崩溃时为 null）。</summary>
-    public CrashAnalysis? Analysis { get; set; }
-
-    /// <summary>针对本次崩溃的自动修复方案（无崩溃时为 null）。</summary>
-    public CrashRepairPlan? RepairPlan { get; set; }
-}
-
-/// <summary>
-/// 游戏启动：合并版本、构建 classpath 与参数、解压 natives、启动 Java 进程，
-/// 退出后检测崩溃报告。
-/// </summary>
-public static class GameLauncher
-{
-    /// <summary>
-    /// 游戏进程已启动事件。所有启动路径（首页/版本列表/游戏详情/崩溃恢复）共用同一条
-    /// GameLauncher.LaunchAsync，由 Chert.App 订阅以触发 HUD 叠加层
-    /// （bug #28：此前仅在 LaunchCoordinator 一条路径触发，且用固定 1.5s 延时存在竞态）。
-    /// 参数为已注册到 InstanceTracker 的游戏进程。
-    /// </summary>
-    public static event Action<System.Diagnostics.Process, long>? GameProcessStarted;
-    public static Action<string>? GameOutputLine;
-
-    /// <summary>
-    /// 启动前补全 inheritsFrom 链上的前置原版（如 Forge 1.12.2 需要原版 1.12.2 的 client jar）。
-    /// 缺失会导致 ClasspathBuilder 静默跳过原版 jar，classpath 缺原版 → Java 启动退出码 1。
-    /// 仅对缺失的父（前置）版本调用 VanillaInstaller 补全，已齐备则跳过。
-    /// </summary>
-    private static async Task EnsureInheritedBaseAsync(string gameRoot, string versionId, ILogger? logger, CancellationToken ct, System.IProgress<double>? progress = null)
-    {
-        var current = versionId;
-        var guard = 0;
-        while (guard++ < 20)
-        {
-            var jsonPath = PathEx.VersionJsonPath(gameRoot, current);
-            if (!File.Exists(jsonPath)) break;
-            var v = VersionMerger.LoadVersion(gameRoot, current);
-            var parent = v.InheritsFrom;
-            if (string.IsNullOrEmpty(parent)) break;
-            var parentJar = PathEx.VersionJarPath(gameRoot, parent);
-            var parentJson = PathEx.VersionJsonPath(gameRoot, parent);
-            if (File.Exists(parentJar) && File.Exists(parentJson)) break;
-            try
-            {
-                LogLine(logger, gameRoot, $"前置原版 {parent} 缺失，自动下载补全 ...");
-                using var http = new HttpClient();
-                var dl = new HttpDownloader(http, logger: logger);
-                System.IProgress<(int Done, int Total)>? vp = progress is null
-                    ? null
-                    : new System.Progress<(int Done, int Total)>(t => progress.Report(t.Total > 0 ? t.Done / (double)t.Total : 0));
-                await new VanillaInstaller(gameRoot, http, dl, logger).InstallAsync(parent, vp, ct);
-                progress?.Report(1.0);
-                LogLine(logger, gameRoot, $"前置原版 {parent} 补全完成");
-            }
-            catch (Exception ex)
-            {
-                LogLine(logger, gameRoot, $"补全前置原版 {parent} 失败：{ex.Message}");
-                break;
-            }
-            current = parent;
-        }
-    }
-
-    /// <summary>从 JVM 参数解析 -Xmx（最大堆内存，MB），用于 HUD 内存百分比显示。解析失败返回 0。</summary>
-    private static long ParseMaxMemoryMb(System.Collections.Generic.IEnumerable<string> jvmArgs)
-    {
-        foreach (var a in jvmArgs)
-        {
-            var s = (a ?? string.Empty).Trim();
-            if (!s.StartsWith("-Xmx", System.StringComparison.OrdinalIgnoreCase)) continue;
-            var v = s.Substring(4).Trim();
-            if (v.Length == 0) continue;
-            var last = char.ToLowerInvariant(v[^1]);
-            var numStr = char.IsDigit(last) ? v : v[..^1];
-            if (!double.TryParse(numStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var n))
-                continue;
-            double mb = last switch
-            {
-                'k' => n / 1024.0,
-                'm' => n,
-                'g' => n * 1024.0,
-                _ => n / (1024.0 * 1024.0) // 无单位按字节处理
-            };
-            return (long)System.Math.Round(mb);
-        }
-        return 0;
-    }
-
-    /// <summary>构造 ${...} 变量字典（含 classpath、natives_directory 等）。</summary>
-    public static Dictionary<string, string> BuildVariables(VersionJson merged,
-        string gameRoot, string leafId, string nativesDir, LaunchOptions options, string gameDir)
-    {
-        var classpath = ClasspathBuilder.ComputeClasspath(gameRoot, leafId, merged);
-        var assetsIndexName = merged.Assets ?? merged.AssetIndex?.Id ?? "";
-
-        var vars = new Dictionary<string, string>
-        {
-            ["auth_player_name"] = options.Username,
-            ["auth_uuid"] = options.Uuid,
-            ["auth_access_token"] = options.AccessToken,
-            ["auth_session"] = options.AccessToken,
-            ["auth_xuid"] = options.UserType == "msa" ? options.Uuid : "0",
-            ["user_type"] = options.UserType,
-            ["user_properties"] = options.UserProperties,
-            ["version_name"] = merged.Id,
-            ["version_type"] = merged.Type,
-            ["assets_root"] = PathEx.AssetsDir(gameRoot),
-            ["assets_index_name"] = assetsIndexName,
-            // 隔离版本（整合包）指向 versions/<id>，否则共用 .minecraft；每版本可经 options.GameDir 覆盖
-            ["game_directory"] = gameDir,
-            ["natives_directory"] = nativesDir,
-            ["library_directory"] = PathEx.LibrariesDir(gameRoot),
-            ["classpath"] = classpath,
-            ["classpath_separator"] = Path.PathSeparator.ToString(),
-            ["launcher_name"] = GameConstants.LauncherName,
-            ["launcher_version"] = GameConstants.LauncherVersion,
-            ["max_mem"] = $"{options.MaxMemoryMb}M"
-        };
-
-        if (options.Resolution.HasValue)
-        {
-            vars["resolution_width"] = options.Resolution.Value.Width.ToString();
-            vars["resolution_height"] = options.Resolution.Value.Height.ToString();
-        }
-
-        return vars;
-    }
-
-    /// <summary>把一行启动器日志同时推给调用方 logger（状态栏）与磁盘日志文件（logs/mclcs_launcher.log，可在日志页查看）。</summary>
-    /// <summary>
-    /// 读玩家在 <c>options.txt</c> 里设的主音量（0-100）。
-    /// 读不到 / 损坏 / 被模组改写时返回 100（满音量），由调用方按幅度退化计算。
-    /// </summary>
-    private static double ReadCurrentVolumePercent(string gameDir)
-    {
-        try
-        {
-            var path = Path.Combine(gameDir, "options.txt");
-            if (!File.Exists(path)) return 100;
-            foreach (var raw in File.ReadLines(path))
-            {
-                var line = raw.Trim();
-                // 形如 soundCategory_master:0.8
-                if (!line.StartsWith("soundCategory_master:", StringComparison.Ordinal)) continue;
-                var val = line["soundCategory_master:".Length..].Trim();
-                if (double.TryParse(val, System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out var v))
-                    return Math.Clamp(v * 100.0, 0, 100);
-                return 100;
-            }
-        }
-        catch
-        {
-            // 读不到就用基准值，不影响启动
-        }
-        return 100;
-    }
-
-    private static void LogLine(ILogger? logger, string gameRoot, string message)
-    {
-        logger?.Log(message);
-        AppendLauncherLog(gameRoot, message);
-    }
-
-    /// <summary>追加一行到启动器自身日志文件（logs/mclcs_launcher.log），供日志页查看。</summary>
-    private static void AppendLauncherLog(string gameRoot, string message)
-    {
-        try
-        {
-            var dir = LogManager.LogsDir(gameRoot);
-            Directory.CreateDirectory(dir);
-            var path = Path.Combine(dir, "mclcs_launcher.log");
-            File.AppendAllText(path, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
-        }
-        catch { /* 日志写入失败不得阻塞启动 */ }
-    }
-
-    /// <summary>启动游戏并等待退出，随后检测崩溃报告。</summary>
-    public static async Task<LaunchResult> LaunchAsync(string gameRoot,
-        string versionId,
-        JavaInfo java,
-        LaunchOptions options,
-        ILogger? logger = null,
-        System.IProgress<double>? progress = null,
-        CancellationToken ct = default,
-        bool waitForExit = true)
-    {
-        // 启动前确保 inheritsFrom 链上的前置原版已安装（如 Forge 1.12.2 需原版 1.12.2 的 client jar）。
-        // 缺失会导致 ClasspathBuilder 静默跳过原版 jar → classpath 缺原版 → Java 启动找不到原版类 → 退出码 1。
-        await EnsureInheritedBaseAsync(gameRoot, versionId, logger, ct, progress);
-
-        var merged = VersionMerger.Merge(gameRoot, versionId);
-        var nativesDir = PathEx.NativesDir(gameRoot, versionId);
-        Directory.CreateDirectory(nativesDir);
-
-        // 有效游戏工作目录：每版本覆盖（options.GameDir）优先，否则按隔离标记决定
-        var gameDir = options.GameDir ?? VersionIsolation.GameDirFor(gameRoot, versionId);
-        if (!string.Equals(gameDir, gameRoot, StringComparison.Ordinal))
-        {
-            VersionIsolation.EnsureFolders(gameDir);
-            LogLine(logger, gameRoot, $"版本 {versionId} 已启用隔离/自定义目录，工作目录：{gameDir}");
-        }
-
-        // 注入 logging 日志配置（下载 log4j XML 并注入 -Dlog4j.configurationFile）
-        var loggingArgs = await InjectLoggingConfigAsync(gameRoot, versionId, merged, ct);
-
-        var variables = BuildVariables(merged, gameRoot, versionId, nativesDir, options, gameDir);
-        var resolved = ArgumentProcessor.Process(merged, variables, options, nativesDir);
-
-        // 将 logging 参数追加到 JVM 参数末尾
-        if (loggingArgs.Count > 0)
-            resolved.JvmArgs.AddRange(loggingArgs);
-
-        // 直接连入服务器：追加 --server <host> --port <port>
-        if (!string.IsNullOrWhiteSpace(options.ServerAddress))
-        {
-            var parts = options.ServerAddress.Split(':');
-            resolved.GameArgs.Add("--server");
-            resolved.GameArgs.Add(parts[0].Trim());
-            resolved.GameArgs.Add("--port");
-            resolved.GameArgs.Add(parts.Length > 1 ? parts[1].Trim() : "25565");
-        }
-
-        // 全屏启动
-        if (options.Fullscreen)
-            resolved.GameArgs.Add("--fullscreen");
-
-        // 进入游戏自动降音量（problem3）：MC 原生 --volume 参数，优先于 options.txt。
-        //   语义是「降低幅度」：目标音量 = 玩家当前音量 × (100 - 幅度)。
-        //   读不到当前音量时以 100% 为基准退化为「满音量按幅度降低」，仍符合直觉。
-        if (options.VolumeDuckPercent is int duck && duck > 0)
-        {
-            var percent = Math.Clamp(duck, 0, 100);
-            var current = ReadCurrentVolumePercent(gameDir);
-            var target = (int)Math.Round(current * (100 - percent) / 100.0);
-            target = Math.Clamp(target, 0, 100);
-            resolved.GameArgs.Add("--volume");
-            resolved.GameArgs.Add(target.ToString());
-            LogLine(logger, gameRoot,
-                $"按设置降低游戏音量 {percent}%：{current:F0}% → {target}%");
-        }
-
-        // 解压原生库
-        var natives = ClasspathBuilder.GetNativeEntries(gameRoot, merged, nativesDir);
-        ClasspathBuilder.ExtractNatives(natives);
-
-        var psi = new ProcessStartInfo
-        {
-            FileName = java.JavaExe,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = gameDir
-        };
-
-        foreach (var a in resolved.JvmArgs) psi.ArgumentList.Add(a);
-        psi.ArgumentList.Add(resolved.MainClass);
-        foreach (var a in resolved.GameArgs) psi.ArgumentList.Add(a);
-
-        LogLine(logger, gameRoot, $"启动版本 {merged.Id}（{java.MajorVersion}）：{resolved.MainClass}");
-
-        // 调试导出：原样打印完整启动命令，便于在本机 build 后从日志里复制逐字可运行的命令行。
-        // 含空格的参数加引号，方便直接粘贴。
-        var cmdLine = string.Join(" ", psi.ArgumentList.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a));
-        LogLine(logger, gameRoot, $"启动命令：{psi.FileName} {cmdLine}");
-
-        // bug #3-①：记录启动前已有的崩溃报告，启动后只认本次启动新增的，避免误检陈旧报告（如 2022 年旧档）
-        var preCrashReports = new HashSet<string>(CrashDetector.FindAllCrashReports(gameDir), StringComparer.OrdinalIgnoreCase);
-
-        using var proc = Process.Start(psi)
-            ?? throw new InvalidOperationException("无法启动游戏进程");
-
-        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
-        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
-        proc.BeginOutputReadLine();
-        proc.BeginErrorReadLine();
-        InstanceTracker.Register(proc.Id, versionId);
-
-        // bug #28：进程已就绪，通知上层触发 HUD 叠加层（覆盖全部启动路径，无 1.5s 竞态）。
-        // 同时把 -Xmx 解析出的最大堆内存（MB）传给 HUD，用于内存占用百分比显示。
-        var maxMemoryMb = ParseMaxMemoryMb(resolved.JvmArgs);
-        GameProcessStarted?.Invoke(proc, maxMemoryMb);
-
-        // ★ waitForExit = false 时**只启动、不等退出**（problem3 多实例）：
-        //   游戏进程交给上层自行跟踪（InstanceTracker / 跨进程扫描），本方法立刻返回，
-        //   调用方的 AsyncRelayCommand 随即释放 _isRunning → 启动按钮恢复可点，
-        //   用户可以接着再开一个实例。
-        //   此时**不产出 LaunchResult 的崩溃分析部分** —— 那需要进程退出才能判定，
-        //   所以只有真正需要分析崩溃的入口（LaunchCoordinator / 崩溃恢复）才用默认 true。
-        if (!waitForExit)
-        {
-            LogLine(logger, gameRoot, $"游戏进程已启动（pid={proc.Id}），本次不等待退出（多实例模式）");
-            return new LaunchResult();
-        }
-
-        await proc.WaitForExitAsync(ct);
-        var exitCode = proc.ExitCode;
-
-        // 隔离版本的崩溃报告落在自己的工作目录下
-        var crash = CrashDetector.FindLatestCrashReport(gameDir, preCrashReports);
-        if (crash is not null)
-            LogLine(logger, gameRoot, $"检测到崩溃报告：{crash}（退出码 {exitCode}）");
-        else
-            LogLine(logger, gameRoot, $"游戏进程已退出（退出码 {exitCode}），未检测到崩溃报告。");
-
-        var result = new LaunchResult { ExitCode = exitCode, CrashReportPath = crash };
-
-        // 崩溃时自动分析并规划修复方案（离线、非破坏性路径）
-        if (crash is not null)
-        {
-            try
-            {
-                var text = await File.ReadAllTextAsync(crash, ct);
-                var analysis = CrashAnalyzer.Analyze(text);
-                analysis.RawReport = text;
-                var profile = ProfileStore.Load(gameRoot);
-                var plan = CrashRepairEngine.BuildPlan(analysis, profile, java, gameRoot, versionId);
-                result.Analysis = analysis;
-                result.RepairPlan = plan;
-                LogLine(logger, gameRoot, $"崩溃类别：{analysis.Category}，可自动修复：{plan.CanRepair}（{plan.Strategy}）");
-            }
-            catch (Exception ex)
-            {
-                LogLine(logger, gameRoot, $"崩溃分析失败：{ex.Message}");
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// 下载 log4j 配置文件并注入 -Dlog4j.configurationFile 等 JVM 参数。
-    /// 解析 version.json 中的 logging.client，下载配置文件到版本目录。
-    /// </summary>
-    private static async Task<List<string>> InjectLoggingConfigAsync(string gameRoot,
-        string versionId, VersionJson merged, CancellationToken ct)
-    {
-        var args = new List<string>();
-        var logging = merged.Logging?.Client;
-        if (logging is null || logging.File is null) return args;
-
-        try
-        {
-            // 下载日志配置文件到版本目录
-            var loggingDir = Path.Combine(PathEx.VersionDir(gameRoot, versionId), "logging");
-            Directory.CreateDirectory(loggingDir);
-
-            var destPath = Path.Combine(loggingDir, logging.File.Url?.Split('/').Last() ?? "log4j.xml");
-            if (!File.Exists(destPath) && logging.File.Url is not null)
-            {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-                var data = await client.GetByteArrayAsync(logging.File.Url, ct);
-                await File.WriteAllBytesAsync(destPath, data, ct);
-            }
-
-            if (File.Exists(destPath))
-            {
-                // 注入 log4j 配置
-                args.Add($"-Dlog4j.configurationFile={destPath}");
-            }
-
-            // 如果有 argument 模板（如 "-Dlog4j2.formatMsgNoLookups=true"），也注入
-            if (!string.IsNullOrEmpty(logging.Argument))
-            {
-                // argument 可能含 ${path} 占位，替换为实际路径
-                var arg = logging.Argument.Replace("${path}", destPath);
-                args.Add(arg);
-            }
-        }
-        catch
-        {
-            // logging 配置失败不阻塞启动
-        }
-
-        return args;
-    }
-}
+using System.Diagnostics;
+using Chert.Core.Download;
+using Chert.Core.Models;
+using Chert.Core.MultiInstance;
+using Chert.Core.Profiles;
+using Chert.Core.Toolbox;
+using Chert.Core.Utils;
+using Chert.Core.Installers;
+using System.Net.Http;
+
+namespace Chert.Core.Launcher;
+
+/// <summary>一次启动的结果。</summary>
+public class LaunchResult
+{
+    public int ExitCode { get; set; }
+    public string? CrashReportPath { get; set; }
+    public bool Crashed => CrashReportPath is not null;
+
+    /// <summary>崩溃时的分析报告（无崩溃时为 null）。</summary>
+    public CrashAnalysis? Analysis { get; set; }
+
+    /// <summary>针对本次崩溃的自动修复方案（无崩溃时为 null）。</summary>
+    public CrashRepairPlan? RepairPlan { get; set; }
+}
+
+/// <summary>
+/// 游戏启动：合并版本、构建 classpath 与参数、解压 natives、启动 Java 进程，
+/// 退出后检测崩溃报告。
+/// </summary>
+public static class GameLauncher
+{
+    /// <summary>
+    /// 游戏进程已启动事件。所有启动路径（首页/版本列表/游戏详情/崩溃恢复）共用同一条
+    /// GameLauncher.LaunchAsync，由 Chert.App 订阅以触发 HUD 叠加层
+    /// （bug #28：此前仅在 LaunchCoordinator 一条路径触发，且用固定 1.5s 延时存在竞态）。
+    /// 参数为已注册到 InstanceTracker 的游戏进程。
+    /// </summary>
+    public static event Action<System.Diagnostics.Process, long>? GameProcessStarted;
+    public static Action<string>? GameOutputLine;
+
+    /// <summary>
+    /// 启动前补全 inheritsFrom 链上的前置原版（如 Forge 1.12.2 需要原版 1.12.2 的 client jar）。
+    /// 缺失会导致 ClasspathBuilder 静默跳过原版 jar，classpath 缺原版 → Java 启动退出码 1。
+    /// 仅对缺失的父（前置）版本调用 VanillaInstaller 补全，已齐备则跳过。
+    /// </summary>
+    private static async Task EnsureInheritedBaseAsync(string gameRoot, string versionId, ILogger? logger, CancellationToken ct, System.IProgress<double>? progress = null)
+    {
+        var current = versionId;
+        var guard = 0;
+        while (guard++ < 20)
+        {
+            var jsonPath = PathEx.VersionJsonPath(gameRoot, current);
+            if (!File.Exists(jsonPath)) break;
+            var v = VersionMerger.LoadVersion(gameRoot, current);
+            var parent = v.InheritsFrom;
+            if (string.IsNullOrEmpty(parent)) break;
+            var parentJar = PathEx.VersionJarPath(gameRoot, parent);
+            var parentJson = PathEx.VersionJsonPath(gameRoot, parent);
+            if (File.Exists(parentJar) && File.Exists(parentJson)) break;
+            try
+            {
+                LogLine(logger, gameRoot, $"前置原版 {parent} 缺失，自动下载补全 ...");
+                using var http = new HttpClient();
+                var dl = new HttpDownloader(http, logger: logger);
+                System.IProgress<(int Done, int Total)>? vp = progress is null
+                    ? null
+                    : new System.Progress<(int Done, int Total)>(t => progress.Report(t.Total > 0 ? t.Done / (double)t.Total : 0));
+                await new VanillaInstaller(gameRoot, http, dl, logger).InstallAsync(parent, vp, ct);
+                progress?.Report(1.0);
+                LogLine(logger, gameRoot, $"前置原版 {parent} 补全完成");
+            }
+            catch (Exception ex)
+            {
+                LogLine(logger, gameRoot, $"补全前置原版 {parent} 失败：{ex.Message}");
+                break;
+            }
+            current = parent;
+        }
+    }
+
+    /// <summary>从 JVM 参数解析 -Xmx（最大堆内存，MB），用于 HUD 内存百分比显示。解析失败返回 0。</summary>
+    private static long ParseMaxMemoryMb(System.Collections.Generic.IEnumerable<string> jvmArgs)
+    {
+        foreach (var a in jvmArgs)
+        {
+            var s = (a ?? string.Empty).Trim();
+            if (!s.StartsWith("-Xmx", System.StringComparison.OrdinalIgnoreCase)) continue;
+            var v = s.Substring(4).Trim();
+            if (v.Length == 0) continue;
+            var last = char.ToLowerInvariant(v[^1]);
+            var numStr = char.IsDigit(last) ? v : v[..^1];
+            if (!double.TryParse(numStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var n))
+                continue;
+            double mb = last switch
+            {
+                'k' => n / 1024.0,
+                'm' => n,
+                'g' => n * 1024.0,
+                _ => n / (1024.0 * 1024.0) // 无单位按字节处理
+            };
+            return (long)System.Math.Round(mb);
+        }
+        return 0;
+    }
+
+    /// <summary>构造 ${...} 变量字典（含 classpath、natives_directory 等）。</summary>
+    public static Dictionary<string, string> BuildVariables(VersionJson merged,
+        string gameRoot, string leafId, string nativesDir, LaunchOptions options, string gameDir)
+    {
+        var classpath = ClasspathBuilder.ComputeClasspath(gameRoot, leafId, merged);
+        var assetsIndexName = merged.Assets ?? merged.AssetIndex?.Id ?? "";
+
+        var vars = new Dictionary<string, string>
+        {
+            ["auth_player_name"] = options.Username,
+            ["auth_uuid"] = options.Uuid,
+            ["auth_access_token"] = options.AccessToken,
+            ["auth_session"] = options.AccessToken,
+            ["auth_xuid"] = options.UserType == "msa" ? options.Uuid : "0",
+            ["user_type"] = options.UserType,
+            ["user_properties"] = options.UserProperties,
+            ["version_name"] = merged.Id,
+            ["version_type"] = merged.Type,
+            ["assets_root"] = PathEx.AssetsDir(gameRoot),
+            ["assets_index_name"] = assetsIndexName,
+            // 隔离版本（整合包）指向 versions/<id>，否则共用 .minecraft；每版本可经 options.GameDir 覆盖
+            ["game_directory"] = gameDir,
+            ["natives_directory"] = nativesDir,
+            ["library_directory"] = PathEx.LibrariesDir(gameRoot),
+            ["classpath"] = classpath,
+            ["classpath_separator"] = Path.PathSeparator.ToString(),
+            ["launcher_name"] = GameConstants.LauncherName,
+            ["launcher_version"] = GameConstants.LauncherVersion,
+            ["max_mem"] = $"{options.MaxMemoryMb}M"
+        };
+
+        if (options.Resolution.HasValue)
+        {
+            vars["resolution_width"] = options.Resolution.Value.Width.ToString();
+            vars["resolution_height"] = options.Resolution.Value.Height.ToString();
+        }
+
+        return vars;
+    }
+
+    /// <summary>把一行启动器日志同时推给调用方 logger（状态栏）与磁盘日志文件（logs/mclcs_launcher.log，可在日志页查看）。</summary>
+    /// <summary>
+    /// 读玩家在 <c>options.txt</c> 里设的主音量（0-100）。
+    /// 读不到 / 损坏 / 被模组改写时返回 100（满音量），由调用方按幅度退化计算。
+    /// </summary>
+    private static double ReadCurrentVolumePercent(string gameDir)
+    {
+        try
+        {
+            var path = Path.Combine(gameDir, "options.txt");
+            if (!File.Exists(path)) return 100;
+            foreach (var raw in File.ReadLines(path))
+            {
+                var line = raw.Trim();
+                // 形如 soundCategory_master:0.8
+                if (!line.StartsWith("soundCategory_master:", StringComparison.Ordinal)) continue;
+                var val = line["soundCategory_master:".Length..].Trim();
+                if (double.TryParse(val, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var v))
+                    return Math.Clamp(v * 100.0, 0, 100);
+                return 100;
+            }
+        }
+        catch
+        {
+            // 读不到就用基准值，不影响启动
+        }
+        return 100;
+    }
+
+    private static void LogLine(ILogger? logger, string gameRoot, string message)
+    {
+        logger?.Log(message);
+        AppendLauncherLog(gameRoot, message);
+    }
+
+    /// <summary>追加一行到启动器自身日志文件（logs/mclcs_launcher.log），供日志页查看。</summary>
+    private static void AppendLauncherLog(string gameRoot, string message)
+    {
+        try
+        {
+            var dir = LogManager.LogsDir(gameRoot);
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "mclcs_launcher.log");
+            File.AppendAllText(path, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
+        }
+        catch { /* 日志写入失败不得阻塞启动 */ }
+    }
+
+    /// <summary>启动游戏并等待退出，随后检测崩溃报告。</summary>
+    public static async Task<LaunchResult> LaunchAsync(string gameRoot,
+        string versionId,
+        JavaInfo java,
+        LaunchOptions options,
+        ILogger? logger = null,
+        System.IProgress<double>? progress = null,
+        CancellationToken ct = default,
+        bool waitForExit = true)
+    {
+        // 启动前确保 inheritsFrom 链上的前置原版已安装（如 Forge 1.12.2 需原版 1.12.2 的 client jar）。
+        // 缺失会导致 ClasspathBuilder 静默跳过原版 jar → classpath 缺原版 → Java 启动找不到原版类 → 退出码 1。
+        await EnsureInheritedBaseAsync(gameRoot, versionId, logger, ct, progress);
+
+        var merged = VersionMerger.Merge(gameRoot, versionId);
+        var nativesDir = PathEx.NativesDir(gameRoot, versionId);
+        Directory.CreateDirectory(nativesDir);
+
+        // 有效游戏工作目录：每版本覆盖（options.GameDir）优先，否则按隔离标记决定
+        var gameDir = options.GameDir ?? VersionIsolation.GameDirFor(gameRoot, versionId);
+        if (!string.Equals(gameDir, gameRoot, StringComparison.Ordinal))
+        {
+            VersionIsolation.EnsureFolders(gameDir);
+            LogLine(logger, gameRoot, $"版本 {versionId} 已启用隔离/自定义目录，工作目录：{gameDir}");
+        }
+
+        // 注入 logging 日志配置（下载 log4j XML 并注入 -Dlog4j.configurationFile）
+        var loggingArgs = await InjectLoggingConfigAsync(gameRoot, versionId, merged, ct);
+
+        var variables = BuildVariables(merged, gameRoot, versionId, nativesDir, options, gameDir);
+        var resolved = ArgumentProcessor.Process(merged, variables, options, nativesDir);
+
+        // 将 logging 参数追加到 JVM 参数末尾
+        if (loggingArgs.Count > 0)
+            resolved.JvmArgs.AddRange(loggingArgs);
+
+        // 直接连入服务器：追加 --server <host> --port <port>
+        if (!string.IsNullOrWhiteSpace(options.ServerAddress))
+        {
+            var parts = options.ServerAddress.Split(':');
+            resolved.GameArgs.Add("--server");
+            resolved.GameArgs.Add(parts[0].Trim());
+            resolved.GameArgs.Add("--port");
+            resolved.GameArgs.Add(parts.Length > 1 ? parts[1].Trim() : "25565");
+        }
+
+        // 全屏启动
+        if (options.Fullscreen)
+            resolved.GameArgs.Add("--fullscreen");
+
+        // 进入游戏自动降音量（problem3）：MC 原生 --volume 参数，优先于 options.txt。
+        //   语义是「降低幅度」：目标音量 = 玩家当前音量 × (100 - 幅度)。
+        //   读不到当前音量时以 100% 为基准退化为「满音量按幅度降低」，仍符合直觉。
+        if (options.VolumeDuckPercent is int duck && duck > 0)
+        {
+            var percent = Math.Clamp(duck, 0, 100);
+            var current = ReadCurrentVolumePercent(gameDir);
+            var target = (int)Math.Round(current * (100 - percent) / 100.0);
+            target = Math.Clamp(target, 0, 100);
+            resolved.GameArgs.Add("--volume");
+            resolved.GameArgs.Add(target.ToString());
+            LogLine(logger, gameRoot,
+                $"按设置降低游戏音量 {percent}%：{current:F0}% → {target}%");
+        }
+
+        // 解压原生库
+        var natives = ClasspathBuilder.GetNativeEntries(gameRoot, merged, nativesDir);
+        ClasspathBuilder.ExtractNatives(natives);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = java.JavaExe,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = gameDir
+        };
+
+        foreach (var a in resolved.JvmArgs) psi.ArgumentList.Add(a);
+        psi.ArgumentList.Add(resolved.MainClass);
+        foreach (var a in resolved.GameArgs) psi.ArgumentList.Add(a);
+
+        LogLine(logger, gameRoot, $"启动版本 {merged.Id}（{java.MajorVersion}）：{resolved.MainClass}");
+
+        // 调试导出：原样打印完整启动命令，便于在本机 build 后从日志里复制逐字可运行的命令行。
+        // 含空格的参数加引号，方便直接粘贴。
+        var cmdLine = string.Join(" ", psi.ArgumentList.Select(a => a.Contains(' ') ? "\"" + a + "\"" : a));
+        LogLine(logger, gameRoot, $"启动命令：{psi.FileName} {cmdLine}");
+
+        // bug #3-①：记录启动前已有的崩溃报告，启动后只认本次启动新增的，避免误检陈旧报告（如 2022 年旧档）
+        var preCrashReports = new HashSet<string>(CrashDetector.FindAllCrashReports(gameDir), StringComparer.OrdinalIgnoreCase);
+
+        var proc = Process.Start(psi)
+            ?? throw new InvalidOperationException("无法启动游戏进程");
+
+        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data is not null) GameOutputLine?.Invoke(e.Data); };
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
+        InstanceTracker.Register(proc.Id, versionId);
+
+        // bug #28：进程已就绪，通知上层触发 HUD 叠加层（覆盖全部启动路径，无 1.5s 竞态）。
+        // 同时把 -Xmx 解析出的最大堆内存（MB）传给 HUD，用于内存占用百分比显示。
+        var maxMemoryMb = ParseMaxMemoryMb(resolved.JvmArgs);
+        GameProcessStarted?.Invoke(proc, maxMemoryMb);
+
+        // ★ waitForExit = false 时**只启动、不等退出**（problem3 多实例）：
+        //   游戏进程交给上层自行跟踪（InstanceTracker / 跨进程扫描），本方法立刻返回，
+        //   调用方的 AsyncRelayCommand 随即释放 _isRunning → 启动按钮恢复可点，
+        //   用户可以接着再开一个实例。
+        //   此时**不产出 LaunchResult 的崩溃分析部分** —— 那需要进程退出才能判定，
+        //   所以只有真正需要分析崩溃的入口（LaunchCoordinator / 崩溃恢复）才用默认 true。
+        if (!waitForExit)
+        {
+            LogLine(logger, gameRoot, $"游戏进程已启动（pid={proc.Id}），本次不等待退出（多实例模式）");
+            // 注意：多实例路径**不释放** proc —— HUD/性能监控需持续读取内存/CPU，
+            // 进程对象由上层（HUD 退出检测 / 跨进程扫描）负责最终释放，避免提前 Dispose 后读属性抛异常。
+            return new LaunchResult();
+        }
+
+        try
+        {
+            await proc.WaitForExitAsync(ct);
+            var exitCode = proc.ExitCode;
+
+            // 隔离版本的崩溃报告落在自己的工作目录下
+            var crash = CrashDetector.FindLatestCrashReport(gameDir, preCrashReports);
+            if (crash is not null)
+                LogLine(logger, gameRoot, $"检测到崩溃报告：{crash}（退出码 {exitCode}）");
+            else
+                LogLine(logger, gameRoot, $"游戏进程已退出（退出码 {exitCode}），未检测到崩溃报告。");
+
+            var result = new LaunchResult { ExitCode = exitCode, CrashReportPath = crash };
+
+            // 崩溃时自动分析并规划修复方案（离线、非破坏性路径）
+            if (crash is not null)
+            {
+                try
+                {
+                    var text = await File.ReadAllTextAsync(crash, ct);
+                    var analysis = CrashAnalyzer.Analyze(text);
+                    analysis.RawReport = text;
+                    var profile = ProfileStore.Load(gameRoot);
+                    var plan = CrashRepairEngine.BuildPlan(analysis, profile, java, gameRoot, versionId);
+                    result.Analysis = analysis;
+                    result.RepairPlan = plan;
+                    LogLine(logger, gameRoot, $"崩溃类别：{analysis.Category}，可自动修复：{plan.CanRepair}（{plan.Strategy}）");
+                }
+                catch (Exception ex)
+                {
+                    LogLine(logger, gameRoot, $"崩溃分析失败：{ex.Message}");
+                }
+            }
+
+            return result;
+        }
+        finally
+        {
+            // 仅等待退出的入口（崩溃分析/恢复）在此释放进程对象；
+            // 多实例路径已在上方提前 return，不会走到这里，进程保持存活供 HUD 读取。
+            proc.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// 下载 log4j 配置文件并注入 -Dlog4j.configurationFile 等 JVM 参数。
+    /// 解析 version.json 中的 logging.client，下载配置文件到版本目录。
+    /// </summary>
+    private static async Task<List<string>> InjectLoggingConfigAsync(string gameRoot,
+        string versionId, VersionJson merged, CancellationToken ct)
+    {
+        var args = new List<string>();
+        var logging = merged.Logging?.Client;
+        if (logging is null || logging.File is null) return args;
+
+        try
+        {
+            // 下载日志配置文件到版本目录
+            var loggingDir = Path.Combine(PathEx.VersionDir(gameRoot, versionId), "logging");
+            Directory.CreateDirectory(loggingDir);
+
+            var destPath = Path.Combine(loggingDir, logging.File.Url?.Split('/').Last() ?? "log4j.xml");
+            if (!File.Exists(destPath) && logging.File.Url is not null)
+            {
+                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+                var data = await client.GetByteArrayAsync(logging.File.Url, ct);
+                await File.WriteAllBytesAsync(destPath, data, ct);
+            }
+
+            if (File.Exists(destPath))
+            {
+                // 注入 log4j 配置
+                args.Add($"-Dlog4j.configurationFile={destPath}");
+            }
+
+            // 如果有 argument 模板（如 "-Dlog4j2.formatMsgNoLookups=true"），也注入
+            if (!string.IsNullOrEmpty(logging.Argument))
+            {
+                // argument 可能含 ${path} 占位，替换为实际路径
+                var arg = logging.Argument.Replace("${path}", destPath);
+                args.Add(arg);
+            }
+        }
+        catch
+        {
+            // logging 配置失败不阻塞启动
+        }
+
+        return args;
+    }
+}

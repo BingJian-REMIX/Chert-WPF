@@ -36,6 +36,11 @@
     <!-- ===== 标题栏：秋褐（可被标签主题覆盖，属预期行为） ===== -->
     <SolidColorBrush x:Key="TitleBarBrush" Color="#3A2A20"/>
 
+    <!-- ===== 底栏：菊橙薄雾 =====
+         低 alpha 的菊橙平铺在半透明底上：亮色主题呈暖桃色、暗色主题呈暖褐，
+         两种主题都能保住 StatusForeground 文字对比度，因此不必改前景色。 -->
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#52E8943A"/>
+
     <!-- ===== 卡片交互描边：菊橙微光 ===== -->
     <SolidColorBrush x:Key="CardBorderHover" Color="#CCE8943A"/>
 

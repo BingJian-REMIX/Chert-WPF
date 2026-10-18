@@ -6,6 +6,8 @@
     <!-- Window / Control backgrounds -->
     <SolidColorBrush x:Key="WindowBackground" Color="#0F1115"/>
     <SolidColorBrush x:Key="ControlBackground" Color="#1A1D24"/>
+    <!-- 底栏（状态栏）专用背景：默认与 ControlBackground 同值，仅供节日叠加层单独改写 -->
+    <SolidColorBrush x:Key="StatusBarBrush" Color="#1A1D24"/>
     <SolidColorBrush x:Key="ControlBorder" Color="#2A2F3A"/>
     <SolidColorBrush x:Key="ControlPressedBackground" Color="#333842"/>
     <SolidColorBrush x:Key="ControlHoverBackground" Color="#252830"/>

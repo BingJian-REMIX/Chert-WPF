@@ -1,152 +1,186 @@
-using System.Collections.ObjectModel;
-using System.Net.Http;
-using System.Windows;
-using System.Windows.Input;
-using Chert.Core.Launcher;
-using Chert.Core.Localization;
-using Chert.Core.MultiInstance;
-using Chert.Core.Mvvm;
-using Chert.Core.Toolbox;
-using Chert.Core.Utils;
-using Chert.App.Services;
-
-namespace Chert.App.ViewModels;
-
-/// <summary>
-/// 全局状态栏视图模型（单例）。各业务页在下载/网络/启动过程中向此处写入进度，
-/// 主窗口状态栏只读绑定到这里。下载进度由 <see cref="StatusBarViewModel"/> 维护，
-/// 网络状态按需探测。
-/// </summary>
-public class StatusBarViewModel : ObservableObject
-{
-    /// <summary>全局单例。</summary>
-    public static StatusBarViewModel Current { get; } = new();
-
-    private string _javaVersionText = "检测中…";
-    private int _installedCount;
-    private double _downloadProgress;      // 0-100
-    private string _downloadText = "空闲";
-    private string _networkStatusText = "未探测";
-    private bool _isNetworkOk;
-    private int _runningInstances;
-    private string _lastLog = "";
-
-    public string JavaVersionText
-    {
-        get => _javaVersionText;
-        set => SetField(ref _javaVersionText, value);
-    }
-
-    public int InstalledCount
-    {
-        get => _installedCount;
-        set => SetField(ref _installedCount, value);
-    }
-
-    /// <summary>下载进度（0-100）。</summary>
-    public double DownloadProgress
-    {
-        get => _downloadProgress;
-        set
-        {
-            if (!SetField(ref _downloadProgress, value)) return;
-            // 进度在 (0,100) 之间表示有下载任务在进行中；0/100 视为空闲（含完成后归零）
-            OnPropertyChanged(nameof(IsDownloading));
-        }
-    }
-
-    /// <summary>是否有正在进行的下载任务（驱动标题栏下载按钮的环形进度显隐）。</summary>
-    public bool IsDownloading => _downloadProgress is > 0 and < 100;
-
-    public string DownloadText
-    {
-        get => _downloadText;
-        set => SetField(ref _downloadText, value);
-    }
-
-    public string NetworkStatusText
-    {
-        get => _networkStatusText;
-        set => SetField(ref _networkStatusText, value);
-    }
-
-    public bool IsNetworkOk
-    {
-        get => _isNetworkOk;
-        set => SetField(ref _isNetworkOk, value);
-    }
-
-    public int RunningInstances
-    {
-        get => _runningInstances;
-        set => SetField(ref _runningInstances, value);
-    }
-
-    public string LastLog
-    {
-        get => _lastLog;
-        set => SetField(ref _lastLog, value);
-    }
-
-    public ICommand RefreshCommand { get; }
-
-    // ---- 本地化属性（用于 StringFormat 替换） ----
-    public string InstalledCountText => LocaleManager.Tf("status.installed", InstalledCount);
-    public string RunningInstancesText => LocaleManager.Tf("status.running", RunningInstances);
-
-    public StatusBarViewModel()
-    {
-        RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync());
-        LocaleManager.LocaleChanged += _ =>
-        {
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                OnPropertyChanged(nameof(InstalledCountText));
-                OnPropertyChanged(nameof(RunningInstancesText));
-            });
-        };
-        _ = RefreshAsync();
-    }
-
-    public async Task RefreshAsync()
-    {
-        try
-        {
-            InstalledCount = LauncherService.Instance.ListInstalledVersions().Count;
-            // 含跨进程扫描：启动器重启后仍能统计到后台跑着的游戏（用户反馈「0 个实例」）
-            RunningInstances = InstanceTracker.ActiveCountIncludingExternal(GameConstants.DefaultGameRoot);
-
-            // 此前按启动器最低要求（21）判定：装了 Java 8 / 17 的用户状态栏永远显示
-            // 「未检测到 Java」，与「真的没装」无法区分。改为「有任何 Java 就显示版本，
-            // 低于要求时额外标注」。
-            var java = await JavaDetector.FindBestAsync(8);
-            JavaVersionText = java is null
-                ? LocaleManager.Tf("status.no_java", GameConstants.MinimumJavaMajorVersion)
-                : java.MajorVersion >= GameConstants.MinimumJavaMajorVersion
-                    ? $"Java {java.MajorVersion}"
-                    : LocaleManager.Tf("status.java_low", java.MajorVersion, GameConstants.MinimumJavaMajorVersion);
-        }
-        catch
-        {
-            JavaVersionText = "检测失败";
-        }
-
-        _ = ProbeNetworkAsync();
-    }
-
-    private async Task ProbeNetworkAsync()
-    {
-        try
-        {
-            var results = await NetworkDiagnostics.DiagnoseAsync(null, new HttpClient());
-            var ok = results.Count(r => r.Reachable);
-            IsNetworkOk = ok > 0;
-            NetworkStatusText = $"{ok}/{results.Count} 可达";
-        }
-        catch
-        {
-            IsNetworkOk = false;
-            NetworkStatusText = "探测失败";
-        }
-    }
-}
+using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Threading;
+using Chert.Core.Launcher;
+using Chert.Core.Localization;
+using Chert.Core.MultiInstance;
+using Chert.Core.Mvvm;
+using Chert.Core.Toolbox;
+using Chert.Core.Utils;
+using Chert.App.Services;
+
+namespace Chert.App.ViewModels;
+
+/// <summary>
+/// 全局状态栏视图模型（单例）。各业务页在下载/网络/启动过程中向此处写入进度，
+/// 主窗口状态栏只读绑定到这里。下载进度由 <see cref="StatusBarViewModel"/> 维护，
+/// 网络状态按需探测。
+/// </summary>
+public class StatusBarViewModel : ObservableObject
+{
+    /// <summary>全局单例。</summary>
+    public static StatusBarViewModel Current { get; } = new();
+
+    private string _javaVersionText = "检测中…";
+    private int _installedCount;
+    private double _downloadProgress;      // 0-100
+    private string _downloadText = "空闲";
+    private string _networkStatusText = "未探测";
+    private bool _isNetworkOk;
+    private int _runningInstances;
+    private string _lastLog = "";
+
+    public string JavaVersionText
+    {
+        get => _javaVersionText;
+        set => SetField(ref _javaVersionText, value);
+    }
+
+    public int InstalledCount
+    {
+        get => _installedCount;
+        set { if (!SetField(ref _installedCount, value)) return; OnPropertyChanged(nameof(InstalledCountText)); }
+    }
+
+    /// <summary>下载进度（0-100）。</summary>
+    public double DownloadProgress
+    {
+        get => _downloadProgress;
+        set
+        {
+            if (!SetField(ref _downloadProgress, value)) return;
+            // 进度在 (0,100) 之间表示有下载任务在进行中；0/100 视为空闲（含完成后归零）
+            OnPropertyChanged(nameof(IsDownloading));
+        }
+    }
+
+    /// <summary>是否有正在进行的下载任务（驱动标题栏下载按钮的环形进度显隐）。</summary>
+    public bool IsDownloading => _downloadProgress is > 0 and < 100;
+
+    public string DownloadText
+    {
+        get => _downloadText;
+        set => SetField(ref _downloadText, value);
+    }
+
+    public string NetworkStatusText
+    {
+        get => _networkStatusText;
+        set => SetField(ref _networkStatusText, value);
+    }
+
+    public bool IsNetworkOk
+    {
+        get => _isNetworkOk;
+        set => SetField(ref _isNetworkOk, value);
+    }
+
+    public int RunningInstances
+    {
+        get => _runningInstances;
+        set { if (!SetField(ref _runningInstances, value)) return; OnPropertyChanged(nameof(RunningInstancesText)); }
+    }
+
+    public string LastLog
+    {
+        get => _lastLog;
+        set => SetField(ref _lastLog, value);
+    }
+
+    public ICommand RefreshCommand { get; }
+
+    /// <summary>轻量定时重扫：每 5s 仅刷新运行实例数（不触发 Java/网络探测），
+    /// 让用户在游戏启动后无需手动刷新即可看到实例计数增长。</summary>
+    private readonly DispatcherTimer _instanceTimer = new()
+    {
+        Interval = TimeSpan.FromSeconds(5),
+    };
+
+    // ---- 本地化属性（用于 StringFormat 替换） ----
+    public string InstalledCountText => LocaleManager.Tf("status.installed", InstalledCount);
+    public string RunningInstancesText => LocaleManager.Tf("status.running", RunningInstances);
+
+    public StatusBarViewModel()
+    {
+        RefreshCommand = new AsyncRelayCommand(_ => RefreshAsync());
+        LocaleManager.LocaleChanged += _ =>
+        {
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                OnPropertyChanged(nameof(InstalledCountText));
+                OnPropertyChanged(nameof(RunningInstancesText));
+            });
+        };
+
+        // 游戏进程启动事件（多实例路径也覆盖）：立即刷新一次实例计数，
+        // 配合下方 5s 定时兜底，确保「启动后实例数立刻 +1」。
+        Chert.Core.Launcher.GameLauncher.GameProcessStarted += (_, _) => _ = RefreshInstancesAsync();
+
+        _instanceTimer.Tick += (_, _) => _ = RefreshInstancesAsync();
+        _instanceTimer.Start();
+
+        _ = RefreshAsync();
+    }
+
+    /// <summary>仅刷新运行实例数（轻量、定时调用，避免每次都跑 Java/网络探测）。</summary>
+    private async Task RefreshInstancesAsync()
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                var count = InstanceTracker.ActiveCountIncludingExternal(GameConstants.DefaultGameRoot);
+                Application.Current.Dispatcher.Invoke(() => RunningInstances = count);
+            });
+        }
+        catch
+        {
+            // 后台扫描偶发失败不应影响状态栏其它信息
+        }
+    }
+
+    public async Task RefreshAsync()
+    {
+        try
+        {
+            InstalledCount = LauncherService.Instance.ListInstalledVersions().Count;
+            // 含跨进程扫描：启动器重启后仍能统计到后台跑着的游戏（用户反馈「0 个实例」）
+            RunningInstances = InstanceTracker.ActiveCountIncludingExternal(GameConstants.DefaultGameRoot);
+
+            // 此前按启动器最低要求（21）判定：装了 Java 8 / 17 的用户状态栏永远显示
+            // 「未检测到 Java」，与「真的没装」无法区分。改为「有任何 Java 就显示版本，
+            // 低于要求时额外标注」。
+            var java = await JavaDetector.FindBestAsync(8);
+            JavaVersionText = java is null
+                ? LocaleManager.Tf("status.no_java", GameConstants.MinimumJavaMajorVersion)
+                : java.MajorVersion >= GameConstants.MinimumJavaMajorVersion
+                    ? $"Java {java.MajorVersion}"
+                    : LocaleManager.Tf("status.java_low", java.MajorVersion, GameConstants.MinimumJavaMajorVersion);
+        }
+        catch
+        {
+            JavaVersionText = "检测失败";
+        }
+
+        _ = ProbeNetworkAsync();
+    }
+
+    private async Task ProbeNetworkAsync()
+    {
+        try
+        {
+            var results = await NetworkDiagnostics.DiagnoseAsync(null, new HttpClient());
+            var ok = results.Count(r => r.Reachable);
+            IsNetworkOk = ok > 0;
+            NetworkStatusText = $"{ok}/{results.Count} 可达";
+        }
+        catch
+        {
+            IsNetworkOk = false;
+            NetworkStatusText = "探测失败";
+        }
+    }
+}
