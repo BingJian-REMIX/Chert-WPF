@@ -266,11 +266,18 @@ public sealed class QrLoginSession
     public string Key { get; set; } = "";
 
     /// <summary>
-    /// 二维码图片的 data URL（<c>data:image/png;base64,...</c>）。
+    /// 二维码图片的 data URL（<c>data:image/png;base64,...</c>）或 http(s) 图片地址。
     /// <para>这里刻意不直接给 ImageSource —— Core 层不能依赖 WPF/Avalonia 的图像类型，
     /// 界面层自己解码成各自的图像对象。</para>
     /// </summary>
     public string QrDataUrl { get; set; } = "";
+
+    /// <summary>
+    /// 待编码成二维码的纯文本内容（登录链接等）。
+    /// <para>服务端只给文本、不给图片时（QQ 音乐等常见），界面层用它本地生成二维码。
+    /// <see cref="QrDataUrl"/> 非空时优先展示图片，本字段作兜底。</para>
+    /// </summary>
+    public string QrContent { get; set; } = "";
 
     /// <summary>过期时刻（取不到时由服务端自己判通过期码）。</summary>
     public DateTimeOffset? ExpiresAt { get; set; }

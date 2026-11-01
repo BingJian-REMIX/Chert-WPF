@@ -562,7 +562,10 @@ public class LauncherService : ILogger
                     ?? (string.IsNullOrEmpty(plan.VersionId)
                         ? GameConstants.MinimumJavaMajorVersion
                         : JavaDetector.RequiredMajorForVersionId(GameRoot, plan.VersionId));
-                var java = await JavaDetector.FindBestAsync(required, required == 8);
+                // ★ issue #5-②：FindBestAsync 必须带上自定义游戏目录的 runtime，
+                //   否则装在 {GameRoot}/runtime 的 Java 检测不到 → 每次修复都重新拉 180MB。
+                var java = await JavaDetector.FindBestAsync(required, required == 8,
+                    new[] { Path.Combine(GameRoot, "runtime") });
                 if (java is null)
                 {
                     Log($"未找到 Java {required}+，尝试下载安装（{profile.PreferredJavaVendor}）…");
@@ -658,7 +661,7 @@ public class LauncherService : ILogger
         {
             try
             {
-                var ok = await InstallModDependencyAsync(client, id, loader, gameVersion, ct);
+                var ok = await InstallModDependencyAsync(client, id, loader, gameVersion, plan.VersionId, ct);
                 if (ok) Log($"已安装缺失前置：{id}");
                 else { Log($"未找到可安装的缺失前置：{id}"); allOk = false; }
             }
@@ -759,7 +762,7 @@ public class LauncherService : ILogger
     }
 
     private async Task<bool> InstallModDependencyAsync(ModrinthClient client, string modId,
-        LoaderType loader, string? gameVersion, CancellationToken ct)
+        LoaderType loader, string? gameVersion, string? versionId, CancellationToken ct)
     {
         var search = await client.SearchAsync(modId, gameVersion, loader, ModrinthProjectType.Mod, limit: 5, ct: ct);
         var hit = search.Hits.FirstOrDefault(h => string.Equals(h.Slug, modId, StringComparison.OrdinalIgnoreCase))
@@ -776,7 +779,10 @@ public class LauncherService : ILogger
         var file = client.SelectBestFile(ver, gameVersion, loader);
         if (file is null) return false;
 
-        var modsDir = PathEx.ModsDir(GameRoot);
+        // ★ issue #5-②：前置必须装进**该版本实际工作目录**的 mods ——
+        //   隔离版装进共享 mods 等于装错地方，游戏照样加载不到。
+        //   WatchDirFor 与启动时的 --gameDir 同源（隔离 → versions/<id>/，共享 → gameRoot）。
+        var modsDir = PathEx.ModsDir(Chert.Core.Toolbox.FileChangeDetector.WatchDirFor(GameRoot, versionId ?? ""));
         Directory.CreateDirectory(modsDir);
         var dest = Path.Combine(modsDir, file.FileName);
         await _downloader.DownloadAsync(new DownloadItem(new[] { file.Url }, dest, file.Hashes.Sha1), null, ct);
@@ -900,7 +906,10 @@ public class LauncherService : ILogger
     /// </summary>
     private async Task<JavaInfo?> EnsureJavaWithUiAsync(int required, string gameRoot, LauncherProfile profile, CancellationToken ct)
     {
-        var existing = await JavaDetector.FindBestAsync(required, required == 8);
+        // ★ issue #5-②：补 extraDirs —— 自定义游戏目录的 runtime 要一起查，
+        //   否则已装好的 Java 被误判缺失，反复自动安装。
+        var existing = await JavaDetector.FindBestAsync(required, required == 8,
+            new[] { Path.Combine(gameRoot, "runtime") });
         if (existing is not null) return existing;
 
         if (!ConfirmJavaDownload(required))

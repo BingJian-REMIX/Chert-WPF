@@ -1509,7 +1509,7 @@ public class MusicPlayerViewModel : ObservableObject
             LoginStatusText = "正在获取二维码…";
             var session = await Online.CreateQrLoginAsync(cts.Token);
             _loginKey = session.Key;
-            LoginQrDataUrl = session.QrDataUrl;
+            LoginQrDataUrl = ResolveQrImage(session);
             LoginPanelVisible = true;
             LoginStatusText = "请用手机扫描下方二维码";
 
@@ -1539,6 +1539,27 @@ public class MusicPlayerViewModel : ObservableObject
         finally
         {
             if (ReferenceEquals(_loginCts, cts)) { _loginCts.Dispose(); _loginCts = null; }
+        }
+    }
+
+    /// <summary>
+    /// 解析扫码登录二维码的展示源。服务端可能给：
+    /// ① data URL / http 图片地址（<see cref="QrLoginSession.QrDataUrl"/>）—— 直接显示；
+    /// ② 仅给待编码文本（QQ 音乐等）—— 用 <see cref="QrCodePng"/> 本地生成 PNG 的 data URL。
+    /// 两者都没有时返回空串，界面显示占位。
+    /// </summary>
+    private static string ResolveQrImage(Chert.Core.Music.QrLoginSession session)
+    {
+        if (!string.IsNullOrWhiteSpace(session.QrDataUrl)) return session.QrDataUrl;
+        if (string.IsNullOrWhiteSpace(session.QrContent)) return "";
+        try
+        {
+            var png = Services.QrCodePng.ToPngBytes(session.QrContent);
+            return png is null ? "" : "data:image/png;base64," + System.Convert.ToBase64String(png);
+        }
+        catch
+        {
+            return "";
         }
     }
 

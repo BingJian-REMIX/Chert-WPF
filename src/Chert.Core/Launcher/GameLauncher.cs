@@ -3,6 +3,7 @@ using Chert.Core.Download;
 using Chert.Core.Models;
 using Chert.Core.MultiInstance;
 using Chert.Core.Profiles;
+using Chert.Core.Statistics;
 using Chert.Core.Toolbox;
 using Chert.Core.Utils;
 using Chert.Core.Installers;
@@ -76,6 +77,21 @@ public static class GameLauncher
                 break;
             }
             current = parent;
+        }
+    }
+
+    /// <summary>统计用：该工作目录下已装 Mod 数（.jar，忽略 .disabled）。</summary>
+    private static int CountMods(string gameDir)
+    {
+        try
+        {
+            var modsDir = System.IO.Path.Combine(gameDir, "mods");
+            if (!System.IO.Directory.Exists(modsDir)) return 0;
+            return System.IO.Directory.GetFiles(modsDir, "*.jar").Length;
+        }
+        catch
+        {
+            return 0;
         }
     }
 
@@ -300,6 +316,15 @@ public static class GameLauncher
         var maxMemoryMb = ParseMaxMemoryMb(resolved.JvmArgs);
         GameProcessStarted?.Invoke(proc, maxMemoryMb);
 
+        // ★ issue #5-⑤：统计写入接入启动链路（此前 PlaytimeTracker.RecordLaunch /
+        //   RecordPlayMinutes / SessionLog.Append 在 src/ 全部零调用，主页/年报都在读却没人写）。
+        //   挂在 GameLauncher 一处即可覆盖全部入口（首页/版本列表/游戏详情/热键/联机/崩溃恢复/多实例）。
+        int sessionPid;
+        try { sessionPid = proc.Id; } catch { sessionPid = 0; }
+        var sessionModCount = CountMods(gameDir);
+        try { PlaytimeTracker.RecordLaunch(gameRoot, versionId, sessionModCount, sessionPid); }
+        catch { /* 统计失败不得阻塞启动 */ }
+
         // ★ waitForExit = false 时**只启动、不等退出**（problem3 多实例）：
         //   游戏进程交给上层自行跟踪（InstanceTracker / 跨进程扫描），本方法立刻返回，
         //   调用方的 AsyncRelayCommand 随即释放 _isRunning → 启动按钮恢复可点，
@@ -311,6 +336,17 @@ public static class GameLauncher
             LogLine(logger, gameRoot, $"游戏进程已启动（pid={proc.Id}），本次不等待退出（多实例模式）");
             // 注意：多实例路径**不释放** proc —— HUD/性能监控需持续读取内存/CPU，
             // 进程对象由上层（HUD 退出检测 / 跨进程扫描）负责最终释放，避免提前 Dispose 后读属性抛异常。
+            // 统计仍要在退出时收口：后台等进程结束补记时长/崩溃（只读 proc，不 Dispose）。
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await proc.WaitForExitAsync(CancellationToken.None);
+                    var crashed = CrashDetector.FindLatestCrashReport(gameDir, preCrashReports) is not null;
+                    PlaytimeTracker.RecordSessionEnd(gameRoot, sessionPid, crashed, versionId, sessionModCount);
+                }
+                catch { /* 统计失败不得影响游戏 */ }
+            });
             return new LaunchResult();
         }
 
@@ -325,6 +361,13 @@ public static class GameLauncher
                 LogLine(logger, gameRoot, $"检测到崩溃报告：{crash}（退出码 {exitCode}）");
             else
                 LogLine(logger, gameRoot, $"游戏进程已退出（退出码 {exitCode}），未检测到崩溃报告。");
+
+            // ★ issue #5-⑤：收口会话 —— 时长 / 崩溃次数 / 会话流水（年度报告数据源）
+            try
+            {
+                PlaytimeTracker.RecordSessionEnd(gameRoot, sessionPid, crash is not null, versionId, sessionModCount);
+            }
+            catch { /* 统计失败不得阻塞 */ }
 
             var result = new LaunchResult { ExitCode = exitCode, CrashReportPath = crash };
 

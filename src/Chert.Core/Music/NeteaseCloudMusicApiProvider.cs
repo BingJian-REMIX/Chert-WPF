@@ -248,11 +248,14 @@ public sealed class NeteaseCloudMusicApiProvider : IOnlineMusicLoginProvider
             fallback = MusicJson.Str(qData, "qrurl") ?? "";
         }
 
+        // qrimg 为空时回落 qrurl：可能是图片地址（界面直接显示），也可能是待编码文本（界面本地生成）
+        var isImage = fallback.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                      || fallback.StartsWith("http", StringComparison.OrdinalIgnoreCase);
         return new QrLoginSession
         {
             Key = key!,
-            QrDataUrl = string.IsNullOrEmpty(dataUrl) ? fallback : dataUrl,
-            // qrimg 为空时回落 qrurl：界面直接展示服务端给的二维码图片地址
+            QrDataUrl = string.IsNullOrEmpty(dataUrl) ? (isImage ? fallback : "") : dataUrl,
+            QrContent = string.IsNullOrEmpty(dataUrl) && !isImage ? fallback : "",
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
         };
     }

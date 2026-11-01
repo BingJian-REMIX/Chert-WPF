@@ -43,7 +43,10 @@ public static class JavaInstaller
         ILogger? logger = null,
         CancellationToken ct = default)
     {
-        var existing = await JavaDetector.FindBestAsync(minMajor, minMajor == 8);
+        // ★ issue #5-②：extraDirs 带上 gameRoot/runtime —— 自动安装的 Java 就落在这里，
+        //   不传则下次检测不到、又重复下载一遍。
+        var existing = await JavaDetector.FindBestAsync(minMajor, minMajor == 8,
+            new[] { Path.Combine(gameRoot, "runtime") });
         if (existing is not null)
         {
             logger?.Log($"已找到可用 Java：{existing}");

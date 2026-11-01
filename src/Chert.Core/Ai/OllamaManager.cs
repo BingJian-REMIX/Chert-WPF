@@ -92,11 +92,31 @@ public static class OllamaManager
             ? "https://ollama.com/download/OllamaSetup.exe"
             : "https://ollama.com/install.sh";
 
-    /// <summary>安装器镜像地址：非空时，<see cref="InstallAsync"/> 改用该地址下载安装器（加速国内拉取）。
-    /// 留空 = 使用官方 <see cref="InstallerUrl"/>。由「设置 → AI 助手 → 本地部署 → 安装器镜像源」写入（默认空）。
+    /// <summary>安装器镜像地址：非空时，<see cref="InstallAsync"/> 优先用该地址下载安装器（加速国内拉取），
+    /// 失败自动回退官方与 GitHub 代理。留空 = 官方优先。由「设置 → AI 助手 → 本地部署 → 安装器镜像源」写入（默认空）。
     /// 提示：Windows 可用 GitHub 代理（如 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe），
     /// 该地址始终重定向到最新版安装器。变量末尾不要带斜杠。</summary>
     public static string? InstallerMirrorUrl { get; set; }
+
+    /// <summary>
+    /// 安装器候选地址（按优先级）：用户配置的镜像 → 官方 → GitHub 代理兜底。
+    /// issue #5-①：国内直连 ollama.com 常被 TLS 重置，单源下载直接失败；
+    /// 改为逐个尝试，任一成功即停。GitHub 代理取 ollama/ollama 的 latest 资产，始终是最新版安装器。
+    /// </summary>
+    private static IEnumerable<string> InstallerCandidateUrls()
+    {
+        if (!string.IsNullOrWhiteSpace(InstallerMirrorUrl))
+            yield return InstallerMirrorUrl!;
+        yield return InstallerUrl;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            // 仅 Windows exe 走 GitHub 代理；install.sh 的 GitHub 路径不同，不混用
+            const string gh = "https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe";
+            yield return "https://ghproxy.net/" + gh;
+            yield return "https://mirror.ghproxy.com/" + gh;
+            yield return "https://ghfast.top/" + gh;
+        }
+    }
 
     /// <summary>解析 `ollama --version` 输出中的版本号（如 "ollama version 0.1.2" → "0.1.2"）。</summary>
     public static string? ParseVersion(string? output)
@@ -183,20 +203,20 @@ public static class OllamaManager
     }
 
     /// <summary>
-    /// 安装 Ollama：下载安装器到临时目录并运行（静默安装），进度回报 0→1。
-    /// 取消时终止安装进程并清理临时文件。仅 Windows 提供 exe 安装器；其它平台下载脚本后由用户手动执行。
+    /// 安装 Ollama：下载安装器并运行（静默安装），进度回报 0→1。
+    /// <para>issue #5-④：未指定版本的安装包（OllamaSetup.exe 等）默认落在<b>启动器同级目录</b>
+    /// （<c>AppContext.BaseDirectory</c>），方便用户找到/复用；该目录不可写时回落 %TEMP%。
+    /// 安装完成后安装包保留（不删），下次安装可直接复用。</para>
+    /// 取消时终止安装进程。仅 Windows 提供 exe 安装器；其它平台下载脚本后由用户手动执行。
     /// </summary>
     public static async Task InstallAsync(IProgress<double>? progress, CancellationToken ct)
     {
-        var tmp = Path.Combine(Path.GetTempPath(), "mclcs_ollama_" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(tmp);
+        var target = Path.Combine(ResolveDownloadDir(), RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "OllamaSetup.exe" : "install.sh");
         Process? installer = null;
         try
         {
-            var target = Path.Combine(tmp, RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? "OllamaSetup.exe" : "install.sh");
-            var installerUrl = string.IsNullOrWhiteSpace(InstallerMirrorUrl) ? InstallerUrl : InstallerMirrorUrl!;
-            await DownloadFileAsync(installerUrl, target, new Progress<double>(p => progress?.Report(p * 0.95)), ct);
+            await DownloadFileAsync(InstallerCandidateUrls(), target, new Progress<double>(p => progress?.Report(p * 0.95)), ct);
             progress?.Report(0.96);
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -230,8 +250,32 @@ public static class OllamaManager
         finally
         {
             try { installer?.Kill(); } catch { }
-            try { Directory.Delete(tmp, true); } catch { }
+            // 安装包保留在启动器同级目录（issue #5-④），不再清理；仅清理未下完的残留
+            try
+            {
+                if (File.Exists(target) && new FileInfo(target).Length == 0) File.Delete(target);
+            }
+            catch { }
         }
+    }
+
+    /// <summary>未指定版本内容的默认落盘目录：启动器同级目录，不可写时回落 %TEMP%。</summary>
+    private static string ResolveDownloadDir()
+    {
+        try
+        {
+            var baseDir = AppContext.BaseDirectory;
+            if (!string.IsNullOrWhiteSpace(baseDir) && Directory.Exists(baseDir))
+            {
+                // 写探针：Program Files 等只读安装位置会抛 UnauthorizedAccessException
+                var probe = Path.Combine(baseDir, ".chert_write_probe");
+                File.WriteAllText(probe, "1");
+                File.Delete(probe);
+                return baseDir;
+            }
+        }
+        catch { /* 不可写 → 回落临时目录 */ }
+        return Path.GetTempPath();
     }
 
     /// <summary>
@@ -257,8 +301,8 @@ public static class OllamaManager
             var stdout = p.StandardOutput;
             var buf = new char[1];
             var sb = new StringBuilder();
-            // 不要用 stdout.EndOfStream：它在异步方法里会触发一次同步读（CA2024），
-            // 既可能阻塞线程，也会和下面的 ReadAsync 抢数据。读到 0 字节就是流结束。
+            // 不要用 stdout.EndOfStream：它在异步方法里会触发一次同步读（CA2024），
+            // 既可能阻塞线程，也会和下面的 ReadAsync 抢数据。读到 0 字节就是流结束。
             while (!ct.IsCancellationRequested)
             {
                 int read = await stdout.ReadAsync(buf, 0, 1);
@@ -315,7 +359,29 @@ public static class OllamaManager
         }
     }
 
-    private static async Task DownloadFileAsync(string url, string dest, IProgress<double>? progress, CancellationToken ct)
+    /// <summary>下载文件：逐个尝试候选 URL，任一成功即停；全部失败则抛出最后一次异常。</summary>
+    private static async Task DownloadFileAsync(IEnumerable<string> urls, string dest, IProgress<double>? progress, CancellationToken ct)
+    {
+        Exception? last = null;
+        foreach (var url in urls)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                await DownloadSingleAsync(url, dest, progress, ct);
+                return;
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                last = ex;
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
+            }
+        }
+        throw last ?? new InvalidOperationException("没有可用的下载地址");
+    }
+
+    private static async Task DownloadSingleAsync(string url, string dest, IProgress<double>? progress, CancellationToken ct)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
         using var resp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);

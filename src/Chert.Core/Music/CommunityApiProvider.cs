@@ -179,38 +179,107 @@ public sealed class CommunityApiProvider : IOnlineMusicLoginProvider
         var stamp = _profile.QrKeyPath.Contains('?') ? "&timestamp=" + ts : "?timestamp=" + ts;
 
         string? key = null;
+        string firstImage = "", firstText = "", keyAsContent = "";
         using (var kDoc = await GetJsonAsync(_profile.QrKeyPath + stamp, ct: ct).ConfigureAwait(false))
         {
+            // id：QQMusicApi 等把会话标识叫 id；code 仅接受字符串型（数字型 code 是状态码，不是标识）
             key = MusicJson.FindString(kDoc.RootElement,
-                new[] { "unikey", "key", "code", "qrcode_key", "qrcodeKey", "qrKey", "qrcode" });
-            if (string.IsNullOrWhiteSpace(key) || key!.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                key = null;     // ★ 有的实例直接把二维码内容塞在 key 位，那不是「标识」
+                new[] { "unikey", "key", "code", "qrcode_key", "qrcodeKey", "qrKey", "qrcode", "id" });
+            if (!string.IsNullOrWhiteSpace(key) && key!.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                // ★ 有的实例直接把二维码内容塞在 key 位 —— 那不是「标识」，但它是待编码文本，别丢
+                keyAsContent = key;
+                key = null;
+            }
+
+            // 有些实例（QQMusicApi 等）在**同一次响应**里就带上了二维码素材，
+            // 二次调用反而会拿到与 key 不匹配的新二维码 —— 先记下来备用。
+            firstImage = MusicJson.FindString(kDoc.RootElement,
+                new[] { "qrimg", "qrcodeImage", "image", "qrcodeBase64" }) ?? "";
+            firstText = MusicJson.FindString(kDoc.RootElement,
+                new[] { "qrurl", "qrUrl", "url", "qrcodeContent", "content" }) ?? "";
         }
 
-        var createPath = string.IsNullOrWhiteSpace(key)
-            ? _profile.QrCreatePath
-            : VendorApiProfile.Expand(_profile.QrCreatePath, ("key", key!));
+        // 二次调用只在「create 路径与 key 路径不同」时进行；
+        // 路径相同时（QQ 音乐）再调一次只会生成新二维码，与已取的 key 对不上。
+        var keyPath = _profile.QrKeyPath.Split('?')[0].TrimEnd('/');
+        var createBase = _profile.QrCreatePath.Split('?')[0].TrimEnd('/');
+        var singleShot = string.Equals(keyPath, createBase, StringComparison.OrdinalIgnoreCase);
 
-        using var qDoc = await GetJsonAsync(createPath, ct: ct).ConfigureAwait(false);
-
-        // 二维码内容：优先 data URL（界面直接解码），其次是二维码内容文本，最后是图片地址
-        var root = qDoc.RootElement;
-        var dataUrl = MusicJson.FindString(root, new[] { "qrimg", "qrcodeImage", "image", "qrcodeBase64" }) ?? "";
-        var text = MusicJson.FindString(root, new[] { "qrurl", "qrUrl", "url", "qrcodeContent", "content" }) ?? "";
-
-        if (dataUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) && !dataUrl.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
+        string rawImage, rawText;
+        if (singleShot)
         {
-            // 拿到的是图片地址而非 data URL：留给界面按 URL 直接显示
-            text = string.IsNullOrWhiteSpace(text) ? dataUrl : text;
-            dataUrl = "";
+            rawImage = firstImage;
+            rawText = firstText;
         }
+        else
+        {
+            var createPath = string.IsNullOrWhiteSpace(key)
+                ? _profile.QrCreatePath
+                : VendorApiProfile.Expand(_profile.QrCreatePath, ("key", key!));
+
+            using var qDoc = await GetJsonAsync(createPath, ct: ct).ConfigureAwait(false);
+            var root = qDoc.RootElement;
+            rawImage = MusicJson.FindString(root, new[] { "qrimg", "qrcodeImage", "image", "qrcodeBase64" }) ?? "";
+            rawText = MusicJson.FindString(root, new[] { "qrurl", "qrUrl", "url", "qrcodeContent", "content" }) ?? "";
+
+            // 首次响应里若有素材而二次调用没拿到，回填首次的（兼容只生成一次的实例）
+            if (string.IsNullOrEmpty(rawImage)) rawImage = firstImage;
+            if (string.IsNullOrEmpty(rawText)) rawText = firstText;
+        }
+
+        // 归一成两路：
+        //   图片（data URL 或 http(s) 图片地址）→ QrDataUrl，界面直接显示；
+        //   其余文本（登录链接等）→ QrContent，界面本地生成二维码。
+        // 此前 http 图片地址被丢弃、纯文本没人消费，QQ 音乐等于是「扫码框全黑」。
+        string qrImage = "", qrContent = "";
+        void Accept(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return;
+            var isImage = v.StartsWith("data:", StringComparison.OrdinalIgnoreCase)
+                          || LooksLikeImageUrl(v);
+            if (isImage)
+            {
+                if (string.IsNullOrEmpty(qrImage)) qrImage = v!;
+                else if (string.IsNullOrEmpty(qrContent)) qrContent = v!;
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(qrContent)) qrContent = v!;
+                else if (string.IsNullOrEmpty(qrImage)) qrImage = v!;
+            }
+        }
+        Accept(rawImage);
+        Accept(rawText);
+        Accept(keyAsContent);   // key 位被当二维码内容的，最后捡回来
 
         return new QrLoginSession
         {
             Key = key ?? "",
-            QrDataUrl = dataUrl,
+            QrDataUrl = qrImage,
+            QrContent = qrContent,
             ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
         };
+    }
+
+    /// <summary>判断字符串是否像图片地址（而非待编码的二维码文本）。</summary>
+    private static bool LooksLikeImageUrl(string s)
+    {
+        if (!s.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return false;
+        try
+        {
+            var path = new Uri(s).AbsolutePath;
+            return path.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith(".gif", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith(".webp", StringComparison.OrdinalIgnoreCase)
+                   || path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public async Task<QrLoginPollResult> PollQrLoginAsync(string key, CancellationToken ct = default)

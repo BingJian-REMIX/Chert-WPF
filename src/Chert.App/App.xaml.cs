@@ -254,6 +254,11 @@ public partial class App : Application
         // 网络 / 解析 / 加载任一失败均静默回退默认外观，绝不阻塞启动。
         Chert.App.Themes.SeasonalThemeManager.Enabled = profile.SeasonalEffectsEnabled;
         _ = Chert.App.Themes.SeasonalThemeManager.InitializeAsync(GameConstants.DefaultGameRoot);
+
+        // issue #5-⑤：补记上次未收口的游玩会话（启动器中途退出/崩溃时留下的），
+        // 进程仍存活的会话不动，等它自己退出时收口。
+        try { Chert.Core.Statistics.PlaytimeTracker.ReconcileOpenSessions(GameConstants.DefaultGameRoot); }
+        catch { /* 统计补记失败不得阻塞启动 */ }
     }
 
     /// <summary>

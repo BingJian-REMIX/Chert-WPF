@@ -76,10 +76,15 @@ public static class CrashRepairEngine
     private static bool TryBuildModRepair(CrashRepairPlan plan, LauncherProfile profile,
         string gameRoot, string? versionId)
     {
+        // ★ issue #5-②：崩溃修复的 Mod 扫描必须查**该版本实际工作目录** ——
+        //   隔离版的 mods 在 versions/<id>/mods，此前一律扫共享位置，
+        //   要么漏报要么把别人的 mod 张冠李戴。
+        var effectiveDir = VersionIsolation.GameDirFor(gameRoot, versionId ?? "");
+
         List<DependencyCheckResult> results;
         try
         {
-            results = ModManager.ScanDependencies(gameRoot);
+            results = ModManager.ScanDependencies(effectiveDir);
         }
         catch
         {
@@ -90,7 +95,7 @@ public static class CrashRepairEngine
         var conflictResults = results.Where(r => r.Conflicts.Count > 0).ToList();
         if (conflictResults.Count > 0)
         {
-            BuildConflictPlan(plan, conflictResults, gameRoot);
+            BuildConflictPlan(plan, conflictResults, effectiveDir);
             return true;
         }
 
