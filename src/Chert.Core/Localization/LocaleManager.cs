@@ -1310,7 +1310,7 @@ public static class LocaleManager
 
   ""ai.m15"": ""一键安装 Ollama"",
   ""ai.ollama_mirror"": ""Ollama 镜像源（registry mirror）"",
-  ""ai.ollama_mirror_tip"": ""留空 = 官方源 registry.ollama.ai。填写后拉取模型将改从该镜像下载（如上海交大 https://ollama.mirrors.sjtug.sjtu.edu.cn）。变量末尾不要带斜杠；镜像可用性随版本变化，建议先用小模型试拉验证。"",
+  ""ai.ollama_mirror_tip"": ""默认 = 魔搭 ModelScope 镜像（https://modelscope.cn/api/v1/models/ollama），国内拉取更快；清空则改用官方源 registry.ollama.ai。变量末尾不要带斜杠；镜像可用性随版本变化，建议先用小模型试拉验证。"",
   ""ai.ollama_installer_mirror"": ""Ollama 安装器镜像源"",
   ""ai.ollama_installer_mirror_tip"": ""留空 = 官方安装器（ollama.com）。填写后改用该地址下载安装器（加速国内拉取），如 GitHub 代理 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe。变量末尾不要带斜杠。"",
 
@@ -3641,7 +3641,7 @@ public static class LocaleManager
 
   ""ai.m15"": ""One-click install Ollama"",
   ""ai.ollama_mirror"": ""Ollama mirror (registry mirror)"",
-  ""ai.ollama_mirror_tip"": ""Leave empty = official source registry.ollama.ai. When set, model pulls go through this mirror (e.g. SJTUG https://ollama.mirrors.sjtug.sjtu.edu.cn). Do not add a trailing slash; mirror availability varies by Ollama version, so try a small model first."",
+  ""ai.ollama_mirror_tip"": ""Default = ModelScope mirror (https://modelscope.cn/api/v1/models/ollama) for faster CN pull; clear it to use the official registry.ollama.ai. Do not add a trailing slash; mirror availability varies by Ollama version, so try a small model first."",
   ""ai.ollama_installer_mirror"": ""Ollama installer mirror"",
   ""ai.ollama_installer_mirror_tip"": ""Leave empty = official installer (ollama.com). When set, the installer is downloaded from this URL instead (faster in CN), e.g. GitHub proxy https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe. Do not add a trailing slash."",
 
@@ -5970,7 +5970,7 @@ public static class LocaleManager
 
   ""ai.m15"": ""一鍵安裝 Ollama"",
   ""ai.ollama_mirror"": ""Ollama 鏡像源（registry mirror）"",
-  ""ai.ollama_mirror_tip"": ""留空 = 官方源 registry.ollama.ai。填寫後拉取模型將改從該鏡像下載（如上海交大 https://ollama.mirrors.sjtu.edu.cn）。變數末尾不要帶斜槓；鏡像可用性隨版本變化，建議先用小模型試拉驗證。"",
+  ""ai.ollama_mirror_tip"": ""預設 = 魔搭 ModelScope 鏡像（https://modelscope.cn/api/v1/models/ollama），國內拉取更快；清空則改用官方源 registry.ollama.ai。變數末尾不要帶斜槓；鏡像可用性隨版本變化，建議先用小模型試拉驗證。"",
   ""ai.ollama_installer_mirror"": ""Ollama 安裝器鏡像源"",
   ""ai.ollama_installer_mirror_tip"": ""留空 = 官方安裝器（ollama.com）。填寫後改用該地址下載安裝器（加速國內拉取），如 GitHub 代理 https://ghproxy.net/https://github.com/ollama/ollama/releases/latest/download/OllamaSetup.exe。變數末尾不要帶斜槓。"",
 

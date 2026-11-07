@@ -152,6 +152,15 @@ public partial class MainWindow : Window
 
     private const int ACCENT_ENABLE_ACRYLICBLURBEHIND = 4;
 
+    private const int ACCENT_ENABLE_BLURBEHIND = 1;   // Win10 传统模糊（state 1）；state 4 亚克力在 Win10 22H2 不渲染
+
+    /// <summary>是否 Windows 11（含 22H2+）。Build ≥ 22000 即 Win11；取不到时回退 false（按 Win10 处理）。</summary>
+    private static bool IsWindows11()
+    {
+        try { return Environment.OSVersion.Version.Major == 10 && Environment.OSVersion.Version.Build >= 22000; }
+        catch { return false; }
+    }
+
 
 
     /// <summary>当前是否已开启系统级背板（用于切出玻璃风格时关闭）。</summary>
@@ -262,13 +271,17 @@ public partial class MainWindow : Window
 
 
 
-            // Win10 1803+：ACCENT_ENABLE_ACRYLICBLURBEHIND 降级
+            // Win10 1803+：传统 BLURBEHIND（state 1）降级。
+
+            // 注意：ACCENT_ENABLE_ACRYLICBLURBEHIND（state 4）在 Win10 22H2 下不会渲染模糊
+
+            // （仅 Win11 对常规窗口生效），故 Win10 改走 state 1 的传统毛玻璃，实测可正常出模糊。
 
             var accent = new AccentPolicy
 
             {
 
-                AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND,
+                AccentState = IsWindows11() ? ACCENT_ENABLE_ACRYLICBLURBEHIND : ACCENT_ENABLE_BLURBEHIND,
 
                 AccentFlags = 2,
 

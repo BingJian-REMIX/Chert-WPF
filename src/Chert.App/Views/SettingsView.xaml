@@ -1803,19 +1803,33 @@
 
                     <TextBlock Grid.Row="4" Text="{Binding UpdateMessage}" Foreground="{DynamicResource StatusForeground}" Margin="0,2,0,0"/>
 
-                    <TextBlock Grid.Row="5" Margin="0,8,0,0" Foreground="{DynamicResource SecondaryForeground}" FontSize="11">
+                    <WrapPanel Grid.Row="5" Margin="0,8,0,0" Orientation="Horizontal">
 
-                        <Hyperlink NavigateUri="{x:Static core:GameConstants.GitHubRepoUri}" RequestNavigate="OpenUrl_Click">
+                        <TextBlock FontSize="11" Margin="0,0,16,0" Foreground="{DynamicResource SecondaryForeground}">
+                            <Hyperlink NavigateUri="{x:Static core:GameConstants.GitHubRepoUri}" RequestNavigate="OpenUrl_Click">
+                                <Run Text="{theme:Loc settings.license_github}"/>
+                            </Hyperlink>
+                        </TextBlock>
 
-                            <!-- 注意：{theme:Loc} 是标记扩展，只能出现在「属性」位置。
-                                 之前写成 <Hyperlink> 的元素内容，结果界面上原样显示了
-                                 "{theme:Loc settings.license_github}" 字面量。 -->
+                        <TextBlock FontSize="11" Margin="0,0,16,0" Foreground="{DynamicResource SecondaryForeground}">
+                            <Hyperlink NavigateUri="{x:Static core:GameConstants.CnbRepoUri}" RequestNavigate="OpenUrl_Click">
+                                <Run Text="CNB 主仓库"/>
+                            </Hyperlink>
+                        </TextBlock>
 
-                            <Run Text="{theme:Loc settings.license_github}"/>
+                        <TextBlock FontSize="11" Margin="0,0,16,0" Foreground="{DynamicResource SecondaryForeground}">
+                            <Hyperlink NavigateUri="{x:Static core:GameConstants.GitHubRepoUri}" RequestNavigate="OpenUrl_Click">
+                                <Run Text="GitHub 镜像仓库"/>
+                            </Hyperlink>
+                        </TextBlock>
 
-                        </Hyperlink>
+                        <TextBlock FontSize="11" Foreground="{DynamicResource SecondaryForeground}">
+                            <Hyperlink NavigateUri="{x:Static core:GameConstants.StudioSiteUri}" RequestNavigate="OpenUrl_Click">
+                                <Run Text="RLRS Studio 官网"/>
+                            </Hyperlink>
+                        </TextBlock>
 
-                    </TextBlock>
+                    </WrapPanel>
 
                 </Grid>
 

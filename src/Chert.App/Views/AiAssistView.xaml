@@ -395,7 +395,8 @@
 
                     <!-- 清空会连模型记着的上下文一起清：聊久了历史会一直累积，换个话题时该断就断 -->
 
-                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc ai.m24}" Command="{Binding ClearCommand}" Margin="6,0,0,0"/>
+                    <Button Style="{StaticResource GhostButtonStyle}" Content="{theme:Loc ai.m24}" Command="{Binding ClearCommand}" Margin="6,0,0,0"
+                            Visibility="{Binding ShowWelcome, Converter={StaticResource BoolToVis}}"/>
 
                 </WrapPanel>
 

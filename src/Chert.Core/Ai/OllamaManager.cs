@@ -98,8 +98,11 @@ public static class OllamaManager
     /// 该地址始终重定向到最新版安装器。变量末尾不要带斜杠。</summary>
     public static string? InstallerMirrorUrl { get; set; }
 
+    /// <summary>CNB 镜像的 Ollama 安装器直链（Windows exe，始终指向 latest）。issue #5-③：默认优先从 CNB 拉取，规避 ollama.com 国内 TLS 问题。</summary>
+    private const string CnbOllamaInstallerUrl = "https://cnb.cool/hex/ollama/-/releases/latest/download/OllamaSetup.exe";
+
     /// <summary>
-    /// 安装器候选地址（按优先级）：用户配置的镜像 → 官方 → GitHub 代理兜底。
+    /// 安装器候选地址（按优先级）：用户配置的镜像 → CNB 镜像 → 官方 → GitHub 代理兜底。
     /// issue #5-①：国内直连 ollama.com 常被 TLS 重置，单源下载直接失败；
     /// 改为逐个尝试，任一成功即停。GitHub 代理取 ollama/ollama 的 latest 资产，始终是最新版安装器。
     /// </summary>
@@ -107,6 +110,8 @@ public static class OllamaManager
     {
         if (!string.IsNullOrWhiteSpace(InstallerMirrorUrl))
             yield return InstallerMirrorUrl!;
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            yield return CnbOllamaInstallerUrl;   // issue #5-③：默认优先 CNB
         yield return InstallerUrl;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
@@ -303,9 +308,13 @@ public static class OllamaManager
             var sb = new StringBuilder();
             // 不要用 stdout.EndOfStream：它在异步方法里会触发一次同步读（CA2024），
             // 既可能阻塞线程，也会和下面的 ReadAsync 抢数据。读到 0 字节就是流结束。
-            while (!ct.IsCancellationRequested)
+            while (true)
             {
-                int read = await stdout.ReadAsync(buf, 0, 1);
+                if (ct.IsCancellationRequested) break;
+                int read;
+                try { read = await stdout.ReadAsync(buf, 0, 1); }
+                catch (OperationCanceledException) { throw; }
+                catch { break; }   // 进程被取消终止：管道关闭，读异常等同结束
                 if (read == 0) break;
                 sb.Append(buf[0]);
                 if (buf[0] == '\n')
@@ -316,6 +325,10 @@ public static class OllamaManager
                     if (frac.HasValue) progress?.Report(frac.Value);
                 }
             }
+            // 取消：杀进程后走到这里，主动抛 OperationCanceledException，
+            // 让上层（AiSettingsViewModel.PullModelAsync）走到「已取消下载」分支，
+            // 而不是误判为「已就绪」。
+            ct.ThrowIfCancellationRequested();
             if (!p.HasExited) await p.WaitForExitAsync(ct);
         }
         progress?.Report(1.0);

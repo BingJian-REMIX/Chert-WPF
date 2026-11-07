@@ -35,12 +35,13 @@ public class AiConfig
     public bool ModTranslate { get; set; } = true;
     /// <summary>
     /// 本地部署的 Ollama 镜像源（registry mirror），对应 ollama 的 <c>OLLAMA_REGISTRY</c> 环境变量。
-    /// 留空 = 使用官方源 <c>registry.ollama.ai</c>；填写后启动 <c>ollama pull</c> / <c>ollama serve</c> 时
-    /// 注入该环境变量，使模型权重改从该镜像拉取（国内常见：上海交大
-    /// <c>https://ollama.mirrors.sjtug.sjtu.edu.cn</c>、中科大 <c>https://mirrors.ustc.edu.cn/ollama/</c>）。
+    /// <para>issue #5 新增：默认 = 魔搭 ModelScope 镜像 <c>https://modelscope.cn/api/v1/models/ollama</c>，
+    /// 三模型（qwen2.5-coder / internlm2 / phi3.5）默认走魔搭拉取，国内速度远快于官方源。
+    /// 清空 = 改用官方源 <c>registry.ollama.ai</c>；填写其它地址则覆盖默认值。</para>
+    /// 启动 <c>ollama pull</c> / <c>ollama serve</c> 时注入该环境变量，使模型权重改从该镜像拉取。
     /// 注意：镜像可用性随版本变化，建议先在轻量模型上试拉验证速度；变量末尾不要带斜杠。
     /// </summary>
-    public string? OllamaMirrorUrl { get; set; }
+    public string? OllamaMirrorUrl { get; set; } = "https://modelscope.cn/api/v1/models/ollama";
 
     /// <summary>
     /// 安装器下载镜像源：非空时，Ollama 安装流程改用该地址下载安装器（加速国内拉取，绕过 ollama.com 直连）。

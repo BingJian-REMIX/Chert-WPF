@@ -140,6 +140,15 @@ public static class GameConstants
     /// 仅当 downloadUrl 缺失时由 LauncherUpdater 兜底构造此处地址。最新版本信息（latest.json）本身托管在 GitHub Pages，不再依赖 CNB。2026-09-12 品牌更名后仓库改为 Chert-WPF。</summary>
     public const string CnbReleaseBase = "https://cnb.cool/RLRS-Studio/Chert-WPF";
 
+    /// <summary>CNB 主仓库地址（Uri 类型），供关于页「了解仓库」超链接使用。</summary>
+    public static readonly Uri CnbRepoUri = new Uri(CnbReleaseBase);
+
+    /// <summary>RLRS Studio 官网地址（关于页「了解仓库」链接）。工作室枢纽站托管在 GitHub Pages。</summary>
+    public const string StudioSiteUrl = "https://remix-laser-raising-studio.github.io/";
+
+    /// <summary>RLRS Studio 官网地址（Uri 类型），供关于页超链接使用。</summary>
+    public static readonly Uri StudioSiteUri = new Uri(StudioSiteUrl);
+
     /// <summary>
     /// 更新信息（latest.json）静态地址：启动器专属 GitHub Pages 站点托管的 <c>latest.json</c>
     /// （<c>chert-launcher.github.io</c>，三端共用，GitHub Pages 走独立 CDN，通常不受 github.com 故障影响）。
