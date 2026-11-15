@@ -263,6 +263,8 @@ public static class CrashRepairEngine
         plan.CanRepair = true;
         plan.Strategy = RepairStrategy.SwitchJava;
         plan.RequiredJavaMajor = required;
+        // 轮换兜底：把本次实际使用的 Java 带给 ApplyRepairAsync，供其从候选里排除
+        plan.FailedJavaPath = currentJava?.JavaExe;
         plan.Title = "切换到兼容的 Java";
         plan.Description =
             $"游戏/模组要求 Java {required} 或以上，将自动选择或下载安装匹配的 Java。仅影响启动器使用的 Java，不修改游戏文件。";

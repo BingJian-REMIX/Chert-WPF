@@ -87,6 +87,9 @@ public class CrashRepairPlan
     /// <summary>切换 Java 方案所需的最低 Java 主版本号。</summary>
     public int? RequiredJavaMajor { get; set; }
 
+    /// <summary>本次崩溃实际使用的 Java 路径（轮换兜底时据此排除，避免反复切回同一个）。</summary>
+    public string? FailedJavaPath { get; set; }
+
     /// <summary>重新下载库方案对应的版本 id。</summary>
     public string? VersionId { get; set; }
 

@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
 using Chert.Core.Localization;
-using Chert.Core.Launcher;
 using Chert.Core.Profiles;
 using Chert.Core.Theme;
 using Chert.Core.UI;
@@ -160,35 +159,8 @@ public partial class App : Application
             profile = new LauncherProfile();
         }
 
-        // bug #19：首次安装（尚未配置 Java）时自动探测本机 Java 并持久化，避免每次都要手动「自动检测」。
-        // 探测失败不影响启动，仅静默跳过。
-        if (string.IsNullOrWhiteSpace(profile.JavaPath))
-        {
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    // 走 JavaValidator 交叉校验后的清单，剔除「假 Java」/ 损坏安装
-                    var javas = await JavaValidator.DetectValidatedAsync();
-                    var required = GameConstants.MinimumJavaMajorVersion;
-                    var best = javas.Where(j => j.MajorVersion >= required)
-                                    .OrderByDescending(j => j.MajorVersion).FirstOrDefault()
-                                ?? javas.OrderByDescending(j => j.MajorVersion).FirstOrDefault();
-                    if (best is not null)
-                    {
-                        profile.JavaPath = best.JavaExe;
-                        // ProfileStore.Save 依据 profile.GameRoot 落盘，首次启动时需兜底填充。
-                        if (string.IsNullOrWhiteSpace(profile.GameRoot))
-                            profile.GameRoot = GameConstants.DefaultGameRoot;
-                        ProfileStore.Save(profile);
-                    }
-                }
-                catch
-                {
-                    // 探测失败不影响启动
-                }
-            });
-        }
+        // 不再在首次启动时预填 profile.JavaPath：该字段现在是「Java 轮换优先级首选」而非全局 Java，
+        // 预填会让用户从没设置过却被锁定在一个 Java 上。按 version.json 挑包 + 崩溃轮换已足够兜底。
 
         // 订阅主题变更事件
         ThemeManager.OnThemeChanged += ApplyTheme;

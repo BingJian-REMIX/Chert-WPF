@@ -20,6 +20,15 @@ public class LauncherService : ILogger
 {
     public static LauncherService Instance { get; private set; } = new(GameConstants.DefaultGameRoot);
 
+    /// <summary>
+    /// Java 轮换排除集：本次崩溃自动修复链中已证实会崩的 Java 路径。
+    /// 仅存在于进程内，不写入 profile；用户主动启动 / 修复链结束时清空。
+    /// </summary>
+    private readonly HashSet<string> _javaRotationExcluded = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>清空 Java 轮换排除集（每次用户主动启动时调用）。</summary>
+    public void ResetJavaRotation() => _javaRotationExcluded.Clear();
+
     /// <summary>游戏目录切换后触发，供各页面刷新版本列表 / 存档列表等（bug #26）。</summary>
     public static event Action? GameRootChanged;
 
@@ -557,28 +566,36 @@ public class LauncherService : ILogger
 
             case RepairStrategy.SwitchJava:
             {
-                // 优先用崩溃方案给出的要求；否则按该版本自身的 Java 需求推断（1.16-→8，1.21+→21）
+                // 轮换兜底：排除本次导致崩溃的 Java，重启时 ResolveJavaAsync 按优先级落到下一候选。
+                // 不再写 profile.JavaPath —— 那是「误定义全局 Java」，会把所有版本锁死在同一个 Java 上，
+                // 且 FindBestAsync 每次都挑同一个最高版本，自动修复循环永远切不出去。
+                if (!string.IsNullOrWhiteSpace(plan.FailedJavaPath))
+                    _javaRotationExcluded.Add(plan.FailedJavaPath);
+
                 var required = plan.RequiredJavaMajor
                     ?? (string.IsNullOrEmpty(plan.VersionId)
                         ? GameConstants.MinimumJavaMajorVersion
                         : JavaDetector.RequiredMajorForVersionId(GameRoot, plan.VersionId));
-                // ★ issue #5-②：FindBestAsync 必须带上自定义游戏目录的 runtime，
-                //   否则装在 {GameRoot}/runtime 的 Java 检测不到 → 每次修复都重新拉 180MB。
-                var java = await JavaDetector.FindBestAsync(required, required == 8,
-                    new[] { Path.Combine(GameRoot, "runtime") });
-                if (java is null)
+
+                var remaining = (await JavaDetector.DetectAsync(new[] { Path.Combine(GameRoot, "runtime") }))
+                    .Where(j => !_javaRotationExcluded.Contains(j.JavaExe))
+                    .Where(j => required == 8 ? j.MajorVersion == 8 : j.MajorVersion >= required)
+                    .ToList();
+                if (remaining.Count > 0)
                 {
-                    Log($"未找到 Java {required}+，尝试下载安装（{profile.PreferredJavaVendor}）…");
-                    java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
+                    Log($"自动修复：排除崩溃的 Java，剩余 {remaining.Count} 个兼容候选，重启时自动轮换");
+                    return true;
                 }
+
+                // 候选轮换耗尽才下载安装（装到 {GameRoot}/runtime，重启时自然被检测到）
+                Log($"兼容 Java 已轮换耗尽，尝试下载安装 Java {required}（{profile.PreferredJavaVendor}）…");
+                var java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
                 if (java is null)
                 {
                     Log($"自动修复失败：无法获取 Java {required}+");
                     return false;
                 }
-                profile.JavaPath = java.JavaExe;
-                ProfileStore.Save(profile);
-                Log($"自动修复：切换 Java 至 {java}");
+                Log($"自动修复：已安装 {java}，重启时自动选用");
                 return true;
             }
 
@@ -815,49 +832,80 @@ public class LauncherService : ILogger
     }
 
     /// <summary>
-    /// 解析启动该版本应使用的 Java（对齐 MCLCS-Linux 的按版本智能选版）：
-    /// 1. 显式路径优先（CLI &gt; 每版本覆盖 &gt; 全局）；版本不满足时<b>仍然尊重</b>，
-    ///    但明确提示（此前会静默改用检测到的版本，用户不知道自己指定的路径已被忽略）；
-    /// 2. 否则在已检测的 Java 里挑「满足要求且尽可能低」的（老 MC/Forge 常不兼容过高 Java）；
-    ///    【修复】此前只要检测到任何 Java 就直接返回，导致**从不触发自动安装** ——
-    ///    机器上只有 Java 8 时，启动 1.21 会拿着 Java 8 直接崩；
-    /// 3. 本地没有满足要求的才询问并下载安装；
-    /// 4. 安装失败/被取消：绝不用不兼容的 Java 静默启动，明确报错。
+    /// 解析启动该版本应使用的 Java：
+    /// 1. CLI 参数 / 每版本覆盖是「本次启动或该版本的明确决定」，保持强制语义；
+    /// 2. 全局设置页的 <see cref="LauncherProfile.JavaPath"/> 只是 <b>Java 轮换优先级首选</b>，
+    ///    不是全局 Java：把它提到候选首位，兼容该版本需求才优先使用，不兼容则自动落下一位；
+    /// 3. 其余按 version.json 的 javaVersion 挑「满足且尽可能低」，原有挑包逻辑完全不动；
+    /// 4. 崩溃轮换中已证实会崩的 Java 从候选里剔除，重启时自然落到下一个；
+    /// 5. 本地没有满足要求的才询问并下载安装；安装失败/取消不静默用不兼容 Java 启动。
     /// </summary>
     private async Task<JavaInfo> ResolveJavaAsync(LauncherProfile profile, VersionProfile vp,
         LaunchCliOverrides? cliOverrides, string versionId, CancellationToken ct)
     {
         var required = JavaDetector.RequiredMajorForVersionId(GameRoot, versionId);
-        var explicitPath = cliOverrides?.JavaPath ?? vp.JavaPath ?? profile.JavaPath;
 
-        if (!string.IsNullOrEmpty(explicitPath) && File.Exists(explicitPath))
+        // ① 强制层：CLI > 每版本覆盖。针对单次启动 / 单个版本，仍完全尊重用户决定。
+        var forcedPath = cliOverrides?.JavaPath ?? vp.JavaPath;
+        if (!string.IsNullOrEmpty(forcedPath) && File.Exists(forcedPath))
         {
-            var (major, raw) = await JavaDetector.QueryVersionAsync(explicitPath);
+            var (major, raw) = await JavaDetector.QueryVersionAsync(forcedPath);
             if (major > 0)
-            {
-                bool ok = required == 8 ? major == 8 : major >= required;
-                if (!ok)
-                    ToastService.Show("Java 版本可能不兼容",
-                        $"该版本需要 Java {required}，而你指定的是 Java {major}（{explicitPath}）。"
-                        + "已按你的选择继续启动；若无法进入游戏，请在「设置 → Java」更换。",
-                        ToastKind.Warning);
-                return new JavaInfo { JavaExe = explicitPath, MajorVersion = major, RawVersion = raw };
-            }
+                return new JavaInfo { JavaExe = forcedPath, MajorVersion = major, RawVersion = raw };
 
-            // 路径失效（被卸载 / 移动）：不再静默改用自动检测，明确告知
             ToastService.Show("Java 路径已失效",
-                $"设置的 Java 无法执行：{explicitPath}\n已改用自动检测到的 Java，请在「设置 → Java」更新路径。",
+                $"指定的 Java 无法执行：{forcedPath}\n已改用自动挑选的 Java，请更新该路径。",
                 ToastKind.Warning);
         }
 
-        var detected = await JavaDetector.DetectAsync(new[] { Path.Combine(GameRoot, "runtime") });
+        // ② 候选清单：本机检测 + 自定义目录 runtime；剔除本轮崩溃轮换已排除的 Java。
+        var detected = (await JavaDetector.DetectAsync(new[] { Path.Combine(GameRoot, "runtime") }))
+            .Where(j => !_javaRotationExcluded.Contains(j.JavaExe)).ToList();
+
+        // ③ 设置页 Java = 轮换优先级（不是全局强制）：有效且兼容才优先，否则交给按 JSON 挑包。
+        var preferred = profile.JavaPath;
+        JavaInfo? preferredPick = null;
+        if (!string.IsNullOrWhiteSpace(preferred) && File.Exists(preferred)
+            && !_javaRotationExcluded.Contains(preferred))
+        {
+            var p = detected.FirstOrDefault(j =>
+                string.Equals(j.JavaExe, preferred, StringComparison.OrdinalIgnoreCase));
+            if (p is null)
+            {
+                var (pMajor, pRaw) = await JavaDetector.QueryVersionAsync(preferred);
+                if (pMajor > 0)
+                {
+                    p = new JavaInfo { JavaExe = preferred, MajorVersion = pMajor, RawVersion = pRaw };
+                    detected.Insert(0, p);   // 提到候选首位 = 提升轮换优先级
+                }
+            }
+            if (p is not null)
+            {
+                bool compatible = required == 8 ? p.MajorVersion == 8 : p.MajorVersion >= required;
+                if (compatible)
+                    preferredPick = p;
+                else
+                    ToastService.Show("首选 Java 版本不兼容",
+                        $"该版本需要 Java {required}，设置页首选为 Java {p.MajorVersion}。已自动改用兼容的 Java。",
+                        ToastKind.Warning);
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(preferred) && !File.Exists(preferred))
+        {
+            ToastService.Show("Java 路径已失效",
+                $"设置页首选的 Java 不存在：{preferred}\n已按版本自动挑选 Java。", ToastKind.Warning);
+        }
+
+        // ④ 首选兼容则优先使用；否则沿用原有按 version.json 的挑包逻辑，规则完全不动。
+        if (preferredPick is not null) return preferredPick;
+
         var satisfying = (required == 8
                 ? detected.Where(j => j.MajorVersion == 8)
                 : detected.Where(j => j.MajorVersion >= required))
             .OrderBy(j => j.MajorVersion).ToList();
         if (satisfying.Count > 0) return satisfying[0];
 
-        // 本地没有满足要求的 Java：询问后下载安装该版本所需主版本
+        // ⑤ 本地没有满足要求的 Java：询问后下载安装该版本所需主版本
         var java = await EnsureJavaWithUiAsync(required, GameRoot, profile, ct);
         if (java is not null) return java;
 
@@ -910,7 +958,8 @@ public class LauncherService : ILogger
         //   否则已装好的 Java 被误判缺失，反复自动安装。
         var existing = await JavaDetector.FindBestAsync(required, required == 8,
             new[] { Path.Combine(gameRoot, "runtime") });
-        if (existing is not null) return existing;
+        // 崩溃轮换中已排除的 Java 不能再被当作「本地已有」直接返回，否则会切回刚崩的那个
+        if (existing is not null && !_javaRotationExcluded.Contains(existing.JavaExe)) return existing;
 
         if (!ConfirmJavaDownload(required))
             throw new InvalidOperationException("已取消 Java 自动安装，启动中止。请在「设置 → Java」手动指定 Java 后重试。");

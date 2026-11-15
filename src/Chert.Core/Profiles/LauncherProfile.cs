@@ -33,6 +33,12 @@ public class LauncherProfile
     [JsonPropertyName("minMemoryMb")]
     public int MinMemoryMb { get; set; } = 512;
 
+    /// <summary>
+    /// Java 轮换优先级首选（<b>不是全局 Java</b>）：仅把该路径提到候选列表首位，
+    /// 启动某版本时仍由 version.json 的 javaVersion 判定兼容性，不兼容会自动落到下一候选；
+    /// 因 Java 版本崩溃时也会从它开始逐个轮换。留空 = 完全按版本自动挑选。
+    /// 每版本覆盖（VersionProfile.JavaPath）与 CLI 参数不受此限制，仍是强制指定。
+    /// </summary>
     [JsonPropertyName("javaPath")]
     public string? JavaPath { get; set; }
 

@@ -21,6 +21,9 @@ public static class LaunchCoordinator
 {
     public static async Task LaunchAsync(string versionId, Action<string>? status = null)
     {
+        // 用户主动启动即重置 Java 轮换（排除集只在一次崩溃修复链内有效）
+        LauncherService.Instance.ResetJavaRotation();
+
         if (string.IsNullOrEmpty(versionId))
         {
             status?.Invoke("请先选择一个版本");
@@ -265,6 +268,7 @@ public static class LaunchCoordinator
                     ? "已尝试自动修复但仍崩溃，且无法继续自动修复。"
                     : $"已达最大自动修复次数（{GameConstants.MaxRepairAttempts}）。");
             }
+            LauncherService.Instance.ResetJavaRotation();
             return;
         }
 
