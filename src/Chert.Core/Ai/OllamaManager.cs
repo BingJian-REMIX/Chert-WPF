@@ -176,36 +176,40 @@ public static class OllamaManager
         }
     }
 
-    /// <summary>判断指定模型是否已拉取（出现在 /api/tags 列表中）。</summary>
-    public static async Task<bool> IsModelPulledAsync(string tag, HttpClient? client = null)
+    /// <summary>一次列出本机 Ollama 已拉取的全部模型 tag（/api/tags 的 models[].name）。</summary>
+    public static async Task<IReadOnlyList<string>> ListInstalledTagsAsync(HttpClient? client = null)
     {
         var own = client is null;
         try
         {
             client ??= new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             using var resp = await client.GetAsync(BaseUrl + "/api/tags");
-            if (!resp.IsSuccessStatusCode) return false;
+            if (!resp.IsSuccessStatusCode) return Array.Empty<string>();
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var tags = new List<string>();
             if (doc.RootElement.TryGetProperty("models", out var arr))
             {
                 foreach (var m in arr.EnumerateArray())
                 {
-                    if (m.TryGetProperty("name", out var n) &&
-                        string.Equals(n.GetString(), tag, StringComparison.OrdinalIgnoreCase))
-                        return true;
+                    if (m.TryGetProperty("name", out var n) && !string.IsNullOrWhiteSpace(n.GetString()))
+                        tags.Add(n.GetString()!);
                 }
             }
-            return false;
+            return tags;
         }
         catch
         {
-            return false;
+            return Array.Empty<string>();
         }
         finally
         {
             if (own) client?.Dispose();
         }
     }
+
+    /// <summary>判断指定模型是否已拉取（出现在 /api/tags 列表中）。</summary>
+    public static async Task<bool> IsModelPulledAsync(string tag, HttpClient? client = null) =>
+        (await ListInstalledTagsAsync(client)).Any(t => string.Equals(t, tag, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// 安装 Ollama：下载安装器并运行（静默安装），进度回报 0→1。

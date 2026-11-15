@@ -22,6 +22,8 @@ namespace Chert.App.ViewModels;
 public class AiSettingsViewModel : ObservableObject
 {
     private readonly HashSet<string> _pulledTags = new(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<LocalModelInfo> _localModels = OllamaModels.Catalog;
+    private string _customLocalModelTag = "";
 
     // ---- 配置（绑定到 profile.Ai 的副本，ApplyTo 时回写）----
     private bool _aiEnabled;
@@ -86,7 +88,34 @@ public class AiSettingsViewModel : ObservableObject
     public bool AiModTranslate { get => _aiModTranslate; set => SetField(ref _aiModTranslate, value); }
 
     // ---- 本地部署（Ollama）----
-    public IReadOnlyList<LocalModelInfo> LocalModels => OllamaModels.Catalog;
+    /// <summary>下拉项 = 本机已装（/api/tags 动态发现）+ 预设可下载模型 + 用户自定义 tag。</summary>
+    public IReadOnlyList<LocalModelInfo> LocalModels => _localModels;
+
+    public string CustomLocalModelTag
+    {
+        get => _customLocalModelTag;
+        set => SetField(ref _customLocalModelTag, value);
+    }
+
+    /// <summary>解析当前选中项：命中列表用其 tag；未命中则把输入文本本身当自定义 tag。</summary>
+    private LocalModelInfo? ResolveSelected()
+    {
+        var name = SelectedLocalModel;
+        if (string.IsNullOrWhiteSpace(name)) return null;
+        foreach (var m in _localModels)
+            if (string.Equals(m.DisplayName, name, StringComparison.OrdinalIgnoreCase)) return m;
+        return MakeCustomItem(name.Trim(), _pulledTags.Contains(name.Trim()));
+    }
+
+    private static LocalModelInfo MakeCustomItem(string tag, bool installed) => new()
+    {
+        DisplayName = tag,
+        OllamaTag = tag,
+        RecommendTag = installed ? "【本机已装】" : "【自定义】",
+        SubText = installed
+            ? "从本机 Ollama 检测到的模型，可直接用于本地部署。"
+            : "自定义 Ollama tag；若尚未拉取，可点「下载模型」拉取。"
+    };
 
     public string SelectedLocalModel
     {
@@ -103,12 +132,14 @@ public class AiSettingsViewModel : ObservableObject
         }
     }
 
-    public string SelectedModelSubText => OllamaModels.ByDisplayName(SelectedLocalModel)?.SubText ?? "";
+    public string SelectedModelSubText => ResolveSelected()?.SubText ?? "";
     public string SelectedModelSizeText =>
-        OllamaModels.ByDisplayName(SelectedLocalModel) is { } m ? $"{m.SizeGb} GB · {m.RecommendTag}" : "";
+        ResolveSelected() is { } m
+            ? (m.SizeGb > 0 ? $"{m.SizeGb} GB · {m.RecommendTag}" : m.RecommendTag)
+            : "";
     public string ModelButtonText =>
         ModelReady ? "已就绪"
-        : (OllamaModels.ByDisplayName(SelectedLocalModel) is { } m ? $"下载模型 ({m.SizeGb}GB)" : "下载模型");
+        : (ResolveSelected() is { } m && m.SizeGb > 0 ? $"下载模型 ({m.SizeGb}GB)" : "下载模型");
 
     public bool OllamaInstalled { get => _ollamaInstalled; set => SetField(ref _ollamaInstalled, value); }
     public string OllamaVersion { get => _ollamaVersion; set => SetField(ref _ollamaVersion, value); }
@@ -152,6 +183,7 @@ public class AiSettingsViewModel : ObservableObject
     public ICommand CancelModelDownloadCommand { get; }
     public ICommand TestConnectionCommand { get; }
     public ICommand RefreshAiStatusCommand { get; }
+    public ICommand AddCustomModelCommand { get; }
 
     public AiSettingsViewModel()
     {
@@ -161,6 +193,7 @@ public class AiSettingsViewModel : ObservableObject
         CancelModelDownloadCommand = new RelayCommand(_ => _modelCts?.Cancel());
         TestConnectionCommand = new AsyncRelayCommand(_ => TestConnectionAsync());
         RefreshAiStatusCommand = new AsyncRelayCommand(_ => RefreshStatusAsync());
+        AddCustomModelCommand = new RelayCommand(_ => AddCustomModel());
     }
 
     /// <summary>从 profile 填充 AI 配置（对齐 Linux 构造逻辑）。</summary>
@@ -169,7 +202,13 @@ public class AiSettingsViewModel : ObservableObject
         var ai = profile.Ai ?? new AiConfig();
         AiEnabled = ai.Enabled;
         AiMode = ai.Mode.ToString();
-        SelectedLocalModel = OllamaModels.ByTag(ai.SelectedLocalModel)?.DisplayName ?? OllamaModels.Default.DisplayName;
+        // 自定义 tag 可能不在预设目录里，先补进下拉项，避免绑定初始化把选中值清空
+        var localTag = ai.SelectedLocalModel;
+        var preset = OllamaModels.ByTag(localTag);
+        if (preset is null && !string.IsNullOrWhiteSpace(localTag))
+            EnsureLocalModelItem(localTag!);
+        SelectedLocalModel = preset?.DisplayName
+            ?? (string.IsNullOrWhiteSpace(localTag) ? OllamaModels.Default.DisplayName : localTag!);
         _lastCommittedModel = SelectedLocalModel;
         // 落盘的是混淆串（老配置可能是明文，RevealApiKey 会兼容），输入框要的是明文
         AiApiKey = Assistant.RevealApiKey(ai);
@@ -192,7 +231,7 @@ public class AiSettingsViewModel : ObservableObject
             Mode = Enum.TryParse<Chert.Core.Ai.AiMode>(AiMode, out var am)
                 ? am
                 : Chert.Core.Ai.AiMode.External,
-            SelectedLocalModel = OllamaModels.ByDisplayName(SelectedLocalModel)?.OllamaTag ?? OllamaModels.Default.OllamaTag,
+            SelectedLocalModel = ResolveSelected()?.OllamaTag ?? OllamaModels.Default.OllamaTag,
             ApiKey = null,   // 真正的取值在下面 CommitApiKey 里混淆后写入
             Endpoint = AiEndpoint,
             Model = AiModel,
@@ -217,13 +256,17 @@ public class AiSettingsViewModel : ObservableObject
             OllamaVersion = det.Version;
             OllamaServiceStatus = await OllamaManager.GetServiceStatusAsync();
 
+            var installedTags = await OllamaManager.ListInstalledTagsAsync();
             _pulledTags.Clear();
-            foreach (var m in OllamaModels.Catalog)
-                if (await OllamaManager.IsModelPulledAsync(m.OllamaTag))
-                    _pulledTags.Add(m.OllamaTag);
-
-            var info = OllamaModels.ByDisplayName(SelectedLocalModel);
-            ModelReady = info is not null && _pulledTags.Contains(info.OllamaTag);
+            foreach (var tag in installedTags)
+            {
+                _pulledTags.Add(tag);
+                // Ollama 接受省略 :latest 的写法，两种 tag 都算已装
+                if (tag.EndsWith(":latest", StringComparison.OrdinalIgnoreCase))
+                    _pulledTags.Add(tag.Substring(0, tag.Length - ":latest".Length));
+            }
+            RebuildLocalModels(installedTags);
+            RefreshModelReady();
         }
         catch
         {
@@ -233,15 +276,59 @@ public class AiSettingsViewModel : ObservableObject
 
     private void RefreshModelReady()
     {
-        var info = OllamaModels.ByDisplayName(SelectedLocalModel);
+        var info = ResolveSelected();
         ModelReady = info is not null && _pulledTags.Contains(info.OllamaTag);
         OnPropertyChanged(nameof(ModelButtonText));
+    }
+
+    /// <summary>按 /api/tags 重建下拉项：已装的非预设模型优先，随后是预设目录；保留当前自定义选择。</summary>
+    private void RebuildLocalModels(IReadOnlyList<string> installedTags)
+    {
+        var list = new List<LocalModelInfo>();
+        foreach (var tag in installedTags)
+            if (OllamaModels.ByTag(tag) is null &&
+                !list.Any(m => string.Equals(m.OllamaTag, tag, StringComparison.OrdinalIgnoreCase)))
+                list.Add(MakeCustomItem(tag, true));
+        list.AddRange(OllamaModels.Catalog);
+        var current = SelectedLocalModel;
+        if (!string.IsNullOrWhiteSpace(current) &&
+            !list.Any(m => string.Equals(m.DisplayName, current, StringComparison.OrdinalIgnoreCase)))
+            list.Insert(0, MakeCustomItem(current.Trim(), _pulledTags.Contains(current.Trim())));
+        _localModels = list;
+        OnPropertyChanged(nameof(LocalModels));
+    }
+
+    /// <summary>把一个自定义 tag 补进下拉项（幂等）。</summary>
+    private void EnsureLocalModelItem(string tag)
+    {
+        var t = tag.Trim();
+        if (_localModels.Any(m => string.Equals(m.OllamaTag, t, StringComparison.OrdinalIgnoreCase))) return;
+        var list = _localModels.ToList();
+        list.Insert(0, MakeCustomItem(t, _pulledTags.Contains(t)));
+        _localModels = list;
+        OnPropertyChanged(nameof(LocalModels));
+    }
+
+    /// <summary>用户手动输入 Ollama tag 后加入下拉并选中，落盘时写入该 tag。</summary>
+    private void AddCustomModel()
+    {
+        var tag = CustomLocalModelTag?.Trim();
+        if (string.IsNullOrEmpty(tag))
+        {
+            Status = "请先填写模型 tag";
+            return;
+        }
+        EnsureLocalModelItem(tag);
+        SelectedLocalModel = tag;
+        _lastCommittedModel = tag;
+        CustomLocalModelTag = "";
+        Status = $"已添加模型 tag：{tag}";
     }
 
     /// <summary>用户切换本地模型时的回调：已拉取直接接受；未拉取则弹确认窗，取消则回退。</summary>
     public async Task TrySelectLocalModelAsync(string displayName)
     {
-        var info = OllamaModels.ByDisplayName(displayName);
+        var info = _localModels.FirstOrDefault(m => m.DisplayName == displayName);
         if (info is null) return;
         if (displayName == _lastCommittedModel || _pulledTags.Contains(info.OllamaTag))
         {
@@ -249,11 +336,13 @@ public class AiSettingsViewModel : ObservableObject
             return;
         }
 
-        var msg = info.OllamaTag.Contains("phi")
-            ? "需额外下载 2.2GB，文件较大，是否继续？"
-            : info.OllamaTag.Contains("internlm")
-                ? "需额外下载 1.1GB，是否继续？"
-                : $"需额外下载 {info.SizeGb}GB，是否继续？";
+        var msg = info.SizeGb <= 0
+            ? "该 tag 尚未在本机拉取，是否现在下载？"
+            : info.OllamaTag.Contains("phi")
+                ? "需额外下载 2.2GB，文件较大，是否继续？"
+                : info.OllamaTag.Contains("internlm")
+                    ? "需额外下载 1.1GB，是否继续？"
+                    : $"需额外下载 {info.SizeGb}GB，是否继续？";
 
         if (!UIService.Confirm(msg, "下载模型"))
         {
@@ -300,7 +389,7 @@ public class AiSettingsViewModel : ObservableObject
     /// <summary>拉取选中的本地模型，支持进度与取消。</summary>
     private async Task PullModelAsync()
     {
-        var info = OllamaModels.ByDisplayName(SelectedLocalModel);
+        var info = ResolveSelected();
         if (info is null) return;
         _modelCts = new CancellationTokenSource();
         ModelDownloading = true;
@@ -331,9 +420,14 @@ public class AiSettingsViewModel : ObservableObject
         }
     }
 
-    /// <summary>测试外部 API 连接，成功后按地址自动补全默认模型名。</summary>
+    /// <summary>测试连接：本地模式打 /api/chat，外部模式打用户填写的 OpenAI 兼容端点。</summary>
     private async Task TestConnectionAsync()
     {
+        if (AiMode == "Local")
+        {
+            await TestLocalConnectionAsync();
+            return;
+        }
         if (string.IsNullOrWhiteSpace(AiEndpoint))
         {
             Status = "请先填写 API 地址";
@@ -374,6 +468,45 @@ public class AiSettingsViewModel : ObservableObject
         catch (Exception ex)
         {
             Status = $"连接失败：{ex.Message}";
+        }
+    }
+
+    /// <summary>本地模式实测：用当前选中的 tag 发一次 /api/chat，冷启动最多等 90 秒。</summary>
+    private async Task TestLocalConnectionAsync()
+    {
+        var tag = ResolveSelected()?.OllamaTag;
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            Status = "请先选择或添加本地模型";
+            return;
+        }
+        Status = $"正在测试本地模型 {tag}（首次加载可能较慢）…";
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(90) };
+            var body = new
+            {
+                model = tag,
+                messages = new[] { new { role = "user", content = "ping" } },
+                stream = false,
+                options = new { num_predict = 1 }
+            };
+            var content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
+            using var resp = await client.PostAsync(OllamaManager.BaseUrl + "/api/chat", content);
+            if (resp.IsSuccessStatusCode)
+            {
+                Status = $"本地连接成功：{tag}";
+            }
+            else
+            {
+                var detail = await resp.Content.ReadAsStringAsync();
+                if (detail.Length > 160) detail = detail.Substring(0, 160);
+                Status = $"本地连接失败：HTTP {(int)resp.StatusCode} {detail}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Status = $"本地连接失败：{ex.Message}";
         }
     }
 }

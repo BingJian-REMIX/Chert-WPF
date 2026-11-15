@@ -121,11 +121,21 @@
 
                     <TextBlock Text="{Binding SelectedModelSubText}" FontSize="12" Foreground="{DynamicResource SecondaryForeground}" TextWrapping="Wrap" Margin="0,2,0,0"/>
 
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+
+                        <TextBox Text="{Binding CustomLocalModelTag, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Width="260" ToolTip="输入本机 Ollama 模型 tag（如 qwen2.5-coder-3b:latest），可在 /api/tags 查看" Background="{DynamicResource InputBackground}" Foreground="{DynamicResource InputForeground}" BorderBrush="{DynamicResource InputBorder}"/>
+
+                        <Button Content="添加模型 tag" Command="{Binding AddCustomModelCommand}" Padding="8,3" Margin="8,0,0,0"/>
+
+                    </StackPanel>
+
 
 
                     <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
 
                         <Button Content="{Binding ModelButtonText}" Command="{Binding PullModelCommand}" Width="170" Padding="8,3" Style="{StaticResource PrimaryButtonStyle}"/>
+
+                        <Button Content="{theme:Loc settings.ai_test}" Command="{Binding TestConnectionCommand}" Padding="8,3" Margin="8,0,0,0"/>
 
                         <TextBlock Text="{Binding ModelDownloadText}" VerticalAlignment="Center" Margin="10,0,0,0" Foreground="{DynamicResource SecondaryForeground}"/>
 
