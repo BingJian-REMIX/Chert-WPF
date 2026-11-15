@@ -21,6 +21,22 @@ public partial class MarkdownTextBlock : UserControl
     public MarkdownTextBlock()
     {
         InitializeComponent();
+        SizeChanged += (_, _) => SyncPageWidth();
+    }
+
+    /// <summary>把 FlowDocument 的列宽钉到 RichTextBox 的实际可用宽度。</summary>
+    /// <remarks>宽度不受限的父容器（水平 StackPanel / ScrollViewer）里，RichTextBox 测量时
+    /// FlowDocument 会塌缩到最小列宽，中文逐字换行成竖条。只在宽度变化超过 1px 时写回，
+    /// 避免 SizeChanged 与重排互相触发形成循环。</remarks>
+    private void SyncPageWidth()
+    {
+        var doc = Rtb.Document;
+        if (doc is null) return;
+        var w = Rtb.ActualWidth;
+        if (w <= 1) w = ActualWidth;
+        if (w <= 1) return;
+        if (!double.IsNaN(doc.PageWidth) && Math.Abs(doc.PageWidth - w) < 1) return;
+        doc.PageWidth = w;
     }
 
     private static void OnMarkdownChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -42,5 +58,6 @@ public partial class MarkdownTextBlock : UserControl
             doc.Blocks.Add(new Paragraph(new Run(md ?? "")));
         }
         Rtb.Document = doc;
+        SyncPageWidth();
     }
 }

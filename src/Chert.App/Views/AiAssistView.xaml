@@ -223,13 +223,23 @@
 
 
 
-                                <!-- 助手气泡（左对齐 + 头像 + Markdown） -->
+                                <!-- 助手气泡：头像加 Markdown 回复。这一行必须用 Grid 的列约束给出确定宽度，
+                                     水平 StackPanel 配 Left 对齐时 RichTextBox 拿不到可用宽度，FlowDocument
+                                     会塌缩成窄竖条，中文被逐字换行。 -->
 
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" MaxWidth="680"
+                                <Grid HorizontalAlignment="Stretch" MaxWidth="680"
 
-                                            Visibility="{Binding IsUser, Converter={StaticResource BoolToVisInvert}}">
+                                      Visibility="{Binding IsUser, Converter={StaticResource BoolToVisInvert}}">
 
-                                    <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
+                                    <Grid.ColumnDefinitions>
+
+                                        <ColumnDefinition Width="Auto"/>
+
+                                        <ColumnDefinition Width="*"/>
+
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,8,0"
 
                                             Background="{DynamicResource ControlBackground}" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
 
@@ -263,7 +273,9 @@
 
                                     </Border>
 
-                                    <Border Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4"
+                                    <Border Grid.Column="1" HorizontalAlignment="Stretch"
+
+                                            Background="{DynamicResource ControlBackground}" CornerRadius="14,14,14,4"
 
                                             Padding="12,10" BorderBrush="{DynamicResource ControlBorder}" BorderThickness="1">
 
@@ -271,7 +283,7 @@
 
                                     </Border>
 
-                                </StackPanel>
+                                </Grid>
 
                             </Grid>
 
