@@ -150,12 +150,14 @@ public static class GameConstants
     public static readonly Uri StudioSiteUri = new Uri(StudioSiteUrl);
 
     /// <summary>
-    /// 更新信息（latest.json）静态地址：启动器专属 GitHub Pages 站点托管的 <c>latest.json</c>
-    /// （<c>chert-launcher.github.io</c>，三端共用，GitHub Pages 走独立 CDN，通常不受 github.com 故障影响）。
+    /// 更新信息（latest.json）静态地址：工作室站 GitHub Pages 托管的 <c>latest.json</c>
+    /// （<c>remix-laser-raising-studio.github.io/RLRS-update/</c>，全生态统一更新枢纽，三端共用；
+    /// GitHub Pages 走独立 CDN，通常不受 github.com 故障影响）。
+    /// 旧地址 chert-launcher.github.io/latest.json 保留一个发版周期做兼容，本常量已指向新枢纽。
     /// 普通 HTTPS GET 即可读取，终端用户零 git 依赖；网络超时/失败即视为「已是最新」，绝不误报。
     /// 字段与解析逻辑见 <see cref="Chert.Core.Update.LauncherUpdater"/>。
     /// </summary>
-    public const string UpdateInfoUrl = "https://chert-launcher.github.io/latest.json";
+    public const string UpdateInfoUrl = "https://remix-laser-raising-studio.github.io/RLRS-update/latest.json";
 
     /// <summary>本启动器平台标识，对应 chert-launcher.github.io/latest.json 中各自的平台小节键名（wpf / linux / android）。
     /// 升级站点为 WPF / Linux / Android 三端共用，latest.json 根对象包含 <c>wpf</c>/<c>linux</c>/<c>android</c> 三个小节，
