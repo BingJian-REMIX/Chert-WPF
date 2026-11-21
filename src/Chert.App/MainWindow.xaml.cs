@@ -1199,6 +1199,11 @@ public partial class MainWindow : Window
 
         Loaded += (_, _) => RestoreWindowLayout();
 
+        // Win10 22H2：配置恢复的玻璃风格在 SourceInitialized 阶段申请背板太早
+        // （窗口尚未显示、最大化状态尚未恢复），DWM 的 BLURBEHIND 会在窗口成形后失效，
+        // 而窗口底已被设成透明 → 重进程序时整窗发黑。首次渲染完成后再申请一次。
+        ContentRendered += (_, _) => Dispatcher.BeginInvoke(RefreshGlassBackdrop, DispatcherPriority.Background);
+
 
 
         // 清单 #63：全局快捷键（主窗口句柄就绪后注册系统级热键）
@@ -1336,6 +1341,9 @@ public partial class MainWindow : Window
         // §2.3-16 焦点回归时检测手动丢入的新文件（首次 Activated 只建基线，不弹通知）
 
         Activated += MainWindow_Activated;
+
+        // Win10 BLURBEHIND 在窗口失焦 / 延迟渲染后可能未落地：重新激活时若背板不在，补申请一次。
+        Activated += (_, _) => { if (IsGlassStyle() && !_backdropActive) RefreshGlassBackdrop(); };
 
 
 
@@ -1623,6 +1631,9 @@ public partial class MainWindow : Window
             WindowState = WindowState.Normal;
 
         Activate();
+
+        // 托盘隐藏会改 ShowInTaskbar（可能重建 HWND），恢复后重申请背板，避免玻璃变黑。
+        Dispatcher.BeginInvoke(RefreshGlassBackdrop, DispatcherPriority.Background);
 
     }
 
@@ -3888,6 +3899,18 @@ public partial class MainWindow : Window
 
     }
 
+
+ 
+    /// <summary>
+    /// 重新向系统申请毛玻璃背板并同步窗体底色。
+    /// <para>Win10 22H2 的 BLURBEHIND 在窗口刚创建/从托盘恢复/句柄重建后可能失效，
+    /// 若不同步重申请，透明的 WPF 底色会直接露出黑屏。此操作幂等，可安全重复调用。</para>
+    /// </summary>
+    private void RefreshGlassBackdrop()
+    {
+        if (!IsGlassStyle()) return;
+        ApplyGlassSurface(TryEnableBackdrop());
+    }
 
 
     /// <summary>清单 #16：玻璃标签改「浏览器式」外观——顶部圆角、白 8% 描边、中性半透明底、等宽字、无下划线。</summary>
