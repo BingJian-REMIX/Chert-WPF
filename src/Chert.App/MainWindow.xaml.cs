@@ -4654,7 +4654,19 @@ public partial class MainWindow : Window
 
 
 
-    private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+    private void BtnClose_Click(object sender, RoutedEventArgs e)
+    {
+        // 开启「最小化到托盘」时，点 X 不退出进程：按最小化流程交给 MainWindow_StateChanged
+        // 隐藏窗口并移除任务栏按钮，托盘图标保持常驻；真正退出只走托盘右键「退出」。
+        // 关闭时还有下载任务的提示也只在真正退出时出现，避免缩托盘被误判为退出。
+        if (ProfileStore.Load(GameConstants.DefaultGameRoot).MinimizeToTray)
+        {
+            WindowState = WindowState.Minimized;
+            return;
+        }
+
+        Close();
+    }
 
 
 

@@ -79,6 +79,6 @@ title: bug文档
 ## 备注
 
 - 托盘图标：应用图标 `src/Chert.App/Resources/Chert.ico`（Windows 多分辨率 ico）同时作为 exe 应用图标（`csproj` 的 `ApplicationIcon`）与系统托盘图标（`Services/TrayIconService.cs` 从输出目录加载），构建时自动复制到输出目录。
-- 最小化到托盘为「常驻托盘图标」模式：图标始终存在，提供「打开主界面 / 退出」；仅当设置项「最小化到托盘」开启时，点最小化才隐藏主窗口。
+- 最小化到托盘为「常驻托盘图标」模式：图标始终存在，提供「打开主界面 / 退出」；设置项「最小化到托盘」开启时，点最小化或点标题栏 X 都会隐藏主窗口到托盘（X 不再直接退出），只有托盘右键「退出」才真正结束进程。
 - 除上述外，`OllamaStatusToBrushConverter.ConvertBack` 抛 `NotImplementedException` 属转换惯例（OneWay 不触发），非实际崩溃，未改动。
 - 主程序 `dotnet build src/Chert.App/Chert.App.csproj -c Debug`：**0 错误**（仅 26 个历史 warning，与本轮回合无关）。
