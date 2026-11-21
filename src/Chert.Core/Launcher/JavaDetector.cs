@@ -110,7 +110,15 @@ public static class JavaDetector
                 // 仍然只去 C 盘找 runtime → 找不到已装的 Java → 误判缺失）
                 Path.Combine(GameConstants.DefaultGameRoot, "runtime"),
                 // 系统默认目录兜底：官方启动器 / 旧版本安装的 Java 通常在这里
-                Path.Combine(GameConstants.SystemGameRoot, "runtime")
+                Path.Combine(GameConstants.SystemGameRoot, "runtime"),
+                // HMCL 管理的 Java（常见于国内用户）：%APPDATA%\.hmcl\java\<arch>
+                // issue：用户已装 Java 8 却报"查找失败"，根因是 HMCL 目录不在扫描清单。
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    ".hmcl", "java"),
+                // IntelliJ 自动下载的 JDK：%USERPROFILE%\.jdks
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".jdks"),
+                // 用户级程序安装目录：%LOCALAPPDATA%\Programs（Adoptium/Temurin/Scoop 等）
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs")
             })
                 if (Directory.Exists(baseDir)) candidates.Add(baseDir);
         }

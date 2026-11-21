@@ -90,7 +90,11 @@ public partial class App : Application
     /// <summary>命令里未捕获异常的统一出口：记日志 + Toast，不弹崩溃框。</summary>
     private static void ReportCommandError(Exception ex)
     {
-        WriteCrashLog("CommandError", ex);
+        // Java 缺失/取消安装是用户可预期的业务分支（用户点"否"、或机器未装所需 Java），
+        // 不是崩溃。只 Toast 提示，不写 chert_crash.log，避免反馈里出现假崩溃记录。
+        bool expected = ex is OperationCanceledException
+            || (ex is InvalidOperationException && ex.Message.Contains("Java", StringComparison.OrdinalIgnoreCase));
+        if (!expected) WriteCrashLog("CommandError", ex);
         if (ex is OperationCanceledException) return;
         var msg = ex.Message;
         if (string.IsNullOrWhiteSpace(msg)) msg = ex.GetType().Name;
